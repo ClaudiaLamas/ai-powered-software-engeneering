@@ -16,6 +16,7 @@ assumas nenhuma escolha técnica que não esteja registada nos documentos.
    - `docs/user-stories.md` — user stories e critérios de aceitação.
    - `docs/constraints.md` — restrições, pressupostos e decisões pendentes.
    - `docs/architecture.md` — arquitetura, componentes e responsabilidades.
+   - `docs/database.md` — modelo de dados e diagrama ER.
 2. Identifica os IDs (FN, US, R, DE, PN, CL, RNF, D) a que a tarefa diz respeito.
    Usa os termos do glossário do `README.md` (conta, função, Gestor, Membro,
    Administrador).
@@ -62,5 +63,8 @@ Pede confirmação explícita antes de:
 ## Convenções
 
 - Documentação e interface em português de Portugal.
+- Nomes no código em inglês: variáveis, funções, classes, módulos, tabelas,
+  colunas e valores de enumerações (ver `docs/database.md` e
+  `docs/architecture.md`). Os textos mostrados ao utilizador ficam em português.
 - Atualiza a documentação em `docs/` sempre que uma alteração aprovada mudar
   requisitos, regras ou decisões.
