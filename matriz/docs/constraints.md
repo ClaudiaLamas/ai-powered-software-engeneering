@@ -1,40 +1,45 @@
 # Restrições — Matriz
 
-Este ficheiro reúne as restrições de âmbito, as permissões por tipo de utilizador, os requisitos não funcionais, as decisões técnicas pendentes e as questões em aberto. O cliente não indicou nenhuma restrição; **tudo o que está aqui são pressupostos ou decisões pendentes**.
+Este ficheiro reúne as restrições de âmbito, as permissões, os requisitos não funcionais, as decisões técnicas pendentes e as questões em aberto. O cliente não indicou nenhuma restrição; **tudo o que está aqui são pressupostos, decisões internas (DE) ou decisões pendentes**.
 
 ## 1. Restrições de âmbito
 
 Decisões nossas, por validar com o cliente.
 
-- **O MVP inclui só as funcionalidades Must: FN01–FN09.** A lista completa está em [requirements.md](requirements.md#4-funcionalidades).
-- **Ficam fora do MVP:** prazos (FN10), "as minhas tarefas" (FN11), prioridades (FN12), pesquisa e filtros (FN13), comentários (FN14), notificações (FN15), anexos (FN16), subtarefas e dependências (FN17), histórico de alterações (FN18), relatórios (FN19), estados configuráveis (FN20), calendário e cronograma (FN21).
+- **O MVP inclui só as funcionalidades Must: FN01–FN09, FN14, FN27 e FN28.** A lista completa está em [requirements.md](requirements.md#4-funcionalidades).
+- **Ficam fora do MVP:** prazos (FN10), "as minhas tarefas" (FN11), prioridades (FN12), pesquisa e filtros (FN13), notificações (FN15), anexos (FN16), subtarefas e dependências (FN17), histórico de alterações das tarefas (FN18), relatórios (FN19), estados configuráveis (FN20), calendário e cronograma (FN21), pedir ajuda numa tarefa (FN29).
 - **Excluídos nesta fase:** utilizadores externos (FN22, R4), registo de tempo (FN23), práticas ágeis como sprints e backlog (FN24), integrações e migração de dados (FN25), várias línguas (FN26).
-- **Só existem três tipos de utilizador:** Administrador, Gestor de projeto e Membro (R5).
+- **As contas não têm papel próprio:** em cada projeto, uma conta é Gestor ou Membro; Administrador é uma permissão da conta, acumulável com essas funções (DE01, DE02).
+- **Cada projeto tem exatamente um Gestor** (DE06).
 - **Não existe uma entidade "equipa" separada:** a equipa de um projeto são os seus membros (R6).
-- **Uma tarefa pertence sempre a um projeto** e tem título, descrição, responsável e estado (R6, R7).
+- **Uma tarefa pertence sempre a um projeto** e tem título, descrição, um só responsável e estado (R6, R7, DE09).
 - **Os estados são três, fixos e iguais para todos os projetos:** Por fazer, Em curso e Concluída (R8).
 
-## 2. Permissões por tipo de utilizador
+## 2. Permissões
 
-Resumo das regras R10 e PN01–PN09. **Todas são pressupostos.**
+Resumo das decisões DE01–DE12 e das regras PN01–PN18. **Nenhuma foi validada pelo cliente.** As colunas Gestor e Membro referem-se à função da conta *naquele* projeto. Uma conta com permissão de Administrador que também participa num projeto tem, nesse projeto, as permissões da sua função.
 
-| Ação | Administrador | Gestor do projeto | Membro | Origem |
+| Ação | Administrador | Gestor do projeto | Membro do projeto | Origem |
 |---|---|---|---|---|
-| Criar e desativar contas | Sim | Não | Não | US02, PN01 |
-| Criar projetos | Não | Sim | Não | PN01 |
-| Editar e arquivar o projeto | Não | Sim | Não | US03, PN03 |
-| Adicionar e remover membros | Não | Sim | Não | US04, PN03 |
-| Ver o projeto, as tarefas e o progresso | Não | Sim | Sim | R10, PN02 |
-| Criar tarefas | Não | Sim | Não | PN05 |
-| Escolher ou mudar o responsável | Não | Sim | Não | PN05 |
-| Editar título e descrição de uma tarefa | Não | Sim | Sim | PN05 |
-| Mudar o estado de uma tarefa | Não | Sim | Sim | PN05 |
-| Eliminar tarefas | Não | Sim | Não | PN05 |
+| Criar e desativar contas | Sim | Não | Não | US02, DE03 |
+| Dar e retirar a permissão de Administrador | Sim | Não | Não | US11, DE05 |
+| Criar projetos e atribuir o Gestor | Sim | Não | Não | US03, DE06 |
+| Trocar o Gestor (incluindo adicionar o novo Gestor à equipa) | Sim | Não | Não | US12, DE08 |
+| Ver nome, estado, Gestor e membros de qualquer projeto (área de administração) | Sim | — | — | PN02 |
+| Consultar o registo de ações administrativas | Sim | Não | Não | US14, DE12 |
+| Editar e arquivar o projeto | Não | Sim | Não | US10, DE07 |
+| Adicionar e remover membros | Não (exceto ao trocar o Gestor) | Sim | Não | US04, DE07, DE08 |
+| Ver o projeto, as tarefas, os comentários e o progresso | Não | Sim | Sim | R10, PN02 |
+| Criar tarefas, editar título e descrição, escolher o responsável, eliminar tarefas | Não | Sim | Não | US06, DE09 |
+| Mudar o estado de uma tarefa | Não | Sim | Sim | US07, DE10 |
+| Comentar tarefas | Não | Sim | Sim | US13, DE10, DE11 |
+| Editar e apagar os próprios comentários | Não | Sim | Sim | US13, PN15 |
 
 **Regras que se aplicam a todas as ações:**
 
 - Um projeto arquivado fica só de leitura para todos (PN09).
-- Uma conta desativada não consegue entrar (US01, US02).
+- Uma conta desativada não consegue entrar e não pode ser reativada (US01, US02, PN17).
+- A conta de sistema não pode ser desativada nem perder a permissão de Administrador (PN16).
 - O responsável de uma tarefa tem de ser membro do projeto (PN06).
 
 ## 3. Requisitos não funcionais
@@ -44,7 +49,7 @@ O cliente não indicou requisitos não funcionais. Os três abaixo derivam de pr
 | ID | Requisito | Origem | Tipo |
 |---|---|---|---|
 | RNF01 | A aplicação suporta até cerca de 10 equipas e 100 pessoas no arranque. | R3 | Pressuposto |
-| RNF02 | Só os membros de um projeto acedem ao seu conteúdo; o Administrador não acede; contas desativadas não entram. | R10, PN02, US01 | Pressuposto |
+| RNF02 | Só os membros de um projeto acedem ao seu conteúdo; a permissão de Administrador não dá esse acesso; contas desativadas não entram. | R10, DE02, PN02, US01 | Decisão interna |
 | RNF03 | A interface e os conteúdos são em português, numa só língua. | P14, FN26 | Pressuposto |
 
 ### Áreas sem informação
@@ -79,7 +84,9 @@ Nenhuma tecnologia foi escolhida. As decisões abaixo ficam **pendentes** até h
 
 | Questão | Onde aparece |
 |---|---|
-| O que acontece a um projeto cujo Gestor é desativado? | CL8, PN14 |
-| US03, US05 e US08 ainda não têm critérios de aceitação. | [user-stories.md](user-stories.md#2-critérios-de-aceitação) |
-| Todas as respostas R1–R10 e regras PN01–PN13 têm de ser validadas com o cliente. | [requirements.md](requirements.md#22-respostas-assumidas-r1r10), [user-stories.md](user-stories.md#4-pressupostos-de-regras-de-negócio-pn01pn14) |
+| O Administrador pode nomear-se a si próprio Gestor de um projeto onde não participa? | CL10, PN14 |
+| Como volta a ter acesso uma pessoa cuja conta foi desativada, se a conta não pode ser reativada e o email é único? | CL11, PN11, PN17 |
+| Um projeto arquivado pode voltar a ficar ativo? Um projeto pode ser eliminado? | US10, PN09 |
+| US05 e US08 ainda não têm critérios de aceitação. | [user-stories.md](user-stories.md#2-critérios-de-aceitação) |
+| Todas as respostas R1–R10, decisões DE01–DE13 e regras PN01–PN18 têm de ser validadas com o cliente. | [requirements.md](requirements.md#22-respostas-assumidas-r1r10), [requirements.md](requirements.md#23-decisões-internas-de01de13), [user-stories.md](user-stories.md#4-regras-de-negócio-pn01pn18) |
 | Perguntas ao cliente sem resposta: 2, 4, 5, 19, 23, 26, 27, 31. | [requirements.md](requirements.md#6-perguntas-ao-cliente-ainda-por-responder) |

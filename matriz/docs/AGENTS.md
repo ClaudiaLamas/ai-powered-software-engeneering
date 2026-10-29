@@ -14,7 +14,9 @@ escolha técnica que não esteja registada nos documentos.
    - `docs/requirements.md` — âmbito, requisitos funcionais e não funcionais, MVP.
    - `docs/user-stories.md` — user stories e critérios de aceitação.
    - `docs/constraints.md` — restrições, pressupostos e decisões pendentes.
-2. Identifica os IDs (FN, US, R, D) a que a tarefa diz respeito.
+2. Identifica os IDs (FN, US, R, DE, PN, CL, RNF, D) a que a tarefa diz respeito.
+   Usa os termos do glossário do `README.md` (conta, função, Gestor, Membro,
+   Administrador).
 
 ## Âmbito e decisões
 
