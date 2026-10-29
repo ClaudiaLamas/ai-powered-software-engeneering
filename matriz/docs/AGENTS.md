@@ -4,9 +4,10 @@ Instruções para agentes de IA que trabalhem no repositório Matriz.
 
 ## Estado do projeto
 
-A especificação está concluída; ainda não há código. A tecnologia, a arquitetura
-e o alojamento estão por decidir (ver `docs/constraints.md`). Não assumas nenhuma
-escolha técnica que não esteja registada nos documentos.
+A especificação está concluída; ainda não há código. A arquitetura está decidida
+(monólito modular, decisão interna por validar; ver `docs/architecture.md`). A
+tecnologia e o alojamento estão por decidir (ver `docs/constraints.md`). Não
+assumas nenhuma escolha técnica que não esteja registada nos documentos.
 
 ## Antes de qualquer tarefa
 
@@ -14,6 +15,7 @@ escolha técnica que não esteja registada nos documentos.
    - `docs/requirements.md` — âmbito, requisitos funcionais e não funcionais, MVP.
    - `docs/user-stories.md` — user stories e critérios de aceitação.
    - `docs/constraints.md` — restrições, pressupostos e decisões pendentes.
+   - `docs/architecture.md` — arquitetura, componentes e responsabilidades.
 2. Identifica os IDs (FN, US, R, DE, PN, CL, RNF, D) a que a tarefa diz respeito.
    Usa os termos do glossário do `README.md` (conta, função, Gestor, Membro,
    Administrador).

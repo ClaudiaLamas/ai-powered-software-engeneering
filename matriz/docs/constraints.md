@@ -67,7 +67,7 @@ Estas áreas **não têm requisitos definidos**. Não se assumiu nada sobre elas
 
 ## 4. Decisões técnicas pendentes
 
-Nenhuma tecnologia foi escolhida. As decisões abaixo ficam **pendentes** até haver respostas do cliente e uma fase de arquitetura.
+Nenhuma tecnologia foi escolhida. Exceto D07, as decisões abaixo ficam **pendentes** até haver respostas do cliente.
 
 | ID | Decisão pendente | Depende de |
 |---|---|---|
@@ -77,7 +77,7 @@ Nenhuma tecnologia foi escolhida. As decisões abaixo ficam **pendentes** até h
 | D04 | Forma de armazenamento dos dados | RNF01, perguntas 23 e 25 |
 | D05 | Alojamento (infraestrutura própria ou externa) | Perguntas 23 e 26 |
 | D06 | Forma de autenticação das contas (FN01) | Pergunta 29 e regras internas da empresa |
-| D07 | Arquitetura da aplicação | D01, RNF01 |
+| D07 | Arquitetura da aplicação. **Decidida (decisão interna, por validar):** monólito modular; ver [architecture.md](architecture.md). | D01, RNF01 |
 | D08 | Forma de verificar os critérios de aceitação (testes) | D02, D03 |
 
 ## 5. Questões em aberto
