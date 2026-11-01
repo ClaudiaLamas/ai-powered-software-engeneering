@@ -37,7 +37,7 @@ security:
 paths:
   /projects/{projectId}/tasks:
     parameters:
-      - $ref: '#/components/parameters/ProjectId'
+      - $ref: "#/components/parameters/ProjectId"
 
     get:
       tags: [tasks]
@@ -55,48 +55,48 @@ paths:
         Sem parâmetros de query: filtrar tarefas (incluindo por estado) é FN13,
         que está fora do MVP.
       responses:
-        '200':
+        "200":
           description: Lista das tarefas do projeto (pode ser vazia).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskList'
+                $ref: "#/components/schemas/TaskList"
               examples:
                 withTasks:
                   summary: Projeto com duas tarefas
                   value:
                     items:
-                      - id: 't_01'
-                        projectId: 'p_01'
+                      - id: "t_01"
+                        projectId: "p_01"
                         title: Rever textos
                         description: null
                         status: IN_PROGRESS
                         assignee:
-                          id: 'a_02'
+                          id: "a_02"
                           name: Ana Silva
                           status: ACTIVE
-                        createdAt: '2026-10-29T09:00:00Z'
-                        updatedAt: '2026-10-29T10:30:00Z'
-                      - id: 't_02'
-                        projectId: 'p_01'
+                        createdAt: "2026-10-29T09:00:00Z"
+                        updatedAt: "2026-10-29T10:30:00Z"
+                      - id: "t_02"
+                        projectId: "p_01"
                         title: Publicar página inicial
                         description: Depois da revisão dos textos.
                         status: TODO
                         assignee: null
-                        createdAt: '2026-10-29T09:05:00Z'
-                        updatedAt: '2026-10-29T09:05:00Z'
+                        createdAt: "2026-10-29T09:05:00Z"
+                        updatedAt: "2026-10-29T09:05:00Z"
                 empty:
                   summary: Projeto sem tarefas
                   value:
                     items: []
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/ProjectNotFound'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/ProjectNotFound"
 
     post:
       tags: [tasks]
@@ -117,20 +117,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateTaskRequest'
+              $ref: "#/components/schemas/CreateTaskRequest"
             examples:
               withAssignee:
                 summary: Com responsável
                 value:
                   title: Rever textos
                   description: Rever os textos da página inicial.
-                  assigneeId: 'a_02'
+                  assigneeId: "a_02"
               withoutAssignee:
                 summary: Sem responsável
                 value:
                   title: Publicar página inicial
       responses:
-        '201':
+        "201":
           description: Tarefa criada.
           headers:
             Location:
@@ -142,20 +142,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Task'
+                $ref: "#/components/schemas/Task"
               example:
-                id: 't_01'
-                projectId: 'p_01'
+                id: "t_01"
+                projectId: "p_01"
                 title: Rever textos
                 description: Rever os textos da página inicial.
                 status: TODO
                 assignee:
-                  id: 'a_02'
+                  id: "a_02"
                   name: Ana Silva
                   status: ACTIVE
-                createdAt: '2026-10-29T09:00:00Z'
-                updatedAt: '2026-10-29T09:00:00Z'
-        '400':
+                createdAt: "2026-10-29T09:00:00Z"
+                updatedAt: "2026-10-29T09:00:00Z"
+        "400":
           description: |
             Dados inválidos. Valores de `code`:
 
@@ -167,7 +167,7 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: '#/components/schemas/Problem'
+                $ref: "#/components/schemas/Problem"
               examples:
                 titleRequired:
                   value:
@@ -189,9 +189,9 @@ paths:
                     errors:
                       - field: assigneeId
                         message: O responsável tem de ser membro do projeto.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
           description: |
             Sem permissão. Valores de `code`:
 
@@ -201,23 +201,23 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: '#/components/schemas/Problem'
+                $ref: "#/components/schemas/Problem"
               example:
                 type: about:blank
                 title: Sem permissão
                 status: 403
                 code: NOT_PROJECT_MANAGER
                 detail: Só o Gestor do projeto pode criar tarefas.
-        '404':
-          $ref: '#/components/responses/ProjectNotFound'
-        '409':
+        "404":
+          $ref: "#/components/responses/ProjectNotFound"
+        "409":
           description: |
             O projeto está arquivado e só de leitura (PN09).
             `code`: `PROJECT_ARCHIVED`.
           content:
             application/problem+json:
               schema:
-                $ref: '#/components/schemas/Problem'
+                $ref: "#/components/schemas/Problem"
               example:
                 type: about:blank
                 title: Projeto arquivado
@@ -242,14 +242,14 @@ components:
       required: true
       description: Identificador do projeto.
       schema:
-        $ref: '#/components/schemas/Id'
+        $ref: "#/components/schemas/Id"
 
   schemas:
     Id:
       type: string
       minLength: 1
       description: Identificador opaco. O formato depende de D04.
-      examples: ['p_01']
+      examples: ["p_01"]
 
     TaskStatus:
       type: string
@@ -270,33 +270,43 @@ components:
       required: [id, name, status]
       properties:
         id:
-          $ref: '#/components/schemas/Id'
+          $ref: "#/components/schemas/Id"
         name:
           type: string
         status:
-          $ref: '#/components/schemas/AccountStatus'
+          $ref: "#/components/schemas/AccountStatus"
 
     Task:
       type: object
       description: Tarefa de um projeto (`TASK` em `docs/database.md`).
-      required: [id, projectId, title, description, status, assignee, createdAt, updatedAt]
+      required:
+        [
+          id,
+          projectId,
+          title,
+          description,
+          status,
+          assignee,
+          createdAt,
+          updatedAt,
+        ]
       properties:
         id:
-          $ref: '#/components/schemas/Id'
+          $ref: "#/components/schemas/Id"
         projectId:
-          $ref: '#/components/schemas/Id'
+          $ref: "#/components/schemas/Id"
         title:
           type: string
           minLength: 1
         description:
-          type: [string, 'null']
+          type: [string, "null"]
         status:
-          $ref: '#/components/schemas/TaskStatus'
+          $ref: "#/components/schemas/TaskStatus"
         assignee:
           description: Responsável; `null` = "Sem responsável" (PN06).
           oneOf:
-            - $ref: '#/components/schemas/AccountSummary'
-            - type: 'null'
+            - $ref: "#/components/schemas/AccountSummary"
+            - type: "null"
         createdAt:
           type: string
           format: date-time
@@ -311,7 +321,7 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/Task'
+            $ref: "#/components/schemas/Task"
 
     CreateTaskRequest:
       type: object
@@ -323,15 +333,15 @@ components:
           minLength: 1
           description: Obrigatório. Um título só com espaços é tratado como vazio (PN12).
         description:
-          type: [string, 'null']
+          type: [string, "null"]
           description: Opcional (PN12).
         assigneeId:
           description: |
             Responsável. Opcional; omitido ou `null` = "Sem responsável".
             Tem de ser membro do projeto com conta ativa (PN06, PN08).
           oneOf:
-            - $ref: '#/components/schemas/Id'
-            - type: 'null'
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
 
     Problem:
       type: object
@@ -373,7 +383,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/Problem'
+            $ref: "#/components/schemas/Problem"
           example:
             type: about:blank
             title: Dados inválidos
@@ -393,7 +403,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/Problem'
+            $ref: "#/components/schemas/Problem"
           example:
             type: about:blank
             title: Não autenticado
@@ -408,7 +418,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/Problem'
+            $ref: "#/components/schemas/Problem"
           example:
             type: about:blank
             title: Sem permissão
@@ -422,7 +432,7 @@ components:
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/Problem'
+            $ref: "#/components/schemas/Problem"
           example:
             type: about:blank
             title: Não encontrado
