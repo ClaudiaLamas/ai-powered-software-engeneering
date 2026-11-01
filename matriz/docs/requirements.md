@@ -107,7 +107,7 @@ Origem: F = facto do cliente; P, R = pressuposto; DE = decisão interna. A prior
 | FN02 | Administrador cria e desativa contas e dá ou retira a permissão de Administrador | Sem contas não há membros para organizar projetos ou gerir tarefas; sem gestão da permissão, a administração depende de uma só conta. | P7, R4, DE03–DE05 | Must | Sim |
 | FN03 | Administrador cria projetos e atribui o Gestor; Gestor edita e arquiva o projeto (nome, descrição) | É a base de "organizar projetos". | F3, R6, DE06, DE07 | Must | Sim |
 | FN04 | Gestor adiciona e remove membros de um projeto | Define quem trabalha em cada projeto e quem o pode ver. | F2, F3, R6, R10, DE07 | Must | Sim |
-| FN05 | Ver a lista dos projetos a que pertenço | Permite encontrar e organizar o trabalho por projeto. | F3 | Must | Sim |
+| FN05 | Ver a lista dos projetos a que pertenço, com o progresso de cada um (FN09). É o ecrã inicial (dashboard). | Permite encontrar e organizar o trabalho por projeto. | F3, F5 | Must | Sim |
 | FN06 | Gestor cria, edita e elimina tarefas num projeto (título, descrição, responsável) | É a base de "gerir tarefas". | F4, R7, DE09 | Must | Sim |
 | FN07 | Mudar o estado de uma tarefa (Por fazer, Em curso, Concluída) | Gerir uma tarefa inclui avançá-la; o estado é a base do progresso. | F4, F5, R8 | Must | Sim |
 | FN08 | Ver as tarefas de um projeto agrupadas por estado | Mostra de imediato em que ponto está o trabalho. | F5, R9 | Must | Sim |

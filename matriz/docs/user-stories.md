@@ -40,7 +40,7 @@ Backlog inicial do MVP: 14 user stories que cobrem **apenas as funcionalidades M
 
 ## 2. Critérios de aceitação
 
-Doze stories têm critérios em Dado / Quando / Então, cada uma com o caminho normal e pelo menos um caso de erro. US05 e US08 ainda não têm critérios definidos.
+Treze stories têm critérios em Dado / Quando / Então, cada uma com o caminho normal e pelo menos um caso de erro. US08 ainda não tem critérios definidos.
 
 ### US01: Entrar com a conta (FN01)
 
@@ -169,6 +169,38 @@ Doze stories têm critérios em Dado / Quando / Então, cada uma com o caminho n
 - **Dado** que sou Gestor do projeto "Site" e o projeto está arquivado,
 - **Quando** tento adicionar ou remover um membro,
 - **Então** a ação é recusada e a lista de membros não muda.
+
+### US05: Ver a lista de projetos (FN05)
+
+**Caminho normal**
+
+- **Dado** que sou Gestor do projeto "Site", com 3 de 4 tarefas concluídas, e Membro do projeto "Campanha",
+- **Quando** entro na aplicação,
+- **Então** vejo os dois projetos no ecrã inicial, cada um com o nome, a minha função e o progresso (no "Site", "Por fazer: 1, Em curso: 0, Concluída: 3" e "75% concluído").
+
+**Caso sem tarefas**
+
+- **Dado** que participo num projeto sem tarefas,
+- **Quando** abro o ecrã inicial,
+- **Então** esse projeto mostra "Sem tarefas" e não mostra percentagem (PN13).
+
+**Caso: projeto arquivado**
+
+- **Dado** que participo no projeto arquivado "Intranet",
+- **Quando** abro o ecrã inicial,
+- **Então** o projeto aparece na lista com a indicação "Arquivado" e o seu progresso (CL3).
+
+**Caso sem projetos**
+
+- **Dado** que a minha conta não participa em nenhum projeto,
+- **Quando** abro o ecrã inicial,
+- **Então** a lista aparece vazia, com uma mensagem a indicar que ainda não participo em nenhum projeto.
+
+**Erro: projeto onde não participo**
+
+- **Dado** que não sou membro do projeto "Site", mesmo que tenha permissão de Administrador,
+- **Quando** abro o ecrã inicial,
+- **Então** o projeto "Site" não aparece na lista e não vejo nenhum dado dele (PN02).
 
 ### US06: Criar, editar, eliminar e atribuir tarefas (FN06)
 

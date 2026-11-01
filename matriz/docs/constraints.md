@@ -87,6 +87,6 @@ Nenhuma tecnologia foi escolhida. Exceto D07, as decisões abaixo ficam **penden
 | O Administrador pode nomear-se a si próprio Gestor de um projeto onde não participa? | CL10, PN14 |
 | Como volta a ter acesso uma pessoa cuja conta foi desativada, se a conta não pode ser reativada e o email é único? | CL11, PN11, PN17 |
 | Um projeto arquivado pode voltar a ficar ativo? Um projeto pode ser eliminado? | US10, PN09 |
-| US05 e US08 ainda não têm critérios de aceitação. | [user-stories.md](user-stories.md#2-critérios-de-aceitação) |
+| US08 ainda não tem critérios de aceitação. | [user-stories.md](user-stories.md#2-critérios-de-aceitação) |
 | Todas as respostas R1–R10, decisões DE01–DE13 e regras PN01–PN18 têm de ser validadas com o cliente. | [requirements.md](requirements.md#22-respostas-assumidas-r1r10), [requirements.md](requirements.md#23-decisões-internas-de01de13), [user-stories.md](user-stories.md#4-regras-de-negócio-pn01pn18) |
 | Perguntas ao cliente sem resposta: 2, 4, 5, 19, 23, 26, 27, 31. | [requirements.md](requirements.md#6-perguntas-ao-cliente-ainda-por-responder) |
