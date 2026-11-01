@@ -1,0 +1,431 @@
+openapi: 3.1.0
+
+info:
+  title: Matriz API
+  version: 0.1.0
+  summary: API do MVP da Matriz — operações sobre tarefas de um projeto.
+  description: |
+    Especificação parcial da API do backend da Matriz (monólito modular, ver
+    `docs/architecture.md`). Cobre duas operações do módulo `tasks`:
+
+    - `GET /projects/{projectId}/tasks` — listar as tarefas de um projeto
+      (FN08, US08; alimenta a vista agrupada por estado e o progresso, FN09).
+    - `POST /projects/{projectId}/tasks` — criar uma tarefa (FN06, US06).
+
+    Convenções:
+
+    - Nomes de campos, valores de enumerações e caminhos em inglês; mensagens
+      para o utilizador em português (ver `docs/AGENTS.md`).
+    - Campos JSON em camelCase; correspondem às colunas em snake_case de
+      `docs/database.md` (por exemplo, `assigneeId` ↔ `assignee_id`).
+    - Erros no formato Problem Details (RFC 9457), com um campo `code` estável.
+
+    Fora desta especificação (fora do MVP): filtros e pesquisa (FN13), prazo
+    (FN10), prioridade e urgência/importância (FN12).
+
+    Pressupostos por validar: a forma de autenticação (D06) e o formato dos
+    identificadores (D04) estão pendentes. Nenhuma regra foi validada pelo
+    cliente.
+
+tags:
+  - name: tasks
+    description: Tarefas de um projeto (módulo `tasks`).
+
+security:
+  - bearerAuth: []
+
+paths:
+  /projects/{projectId}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+
+    get:
+      tags: [tasks]
+      operationId: listProjectTasks
+      summary: Listar as tarefas de um projeto
+      description: |
+        Devolve todas as tarefas do projeto, ordenadas por `createdAt`
+        (mais antigas primeiro; pressuposto). O cliente agrupa-as por `status`
+        para a vista por estado (FN08) e calcula o indicador de progresso (FN09).
+
+        Acesso: qualquer membro do projeto (Gestor ou Membro). A permissão de
+        Administrador não dá acesso a projetos onde a conta não participa
+        (DE02, PN02, RNF02). Projetos arquivados continuam legíveis (PN09).
+
+        Sem parâmetros de query: filtrar tarefas (incluindo por estado) é FN13,
+        que está fora do MVP.
+      responses:
+        '200':
+          description: Lista das tarefas do projeto (pode ser vazia).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskList'
+              examples:
+                withTasks:
+                  summary: Projeto com duas tarefas
+                  value:
+                    items:
+                      - id: 't_01'
+                        projectId: 'p_01'
+                        title: Rever textos
+                        description: null
+                        status: IN_PROGRESS
+                        assignee:
+                          id: 'a_02'
+                          name: Ana Silva
+                          status: ACTIVE
+                        createdAt: '2026-10-29T09:00:00Z'
+                        updatedAt: '2026-10-29T10:30:00Z'
+                      - id: 't_02'
+                        projectId: 'p_01'
+                        title: Publicar página inicial
+                        description: Depois da revisão dos textos.
+                        status: TODO
+                        assignee: null
+                        createdAt: '2026-10-29T09:05:00Z'
+                        updatedAt: '2026-10-29T09:05:00Z'
+                empty:
+                  summary: Projeto sem tarefas
+                  value:
+                    items: []
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ProjectNotFound'
+
+    post:
+      tags: [tasks]
+      operationId: createProjectTask
+      summary: Criar uma tarefa num projeto
+      description: |
+        Cria uma tarefa no projeto. A tarefa começa sempre em `TODO`
+        ("Por fazer"); o estado não é aceite no pedido (PN10).
+
+        Acesso: só o Gestor do projeto (DE09, PN05). O projeto tem de estar
+        ativo (PN09).
+
+        Regras: o título é obrigatório e não pode estar vazio (PN12); o
+        responsável é opcional e, se indicado, tem de ser membro do projeto com
+        conta ativa (PN06, PN08).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+            examples:
+              withAssignee:
+                summary: Com responsável
+                value:
+                  title: Rever textos
+                  description: Rever os textos da página inicial.
+                  assigneeId: 'a_02'
+              withoutAssignee:
+                summary: Sem responsável
+                value:
+                  title: Publicar página inicial
+      responses:
+        '201':
+          description: Tarefa criada.
+          headers:
+            Location:
+              description: URL da tarefa criada.
+              schema:
+                type: string
+                format: uri-reference
+              example: /tasks/t_01
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              example:
+                id: 't_01'
+                projectId: 'p_01'
+                title: Rever textos
+                description: Rever os textos da página inicial.
+                status: TODO
+                assignee:
+                  id: 'a_02'
+                  name: Ana Silva
+                  status: ACTIVE
+                createdAt: '2026-10-29T09:00:00Z'
+                updatedAt: '2026-10-29T09:00:00Z'
+        '400':
+          description: |
+            Dados inválidos. Valores de `code`:
+
+            - `VALIDATION_ERROR` — JSON mal formado, campo desconhecido ou de
+              tipo errado.
+            - `TITLE_REQUIRED` — título em falta ou vazio (PN12).
+            - `ASSIGNEE_NOT_MEMBER` — o responsável não é membro do projeto (PN06).
+            - `ASSIGNEE_DEACTIVATED` — o responsável tem a conta desativada (PN08).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                titleRequired:
+                  value:
+                    type: about:blank
+                    title: Dados inválidos
+                    status: 400
+                    code: TITLE_REQUIRED
+                    detail: O título é obrigatório.
+                    errors:
+                      - field: title
+                        message: O título é obrigatório.
+                assigneeNotMember:
+                  value:
+                    type: about:blank
+                    title: Dados inválidos
+                    status: 400
+                    code: ASSIGNEE_NOT_MEMBER
+                    detail: O responsável tem de ser membro do projeto.
+                    errors:
+                      - field: assigneeId
+                        message: O responsável tem de ser membro do projeto.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: |
+            Sem permissão. Valores de `code`:
+
+            - `NOT_PROJECT_MEMBER` — a conta não é membro do projeto (mesmo
+              com permissão de Administrador).
+            - `NOT_PROJECT_MANAGER` — a conta é Membro, mas não Gestor (PN05).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Sem permissão
+                status: 403
+                code: NOT_PROJECT_MANAGER
+                detail: Só o Gestor do projeto pode criar tarefas.
+        '404':
+          $ref: '#/components/responses/ProjectNotFound'
+        '409':
+          description: |
+            O projeto está arquivado e só de leitura (PN09).
+            `code`: `PROJECT_ARCHIVED`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Projeto arquivado
+                status: 409
+                code: PROJECT_ARCHIVED
+                detail: O projeto está arquivado e não pode ser alterado.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Pedido autenticado com o token da sessão da conta. O formato do token e
+        a forma de autenticação estão pendentes (D06). Contas desativadas não
+        são aceites (US01).
+
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      description: Identificador do projeto.
+      schema:
+        $ref: '#/components/schemas/Id'
+
+  schemas:
+    Id:
+      type: string
+      minLength: 1
+      description: Identificador opaco. O formato depende de D04.
+      examples: ['p_01']
+
+    TaskStatus:
+      type: string
+      enum: [TODO, IN_PROGRESS, DONE]
+      description: |
+        Estado da tarefa (R8). Texto mostrado ao utilizador:
+        `TODO` = "Por fazer", `IN_PROGRESS` = "Em curso", `DONE` = "Concluída".
+
+    AccountStatus:
+      type: string
+      enum: [ACTIVE, DEACTIVATED]
+      description: |
+        Estado da conta. `DEACTIVATED` é mostrado como "conta desativada" (PN08).
+
+    AccountSummary:
+      type: object
+      description: Resumo de uma conta, usado para mostrar o responsável.
+      required: [id, name, status]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+
+    Task:
+      type: object
+      description: Tarefa de um projeto (`TASK` em `docs/database.md`).
+      required: [id, projectId, title, description, status, assignee, createdAt, updatedAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        projectId:
+          $ref: '#/components/schemas/Id'
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: [string, 'null']
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        assignee:
+          description: Responsável; `null` = "Sem responsável" (PN06).
+          oneOf:
+            - $ref: '#/components/schemas/AccountSummary'
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TaskList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+
+    CreateTaskRequest:
+      type: object
+      required: [title]
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Obrigatório. Um título só com espaços é tratado como vazio (PN12).
+        description:
+          type: [string, 'null']
+          description: Opcional (PN12).
+        assigneeId:
+          description: |
+            Responsável. Opcional; omitido ou `null` = "Sem responsável".
+            Tem de ser membro do projeto com conta ativa (PN06, PN08).
+          oneOf:
+            - $ref: '#/components/schemas/Id'
+            - type: 'null'
+
+    Problem:
+      type: object
+      description: Erro no formato Problem Details (RFC 9457).
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          default: about:blank
+        title:
+          type: string
+          description: Resumo do erro, em português.
+        status:
+          type: integer
+        code:
+          type: string
+          description: Código estável do erro, para uso no código do cliente.
+        detail:
+          type: string
+          description: Mensagem para mostrar ao utilizador, em português.
+        errors:
+          type: array
+          description: Erros por campo, quando se aplica.
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+  responses:
+    BadRequest:
+      description: |
+        Pedido inválido (por exemplo, `projectId` mal formado).
+        `code`: `VALIDATION_ERROR`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Dados inválidos
+            status: 400
+            code: VALIDATION_ERROR
+            detail: O identificador do projeto não é válido.
+
+    Unauthorized:
+      description: |
+        Pedido sem autenticação válida, ou de uma conta desativada (US01).
+        `code`: `UNAUTHENTICATED`.
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+          example: Bearer
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Não autenticado
+            status: 401
+            code: UNAUTHENTICATED
+            detail: É preciso entrar com a sua conta.
+
+    Forbidden:
+      description: |
+        A conta não é membro do projeto, mesmo que tenha permissão de
+        Administrador (DE02, PN02). `code`: `NOT_PROJECT_MEMBER`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Sem permissão
+            status: 403
+            code: NOT_PROJECT_MEMBER
+            detail: Não tem acesso a este projeto.
+
+    ProjectNotFound:
+      description: |
+        O projeto não existe. `code`: `PROJECT_NOT_FOUND`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Não encontrado
+            status: 404
+            code: PROJECT_NOT_FOUND
+            detail: O projeto não existe.
