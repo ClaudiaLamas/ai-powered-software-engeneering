@@ -63,9 +63,9 @@ Respostas às 10 perguntas de clarificação prioritárias. Como não foi possí
 | R9 | O que significa "acompanhar o progresso"? (18) | Ver, por projeto, quantas tarefas há em cada estado e a percentagem de tarefas concluídas. | É a interpretação mais direta de F5. |
 | R10 | Quem pode ver cada projeto? (22) | Só os membros desse projeto (incluindo o Gestor). A permissão de Administrador não dá acesso ao conteúdo de projetos onde a conta não participa (ver DE02). | É mais seguro começar fechado e abrir depois. |
 
-### 2.3 Decisões internas (DE01–DE13)
+### 2.3 Decisões internas (DE01–DE14)
 
-Decisões tomadas pela equipa do projeto em 2026-10-29, depois da revisão do Specification Pack. **Não foram validadas pelo cliente**: são decisões nossas, não factos, e prevalecem sobre os pressupostos R e PN que contradizem.
+Decisões tomadas pela equipa do projeto em 2026-10-29 (DE14 em 2026-11-04), depois da revisão do Specification Pack. **Não foram validadas pelo cliente**: são decisões nossas, não factos, e prevalecem sobre os pressupostos R e PN que contradizem.
 
 | ID | Decisão | Substitui |
 |---|---|---|
@@ -82,6 +82,7 @@ Decisões tomadas pela equipa do projeto em 2026-10-29, depois da revisão do Sp
 | DE11 | Os comentários em tarefas entram no MVP. Os comentários podem ser editados e apagados. Num projeto arquivado, os comentários ficam só de leitura. | FN14 (Could → Must) |
 | DE12 | As ações administrativas ficam registadas no MVP. | — |
 | DE13 | No futuro, o responsável de uma tarefa poderá pedir ajuda a outro membro da equipa, adicionando-o à tarefa. Fica fora do MVP. | — |
+| DE14 | Quando uma conta é desativada, ou o Gestor remove um membro (com a conta ativa ou desativada), as tarefas dessa pessoa que não estão "Concluída" passam a "Sem responsável" e as tarefas "Concluída" mantêm o nome dela como responsável. Uma tarefa "Concluída" de uma conta desativada que seja reaberta passa a "Sem responsável". Uma conta desativada não pode ser adicionada a um projeto nem escolhida como responsável. Decidida em 2026-11-04. | PN07, PN08 |
 
 As regras de negócio detalhadas (PN01–PN18) estão em [user-stories.md](user-stories.md#4-regras-de-negócio-pn01pn18). O vocabulário (conta, função, permissão) está no [glossário do README](../README.md#glossário).
 

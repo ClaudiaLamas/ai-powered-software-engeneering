@@ -68,7 +68,7 @@ Os IDs são iguais em todos os ficheiros.
 | F1–F5 | Factos ditos pelo cliente | **Facto** |
 | P1–P14 | Pressupostos implícitos identificados na análise inicial | Pressuposto |
 | R1–R10 | Respostas assumidas às perguntas de clarificação prioritárias | Pressuposto |
-| DE01–DE13 | Decisões da equipa do projeto (2026-10-29), não validadas pelo cliente | Decisão interna |
+| DE01–DE14 | Decisões da equipa do projeto (2026-10-29 e 2026-11-04), não validadas pelo cliente | Decisão interna |
 | PN01–PN18 | Regras de negócio: concretizam decisões DE ou são pressupostos | Decisão interna ou pressuposto |
 | D01–D08 | Decisões técnicas pendentes | Decisão pendente |
 | FN01–FN29 | Funcionalidades propostas | Proposta |
