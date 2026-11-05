@@ -1,6 +1,6 @@
 # Arquitetura — Matriz
 
-Este ficheiro regista a decisão de arquitetura do MVP (decisão pendente D07 em [constraints.md](constraints.md#4-decisões-técnicas-pendentes)). É uma **decisão interna, por validar**, tomada com base nos documentos de especificação: [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e [AGENTS.md](AGENTS.md).
+Este ficheiro regista a decisão de arquitetura do MVP (decisão pendente D07 em [constraints.md](constraints.md#4-decisões-técnicas-pendentes)). É uma **decisão interna, por validar**, tomada com base nos documentos de especificação: [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e [AGENTS.md](../AGENTS.md).
 
 Não se escolhem aqui linguagens, frameworks, base de dados concreta nem alojamento (D02–D06 continuam pendentes).
 

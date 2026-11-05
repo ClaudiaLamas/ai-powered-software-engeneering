@@ -15,7 +15,7 @@ info:
     Convenções:
 
     - Nomes de campos, valores de enumerações e caminhos em inglês; mensagens
-      para o utilizador em português (ver `docs/AGENTS.md`).
+      para o utilizador em português (ver `AGENTS.md`).
     - Campos JSON em camelCase; correspondem às colunas em snake_case de
       `docs/database.md` (por exemplo, `assigneeId` ↔ `assignee_id`).
     - Erros no formato Problem Details (RFC 9457), com um campo `code` estável.
