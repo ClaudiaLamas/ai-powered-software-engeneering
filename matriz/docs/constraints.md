@@ -40,7 +40,8 @@ Resumo das decisões DE01–DE12 e das regras PN01–PN18. **Nenhuma foi validad
 - Um projeto arquivado fica só de leitura para todos (PN09).
 - Uma conta desativada não consegue entrar e não pode ser reativada (US01, US02, PN17).
 - A conta de sistema não pode ser desativada nem perder a permissão de Administrador (PN16).
-- O responsável de uma tarefa tem de ser membro do projeto (PN06).
+- O responsável de uma tarefa tem de ser membro do projeto com conta ativa quando é escolhido (PN06). Uma tarefa "Concluída" pode manter como responsável quem já não é membro (PN07, DE14).
+- Uma conta desativada não pode ser adicionada a um projeto nem escolhida como responsável (PN08, DE14).
 
 ## 3. Requisitos não funcionais
 

@@ -67,7 +67,7 @@ A chave primária composta (project_id, account_id) impede que a mesma conta apa
 | title | string | | Sim | Título. Não pode estar vazio. | PN12 |
 | description | string | | Não | Descrição. | PN12 |
 | status | enum | | Sim | `TODO` ("Por fazer"), `IN_PROGRESS` ("Em curso") ou `DONE` ("Concluída"). Começa em `TODO`; qualquer transição é permitida. | R8, PN10 |
-| assignee_id | id | FK → ACCOUNT | Não | Responsável. Vazio = "Sem responsável". (project_id, assignee_id) referencia PROJECT_MEMBER, para garantir que o responsável é membro do projeto. | DE09, PN06 |
+| assignee_id | id | FK → ACCOUNT | Não | Responsável. Vazio = "Sem responsável". Referencia ACCOUNT (e não PROJECT_MEMBER) para uma tarefa "Concluída" manter o responsável quando este sai do projeto; nesse caso, mostra-se "já não é membro", calculado pela ausência de linha em PROJECT_MEMBER. Que o responsável é membro com conta ativa é verificado pela aplicação quando é escolhido. | DE09, DE14, PN06, PN07 |
 | created_at | datetime | | Sim | | — |
 | updated_at | datetime | | Sim | | — |
 
@@ -103,7 +103,7 @@ Pelo menos um dos alvos tem de estar preenchido. As entradas nunca são alterada
 | PROJECT — PROJECT_MEMBER | 1 : 1..N | Um projeto tem pelo menos um membro (o Gestor); cada participação é de um só projeto. | DE06, PN03 |
 | ACCOUNT — PROJECT (via PROJECT_MEMBER) | N : M | Uma conta pode estar em vários projetos e um projeto tem várias contas. | DE01, R6 |
 | PROJECT — TASK | 1 : 0..N | Um projeto tem zero ou mais tarefas; uma tarefa pertence a exatamente um projeto. | R6, P3 |
-| PROJECT_MEMBER — TASK (responsável) | 0..1 : 0..N | Uma tarefa tem zero ou um responsável, que é um membro desse projeto; um membro pode ser responsável por várias tarefas. | DE09, PN06 |
+| ACCOUNT — TASK (responsável) | 0..1 : 0..N | Uma tarefa tem zero ou um responsável; uma conta pode ser responsável por várias tarefas. Ao ser escolhido, o responsável é membro do projeto; numa tarefa "Concluída" pode já não o ser. | DE09, DE14, PN06, PN07 |
 | TASK — COMMENT | 1 : 0..N | Uma tarefa tem zero ou mais comentários; um comentário é de uma só tarefa. | FN14 |
 | ACCOUNT — COMMENT (autor) | 1 : 0..N | Uma conta escreve zero ou mais comentários; um comentário tem exatamente um autor. | PN15 |
 | ACCOUNT — ADMIN_AUDIT_LOG (autor) | 1 : 0..N | Um Administrador executa zero ou mais ações registadas. | PN18 |
@@ -121,9 +121,11 @@ Regras que o modelo tem de garantir. A coluna "Onde" indica se a regra pode ser 
 | No máximo um Gestor por projeto. | Base de dados (unicidade de `project_id` quando `role = MANAGER`, se a base de dados o permitir) | DE06 |
 | Pelo menos um Gestor por projeto: o projeto e o seu Gestor são criados na mesma transação; a troca de Gestor muda as duas linhas na mesma transação. | Aplicação (`projects`) | DE06, US03, US12 |
 | O Gestor não pode ser removido do projeto. | Aplicação (`projects`) | PN04 |
-| O responsável de uma tarefa é membro do projeto. | Base de dados (FK composta (`project_id`, `assignee_id`) → PROJECT_MEMBER) | PN06 |
-| Ao remover um membro, as suas tarefas nesse projeto ficam sem responsável e mantêm o estado. | Aplicação (`tasks`, ao receber o evento "membro removido" de `projects`; architecture.md §4.2) | PN07, CL1 |
-| Contas desativadas não podem ser escolhidas como Gestor nem como responsável, mas continuam como responsável e autor onde já estavam. | Aplicação | PN08, PN14, CL4, CL12 |
+| Ao ser escolhido, o responsável de uma tarefa é membro do projeto com conta ativa. | Aplicação (`tasks`, consultando `projects` e `accounts`) | PN06, PN08 |
+| Ao remover um membro, as suas tarefas nesse projeto que não estão `DONE` ficam sem responsável e mantêm o estado; as `DONE` mantêm o responsável. | Aplicação (`tasks`, ao receber o evento "membro removido" de `projects`; architecture.md §4.2) | PN07, CL1 |
+| Ao desativar uma conta, as suas tarefas que não estão `DONE`, em todos os projetos, ficam sem responsável e mantêm o estado; as `DONE` mantêm o responsável. | Aplicação (`tasks`, ao receber o evento "conta desativada" de `accounts`; architecture.md §4.2) | PN08, CL4 |
+| Ao reabrir uma tarefa `DONE` cujo responsável tem a conta desativada ou já não é membro do projeto, a tarefa fica sem responsável. | Aplicação (`tasks`) | PN07, PN08, PN10 |
+| Contas desativadas não podem ser escolhidas como Gestor nem como responsável, nem adicionadas a projetos; continuam como autor dos comentários e como responsável das tarefas `DONE`. | Aplicação | PN08, PN14, CL4, CL12 |
 | Projeto arquivado: nenhuma alteração em PROJECT, PROJECT_MEMBER, TASK e COMMENT desse projeto. | Aplicação (`authorization`) | PN09 |
 | A conta de sistema não pode ser desativada nem perder a permissão; o último Administrador ativo também não. | Aplicação (`accounts`) | PN16, DE05 |
 | Uma conta desativada não volta a ficar ativa. | Aplicação (`accounts`) | PN17 |
@@ -187,7 +189,7 @@ erDiagram
     ACCOUNT ||--o{ PROJECT_MEMBER : "participa como"
     PROJECT ||--|{ PROJECT_MEMBER : "tem"
     PROJECT ||--o{ TASK : "contém"
-    PROJECT_MEMBER |o--o{ TASK : "é responsável por"
+    ACCOUNT |o--o{ TASK : "é responsável por"
     TASK ||--o{ COMMENT : "tem"
     ACCOUNT ||--o{ COMMENT : "escreve"
     ACCOUNT ||--o{ ADMIN_AUDIT_LOG : "executa"
@@ -202,9 +204,9 @@ erDiagram
 | Atributos fora do MVP | Não há urgência, importância, prioridade nem data limite em TASK. | Prazo (FN10) e prioridade (FN12) estão fora do MVP; entram num incremento seguinte como colunas opcionais, sem mudar as relações. |
 | Eliminar comentários e tarefas | Eliminação definitiva; os comentários de uma tarefa eliminada desaparecem com ela. | US06 e US13 dizem que "deixa de aparecer", mas não dizem se os dados se guardam. Depende da pergunta 25 (retenção). |
 | Contas e projetos nunca são eliminados | Só se desativam (contas) ou arquivam (projetos). | Questão em aberto: um projeto pode ser eliminado? (constraints.md §5) |
-| Membros desativados | A conta desativada continua em PROJECT_MEMBER dos projetos onde estava. | Não está escrito; é o que permite manter "conta desativada" como responsável (PN08). |
+| Membros desativados | A conta desativada continua em PROJECT_MEMBER dos projetos onde estava, até o Gestor a remover. | É o que PN08 indica; confirmar com o cliente. |
 | Nome do projeto | Não tem de ser único. | Nenhuma regra o exige. |
-| Histórico de membros | Ao remover um membro, a linha de PROJECT_MEMBER é apagada; não se guarda histórico. | O histórico de alterações (FN18) está fora do MVP; só as adições pelo Administrador vão para o registo (PN18). |
+| Histórico de membros | Ao remover um membro, a linha de PROJECT_MEMBER é apagada; não se guarda histórico. As tarefas `DONE` mantêm `assignee_id`, e "já não é membro" deduz-se da falta da linha. | O histórico de alterações (FN18) está fora do MVP; só as adições pelo Administrador vão para o registo (PN18). |
 | Registo de remoções de membros pelo Gestor | Não são registadas. | PN18 só inclui "adicionar membros pelo Administrador". |
 | CL10 e CL11 | O modelo não muda com nenhuma das respostas possíveis. | CL11 pode exigir mudar a regra de email único (PN11) ou permitir reativar contas (PN17). |
 | Autenticação | Sem atributos de autenticação. | Depende de D06. |
@@ -212,5 +214,5 @@ erDiagram
 ## 7. Coerência com a arquitetura
 
 - Cada tabela pertence a um só módulo (§1), como pede architecture.md §4.2. Os módulos `authorization` e `progress` não têm tabelas próprias: o primeiro lê `ACCOUNT.is_admin` e `PROJECT_MEMBER.role`; o segundo conta TASK por `status`.
-- A base de dados é única (architecture.md §3), por isso as chaves estrangeiras entre tabelas de módulos diferentes são possíveis e garantem regras como PN06 sem coordenação entre serviços.
+- A base de dados é única (architecture.md §3), por isso as chaves estrangeiras entre tabelas de módulos diferentes são possíveis e garantem a integridade das referências (por exemplo, `TASK.assignee_id` → ACCOUNT) sem coordenação entre serviços. PN06 é verificada pela aplicação, mas na mesma transação.
 - As chaves estrangeiras entre módulos correspondem às dependências de architecture.md §4.2. As de ADMIN_AUDIT_LOG para ACCOUNT e PROJECT são só referências de dados: o módulo `audit` não chama `accounts` nem `projects`.

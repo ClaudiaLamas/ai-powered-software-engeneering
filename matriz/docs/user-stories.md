@@ -175,7 +175,7 @@ As 19 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 
 - **Dado** que sou Gestor do projeto ativo "Site" e o Rui, com a conta ativa ou desativada, é responsável por "Rever textos" ("Em curso") e por "Criar logótipo" ("Concluída"),
 - **Quando** removo o Rui do projeto,
-- **Então** "Rever textos" passa a "Sem responsável", "Criar logótipo" continua a mostrar o Rui como responsável e o progresso não muda (PN07).
+- **Então** "Rever textos" passa a "Sem responsável", "Criar logótipo" continua a mostrar o Rui como responsável, com a indicação "já não é membro" (ou "conta desativada", se for o caso), e o progresso não muda (PN07).
 
 **Erro: conta desativada**
 
@@ -302,6 +302,12 @@ As 19 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 - **Dado** que a tarefa "Criar logótipo" está "Concluída" e mostra "Rui (conta desativada)",
 - **Quando** a mudo para "Em curso",
 - **Então** a tarefa passa a "Em curso" e a "Sem responsável" (PN08, PN10).
+
+**Caminho normal: reabrir uma tarefa de quem já não é membro**
+
+- **Dado** que o Rui foi removido do projeto e a tarefa "Criar logótipo" está "Concluída" e mostra "Rui (já não é membro)",
+- **Quando** a mudo para "Em curso",
+- **Então** a tarefa passa a "Em curso" e a "Sem responsável" (PN07, PN10).
 
 **Erro: projeto arquivado**
 
@@ -585,7 +591,7 @@ Dez dos doze casos têm comportamento definido; CL10 e CL11 ficam em aberto.
 
 | ID | Situação | Comportamento esperado | Regra |
 |---|---|---|---|
-| CL1 | O Gestor remove um membro que é responsável por tarefas, com a conta ativa ou desativada. | A remoção acontece. As tarefas dessa pessoa nesse projeto que não estão "Concluída" passam a "Sem responsável" e mantêm o estado. As tarefas "Concluída" mantêm o nome dela como responsável. Os números do progresso não mudam. | PN07 |
+| CL1 | O Gestor remove um membro que é responsável por tarefas, com a conta ativa ou desativada. | A remoção acontece. As tarefas dessa pessoa nesse projeto que não estão "Concluída" passam a "Sem responsável" e mantêm o estado. As tarefas "Concluída" mantêm o nome dela como responsável, com a indicação "já não é membro" (ou "conta desativada", se a conta estiver desativada); se uma delas for reaberta, passa a "Sem responsável". Os números do progresso não mudam. | PN07 |
 | CL2 | Um Membro tenta eliminar uma tarefa. | A ação é recusada e a tarefa continua no projeto (ver US06). | PN05 |
 | CL3 | Alguém tenta criar, editar, mudar o estado, eliminar ou comentar uma tarefa, editar ou apagar um comentário, ou mudar os membros, num projeto arquivado. | A ação é recusada. O projeto, as tarefas e os comentários continuam visíveis para os membros, e o progresso continua a ser mostrado. | PN09 |
 | CL4 | É desativada a conta de alguém que é responsável por tarefas. | A pessoa deixa de conseguir entrar. As suas tarefas que não estão "Concluída", em todos os projetos, passam a "Sem responsável". As tarefas "Concluída" mantêm o nome dela, com a indicação "conta desativada"; se uma delas for reaberta, passa a "Sem responsável". Os números do progresso não mudam. Essa conta deixa de poder ser adicionada a projetos ou escolhida como responsável. | PN08 |
@@ -609,11 +615,11 @@ Nenhuma regra foi validada pelo cliente. A coluna "Origem" indica se a regra con
 | PN03 | Cada projeto tem exatamente um Gestor, que é também membro do projeto. É atribuído pelo Administrador quando cria o projeto. | DE06 | US03, US04 |
 | PN04 | O Gestor não pode ser removido do projeto nem remover-se. Só deixa de ser Gestor quando o Administrador o troca; passa então a Membro. | DE08; "passa a Membro" é pressuposto | US12, CL5 |
 | PN05 | Só o Gestor cria tarefas, edita o título e a descrição, escolhe ou muda o responsável e elimina tarefas. Qualquer membro, incluindo o Gestor, pode mudar o estado e comentar. | DE09, DE10 | US06, US07, US13, CL2 |
-| PN06 | Cada tarefa tem no máximo um responsável, que tem de ser membro do projeto. A tarefa pode ficar "Sem responsável". | DE09 | US06 |
-| PN07 | Quando o Gestor remove um membro, com a conta ativa ou desativada, as suas tarefas nesse projeto que não estão "Concluída" passam a "Sem responsável". As tarefas "Concluída" mantêm-no como responsável. | DE14 | US04, CL1 |
+| PN06 | Cada tarefa tem no máximo um responsável, que tem de ser membro do projeto com conta ativa no momento em que é escolhido. A tarefa pode ficar "Sem responsável". Uma tarefa "Concluída" pode manter como responsável quem já não é membro (PN07). | DE09, DE14 | US06 |
+| PN07 | Quando o Gestor remove um membro, com a conta ativa ou desativada, as suas tarefas nesse projeto que não estão "Concluída" passam a "Sem responsável". As tarefas "Concluída" mantêm-no como responsável, com a indicação "já não é membro"; se a conta estiver desativada, mostra-se só "conta desativada" (PN08). A indicação desaparece se a pessoa voltar a ser adicionada ao projeto. | DE14 | US04, US07, CL1 |
 | PN08 | Quando uma conta é desativada, as suas tarefas que não estão "Concluída", em todos os projetos, passam a "Sem responsável". As tarefas "Concluída" mantêm o nome da pessoa como responsável, com a indicação "conta desativada"; se uma delas for reaberta, passa a "Sem responsável". A conta continua na equipa dos projetos, com a indicação "conta desativada", até o Gestor a remover. Uma conta desativada não pode ser adicionada a um projeto nem escolhida como responsável. | DE14 | US02, US04, US06, US07, US18, CL4 |
 | PN09 | Um projeto arquivado fica só de leitura: tarefas, estados, membros e comentários não podem ser alterados. | DE11; resto é pressuposto | US04, US07, US13, CL3 |
-| PN10 | Uma tarefa nova começa sempre em "Por fazer". Qualquer estado pode passar a qualquer outro, incluindo reabrir uma tarefa concluída. Ao reabrir uma tarefa cujo responsável tem a conta desativada, a tarefa passa a "Sem responsável" (PN08). | Pressuposto; reabertura com conta desativada: DE14 | US06, US07 |
+| PN10 | Uma tarefa nova começa sempre em "Por fazer". Qualquer estado pode passar a qualquer outro, incluindo reabrir uma tarefa concluída. Ao reabrir uma tarefa cujo responsável tem a conta desativada ou já não é membro do projeto, a tarefa passa a "Sem responsável" (PN07, PN08). | Pressuposto; reabertura com conta desativada ou de quem já não é membro: DE14 | US06, US07 |
 | PN11 | Cada conta é identificada por um endereço de email único, incluindo as contas desativadas. | Pressuposto | US02, CL11 |
 | PN12 | O nome do projeto e o título da tarefa são obrigatórios; as descrições são opcionais. | Pressuposto | US03, US06 |
 | PN13 | A percentagem de conclusão é tarefas concluídas ÷ total de tarefas × 100, arredondada à unidade. Sem tarefas, mostra "Sem tarefas". | Pressuposto | US09, CL7 |

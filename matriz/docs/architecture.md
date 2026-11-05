@@ -97,7 +97,7 @@ O nome entre parênteses é o nome do módulo no código, em inglês. As entidad
 | `accounts` | `audit` | Registar criar e desativar contas e dar e retirar a permissão de Administrador. |
 | `projects` | `accounts` | Validar que a conta a adicionar ou a nomear Gestor existe e está ativa (`PROJECT_MEMBER.account_id`). |
 | `projects` | `audit` | Registar criar projetos, atribuir e trocar o Gestor e adicionar membros pelo Administrador. |
-| `tasks` | `projects` | Validar que o responsável é membro do projeto e que o projeto não está arquivado. |
+| `tasks` | `projects` | Validar que o responsável é membro do projeto e que o projeto não está arquivado; saber se o responsável de uma tarefa ainda é membro, para mostrar "já não é membro" (PN07). |
 | `tasks` | `accounts` | Obter o nome e o estado do responsável e do autor dos comentários (`TASK.assignee_id`, `COMMENT.author_id`). |
 | `progress` | `tasks` | Contar as tarefas de cada projeto por estado. |
 | `authorization` | `accounts`, `projects` | Ler a permissão de Administrador (`ACCOUNT.is_admin`), a função da conta no projeto (`PROJECT_MEMBER.role`) e o estado do projeto. |
@@ -105,7 +105,9 @@ O nome entre parênteses é o nome do módulo no código, em inglês. As entidad
 Regras para manter as dependências sem ciclos:
 
 - **Referências de dados não são dependências de código.** `ADMIN_AUDIT_LOG` tem chaves estrangeiras para `ACCOUNT` e `PROJECT` (integridade dos dados), mas o módulo `audit` não chama `accounts` nem `projects`. Para mostrar o registo com nomes, a API junta a resposta de `audit` com a de `accounts` e `projects`.
-- **Efeitos em sentido inverso usam eventos internos.** Quando uma ação de um módulo tem de alterar dados de um módulo que depende dele, o primeiro emite um evento interno e o segundo reage, na mesma transação. Caso do MVP: `projects` emite "membro removido" e `tasks` deixa as tarefas dessa pessoa nesse projeto sem responsável (PN07).
+- **Efeitos em sentido inverso usam eventos internos.** Quando uma ação de um módulo tem de alterar dados de um módulo que depende dele, o primeiro emite um evento interno e o segundo reage, na mesma transação. Casos do MVP:
+  - `projects` emite "membro removido" e `tasks` deixa sem responsável as tarefas dessa pessoa nesse projeto que não estão "Concluída" (PN07).
+  - `accounts` emite "conta desativada" e `tasks` deixa sem responsável as tarefas dessa pessoa, em todos os projetos, que não estão "Concluída" (PN08).
 
 ## 5. Pressupostos e pontos em aberto
 
