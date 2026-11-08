@@ -118,6 +118,6 @@ Regras para manter as dependências sem ciclos:
 | Autenticação (D06) | **Decidido** (decisão interna, por validar): JWT no cabeçalho `Authorization: Bearer ...`, com `@nestjs/jwt` e Passport; palavras-passe guardadas como hash (bcrypt ou argon2). O módulo Autenticação e contas isola a forma de autenticar; se a empresa usar um sistema de identidade próprio, a mudança fica contida nesse módulo. |
 | Linguagens e frameworks (D02, D03) | **Decidido** (decisão interna, por validar): TypeScript; NestJS no backend e Vue.js no frontend. |
 | Alojamento (D05) | **Decidido** (decisão interna, por validar): execução local, com o PostgreSQL num container Docker (`docker-compose.yml`). O deploy fica como extensão futura. |
-| Testes (D08) | **Decidido** (decisão interna, por validar): Jest e Supertest no backend; Vitest no frontend. |
+| Testes (D08) | **Decidido** (decisão interna, por validar): Vitest no backend e no frontend; Supertest nos testes de API. |
 | Envio de email (D09) | **Decidido** (decisão interna, por validar): na execução local, os emails de ativação (DE15) vão para um container Mailpit no `docker-compose.yml`, que os mostra numa página local. O envio real fica com o deploy. |
 | Validação | Esta decisão tem de ser revista se o cliente indicar uma escala muito maior do que RNF01 ou integrações com outras ferramentas (FN25). |

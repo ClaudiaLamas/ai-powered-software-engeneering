@@ -10,7 +10,7 @@ as decisões técnicas estão tomadas (D01–D09, decisões internas por validar
 `docs/constraints.md` §4): aplicação web responsiva; TypeScript, NestJS no
 backend e Vue.js no frontend; PostgreSQL com Prisma e identificadores UUID;
 autenticação com JWT; execução local com Docker e emails locais com Mailpit;
-testes com Jest e Supertest (backend) e Vitest (frontend). Confirma as versões
+testes com Vitest (backend e frontend) e Supertest (API). Confirma as versões
 nos sites oficiais quando instalares. Não assumas nenhuma escolha técnica que
 não esteja registada nos documentos.
 

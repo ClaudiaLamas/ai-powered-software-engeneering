@@ -67,7 +67,7 @@ Regras gerais aplicáveis: <projeto arquivado só de leitura (PN09), conta desat
 
 ## Definição de pronto
 
-- [ ] Todos os critérios de aceitação cobertos por testes (Jest + Supertest no backend; Vitest no frontend — D08).
+- [ ] Todos os critérios de aceitação cobertos por testes (Vitest + Supertest no backend; Vitest no frontend — D08).
 - [ ] Casos de erro e de permissão testados no backend, incluindo acesso de quem não é membro do projeto e de um Administrador que não participa nele (RNF02).
 - [ ] Textos da interface em português de Portugal; nomes no código em inglês.
 - [ ] Documentação em `docs/` e `openapi.yaml` atualizada, se a implementação mudar regras ou a API.
