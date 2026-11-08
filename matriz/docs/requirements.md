@@ -88,7 +88,7 @@ As regras de negócio detalhadas (PN01–PN18) estão em [user-stories.md](user-
 
 ## 3. Funções e permissões
 
-Todas as funções e permissões são **decisões internas ou pressupostos** (R4, DE01–DE12, PN01–PN18). As permissões detalhadas estão em [constraints.md](constraints.md#2-permissões).
+Todas as funções e permissões são **decisões internas ou pressupostos** (R4, DE01–DE14, PN01–PN18). As permissões detalhadas estão em [constraints.md](constraints.md#2-permissões).
 
 | Quem | O que precisa | Origem |
 |---|---|---|

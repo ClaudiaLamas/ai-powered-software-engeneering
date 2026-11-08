@@ -1,6 +1,6 @@
 # Matriz
 
-Matriz é uma aplicação de gestão de projetos e tarefas para equipas de trabalho. Esta pasta contém a especificação funcional inicial: requisitos, âmbito do MVP, user stories e restrições.
+Matriz é uma aplicação de gestão de projetos e tarefas para equipas de trabalho. Esta pasta contém a especificação inicial: requisitos, âmbito do MVP, user stories, restrições, arquitetura, modelo de dados, uma especificação parcial da API e um wireframe do dashboard.
 
 > **Estado:** especificação inicial, **não validada pelo cliente**. Só F1–F5 são factos. Tudo o resto (P, R, DE, PN, D) são pressupostos, decisões internas ou decisões pendentes, que devem ser confirmados antes do desenvolvimento.
 
@@ -49,7 +49,7 @@ Prazos, prioridades, notificações, relatórios e pedidos de ajuda numa tarefa 
 | Equipa | O conjunto dos membros de um projeto. Não é uma entidade separada (R6). |
 | Responsável | O único membro do projeto encarregado de uma tarefa (DE09). |
 
-As funções e a permissão são **decisões internas, por validar com o cliente** (DE01–DE12).
+As funções e a permissão são **decisões internas, por validar com o cliente** (DE01–DE14).
 
 ## Documentação
 
@@ -58,6 +58,11 @@ As funções e a permissão são **decisões internas, por validar com o cliente
 | [docs/requirements.md](docs/requirements.md) | Factos, pressupostos, respostas assumidas, decisões internas, funções, funcionalidades e âmbito do MVP. |
 | [docs/user-stories.md](docs/user-stories.md) | User stories do MVP, critérios de aceitação, casos-limite e pressupostos de regras (PN). |
 | [docs/constraints.md](docs/constraints.md) | Restrições de âmbito, permissões, requisitos não funcionais, decisões pendentes e questões em aberto. |
+| [docs/architecture.md](docs/architecture.md) | Decisão de arquitetura (D07: monólito modular), componentes, responsabilidades e dependências entre módulos. |
+| [docs/database.md](docs/database.md) | Modelo de dados lógico do MVP, regras de integridade e diagrama ER. |
+| [docs/ui/dashboard-wireframe.html](docs/ui/dashboard-wireframe.html) | Wireframe de baixa fidelidade do ecrã inicial e da vista de um projeto. |
+| [openapi.yaml](openapi.yaml) | Especificação parcial da API do backend: listar e criar tarefas de um projeto (FN06, FN08). |
+| [AGENTS.md](AGENTS.md) | Instruções para agentes de IA que trabalhem no repositório. |
 
 ## Convenção de IDs
 
@@ -70,8 +75,9 @@ Os IDs são iguais em todos os ficheiros.
 | R1–R10 | Respostas assumidas às perguntas de clarificação prioritárias | Pressuposto |
 | DE01–DE14 | Decisões da equipa do projeto (2026-10-29 e 2026-11-04), não validadas pelo cliente | Decisão interna |
 | PN01–PN18 | Regras de negócio: concretizam decisões DE ou são pressupostos | Decisão interna ou pressuposto |
-| D01–D08 | Decisões técnicas pendentes | Decisão pendente |
+| D01–D08 | Decisões técnicas pendentes (D07 já decidida, por validar) | Decisão pendente |
 | FN01–FN29 | Funcionalidades propostas | Proposta |
-| US01–US14 | User stories do MVP | Proposta |
+| US01–US19 | User stories do MVP | Proposta |
+| US20–US36 | User stories fora do MVP | Proposta |
 | CL1–CL12 | Casos-limite | Proposta |
 | RNF01–RNF03 | Requisitos não funcionais | Pressuposto |

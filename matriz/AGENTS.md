@@ -11,13 +11,15 @@ assumas nenhuma escolha técnica que não esteja registada nos documentos.
 
 ## Antes de qualquer tarefa
 
-1. Lê `README.md` e os documentos de `docs/` relevantes para a tarefa:
+1. Lê `README.md` e os documentos relevantes para a tarefa:
    - `docs/requirements.md` — âmbito, requisitos funcionais e não funcionais, MVP.
    - `docs/user-stories.md` — user stories e critérios de aceitação.
    - `docs/constraints.md` — restrições, pressupostos e decisões pendentes.
    - `docs/architecture.md` — arquitetura, componentes e responsabilidades.
    - `docs/database.md` — modelo de dados e diagrama ER.
-2. Identifica os IDs (FN, US, R, DE, PN, CL, RNF, D) a que a tarefa diz respeito.
+   - `docs/ui/dashboard-wireframe.html` — wireframe do ecrã inicial e da vista de um projeto.
+   - `openapi.yaml` — especificação parcial da API (listar e criar tarefas).
+2. Identifica os IDs (F, P, R, DE, PN, D, FN, US, CL, RNF) a que a tarefa diz respeito.
    Usa os termos do glossário do `README.md` (conta, função, Gestor, Membro,
    Administrador).
 

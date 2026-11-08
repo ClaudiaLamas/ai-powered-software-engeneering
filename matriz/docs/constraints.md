@@ -17,7 +17,7 @@ Decisões nossas, por validar com o cliente.
 
 ## 2. Permissões
 
-Resumo das decisões DE01–DE12 e das regras PN01–PN18. **Nenhuma foi validada pelo cliente.** As colunas Gestor e Membro referem-se à função da conta *naquele* projeto. Uma conta com permissão de Administrador que também participa num projeto tem, nesse projeto, as permissões da sua função.
+Resumo das decisões DE01–DE14 e das regras PN01–PN18. **Nenhuma foi validada pelo cliente.** As colunas Gestor e Membro referem-se à função da conta *naquele* projeto. Uma conta com permissão de Administrador que também participa num projeto tem, nesse projeto, as permissões da sua função.
 
 | Ação | Administrador | Gestor do projeto | Membro do projeto | Origem |
 |---|---|---|---|---|
