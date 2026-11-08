@@ -31,7 +31,7 @@ Legenda: **PK** chave primária · **FK** chave estrangeira · **UK** valor úni
 | id | id | PK | Sim | Identificador interno. | — |
 | name | string | | Sim | Nome. Mostrado como autor, responsável e no registo. | Glossário, US02 |
 | email | string | UK | Sim | Único, incluindo contas desativadas. | PN11 |
-| password_hash | string | | Não | Hash da palavra-passe (bcrypt ou argon2). Vazio só enquanto a conta está `PENDING`. A palavra-passe é definida pela própria pessoa ao ativar a conta (pelo menos 12 caracteres) e nunca é guardada nem devolvida em claro. | D06, DE15 |
+| password_hash | string | | Não | Hash bcrypt da palavra-passe. Vazio só enquanto a conta está `PENDING`. A palavra-passe é definida pela própria pessoa ao ativar a conta (pelo menos 12 caracteres) e nunca é guardada nem devolvida em claro. | D06, DE15 |
 | status | enum | | Sim | `PENDING` ("Pendente"), `ACTIVE` ("Ativa") ou `DEACTIVATED` ("Desativada"). Começa em `PENDING`; passa a `ACTIVE` quando a pessoa define a palavra-passe; `PENDING` e `ACTIVE` podem passar a `DEACTIVATED`; não sai de `DEACTIVATED`. A conta de sistema é criada já em `ACTIVE`. | US02, PN17, DE15 |
 | is_admin | boolean | | Sim | Permissão de Administrador. Começa em falso. | DE02, DE05, US02 |
 | is_system_account | boolean | | Sim | Verdadeiro só na conta de sistema, criada pela equipa do projeto. | DE04, PN16 |

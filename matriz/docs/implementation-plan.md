@@ -17,11 +17,13 @@ Registadas nos documentos (decisões internas, por validar com o cliente).
 | Linguagem e frameworks | TypeScript; NestJS no backend; Vue.js no frontend | D02, D03 |
 | Dados | PostgreSQL, com Prisma (migrations e seed); identificadores UUID | D04, constraints.md §4 |
 | Execução | Local, com o PostgreSQL num container Docker (`docker-compose.yml`); deploy fora do âmbito | D05 |
-| Autenticação | JWT no cabeçalho `Authorization: Bearer ...`, válido 1 hora, sem revogação; palavras-passe com hash (bcrypt ou argon2); `@nestjs/jwt` e Passport | D06 |
+| Autenticação | JWT no cabeçalho `Authorization: Bearer ...`, válido 1 hora, sem revogação; palavras-passe com hash bcrypt (`bcryptjs`); `@nestjs/jwt` e Passport | D06 |
 | Testes | Vitest no backend e no frontend; Supertest nos testes de API | D08 |
 | Email | Mailpit no `docker-compose.yml` para os emails de ativação | D09, DE15 |
 | Versões | LTS atual do Node.js e versões estáveis mais recentes das restantes, confirmadas nos sites oficiais na instalação | constraints.md §4 |
 | Percurso do incremento 1 | Duas contas: o Administrador cria o projeto e o Gestor vê-o na listagem e consulta-o (DE02) | Decidido em 2026-11-08 |
+| Dependências do seed e da autenticação | `bcryptjs`, `@prisma/adapter-pg` e `pg` (o Prisma 7 liga-se ao PostgreSQL por um driver adapter); `tsx` (desenvolvimento, para correr o seed) | Instaladas em 2026-11-08 |
+| Seed | `backend/prisma/seed.ts`, corrido só a pedido (`npm run db:seed`), nunca no arranque. Idempotente: identificadores fixos (contas pelo email); só cria o que falta e nunca altera nem apaga dados. Cria a conta de sistema, a Ana e o Bruno (ativos), uma conta pendente (sem palavra-passe nem token) e uma desativada; três projetos com acessos distintos (a conta de sistema não é membro de nenhum, DE02), tarefas, responsáveis e comentários. Dados fictícios; a palavra-passe comum vem de `SEED_DEMO_PASSWORD` (`.env`, ignorado pelo Git), guardada como hash bcrypt; sem entradas no registo administrativo | Decidido em 2026-11-08 |
 | Contrato da API | 32 operações de [openapi.yaml](../openapi.yaml) | openapi.yaml 0.2.0 |
 | Âmbito | Só as funcionalidades Must (FN01–FN09, FN14, FN27, FN28); pesquisa, filtros, prioridade e prazos ficam fora | requirements.md §5 |
 
@@ -34,8 +36,6 @@ Nada disto está decidido. Cada linha precisa de aprovação antes do incremento
 | Estrutura de pastas | `backend/` (NestJS) e `frontend/` (Vue) dentro de `matriz/`, com o `docker-compose.yml` na raiz de `matriz/` | 1 |
 | Criação dos projetos | Backend gerado com o Nest CLI; frontend gerado com `create-vue` (Vite, TypeScript, Vue Router, Vitest) | 1 |
 | Dependências adicionais | `class-validator` e `class-transformer` (validação dos pedidos), `@nestjs/config` (variáveis de ambiente), `passport-jwt`, Vue Router, `@vue/test-utils` (testes de componentes com Vitest), um cliente SMTP (por exemplo, `nodemailer`) para o Mailpit | 1, 2 |
-| Algoritmo de hash | Escolher entre bcrypt e argon2 no incremento 1 | 1 |
-| Seed | O seed do Prisma cria a conta de sistema e contas fictícias para testes manuais (ativa, pendente, desativada). As palavras-passe vêm de variáveis de ambiente (`.env`, ignorado pelo Git) | 1 |
 | Base de dados de testes | Uma base de dados PostgreSQL separada para os testes de API, recriada pelas migrations antes de cada execução | 1 |
 | Migrations por incremento | O esquema cresce com os incrementos: cada um acrescenta só as tabelas de que precisa | 1–6 |
 | Token no frontend | Guardado em `sessionStorage`: sobrevive a recarregar a página e desaparece ao fechar o separador | 1 |

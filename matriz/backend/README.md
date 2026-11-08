@@ -12,13 +12,15 @@ API da Matriz: monólito modular em NestJS e TypeScript, com PostgreSQL e Prisma
 ## Preparar
 
 ```bash
-cp .env.example .env    # muda os valores fictícios
+cp .env.example .env        # muda os valores fictícios
 npm install
+npx prisma generate         # gera o cliente Prisma em src/generated/ (ignorado pelo Git)
+npx prisma migrate deploy   # aplica as migrations à base de dados de DATABASE_URL
 ```
 
 Os valores de `DATABASE_URL` têm de coincidir com os do `.env` da raiz, que o
-`docker-compose.yml` usa. O esquema da base de dados (`prisma/schema.prisma`)
-entra no incremento 1 ([docs/implementation-plan.md](../docs/implementation-plan.md)).
+`docker-compose.yml` usa. Volta a correr `npx prisma generate` sempre que
+`prisma/schema.prisma` mudar.
 
 ## Comandos
 
@@ -31,3 +33,22 @@ entra no incremento 1 ([docs/implementation-plan.md](../docs/implementation-plan
 | `npm run test:cov` | Testes unitários com cobertura |
 | `npm run lint` | Verificação do código (oxlint) |
 | `npm run format` | Formatação (Prettier) |
+| `npm run db:seed` | Cria os dados de demonstração (só o que falta; ver abaixo) |
+
+## Dados de demonstração
+
+`npm run db:seed` corre [`prisma/seed.ts`](prisma/seed.ts) contra a base de dados
+de `DATABASE_URL`. Nunca corre no arranque da API. Pode correr várias vezes: só cria
+o que falta e nunca altera nem apaga dados existentes — por isso, mudar
+`SEED_DEMO_PASSWORD` depois não muda a palavra-passe das contas já criadas.
+
+Precisa de `SEED_DEMO_PASSWORD` no `.env` (pelo menos 12 caracteres): é a
+palavra-passe de todas as contas de demonstração com palavra-passe.
+
+| Conta | Estado | Projetos (função) |
+|---|---|---|
+| `admin@matriz.test` (conta de sistema, Administrador) | Ativa | nenhum (DE02) |
+| `ana.silva@matriz.test` | Ativa | Campanha de primavera (Gestor), Portal de clientes (Gestor) |
+| `bruno.costa@matriz.test` | Ativa | Renovação do escritório (Gestor), Portal de clientes (Membro) |
+| `carla.mendes@matriz.test` | Pendente, sem palavra-passe | Campanha de primavera (Membro) |
+| `duarte.lopes@matriz.test` | Desativada | nenhum |
