@@ -254,6 +254,11 @@ function requireEnv(name: string): string {
 
 const counts = { created: 0, existing: 0, skipped: 0 };
 
+function skip(message: string): void {
+  counts.skipped++;
+  console.warn(message);
+}
+
 async function ensure<T>(
   find: () => Promise<T | null>,
   create: () => Promise<T>,
@@ -282,7 +287,11 @@ async function main(): Promise<void> {
 
   try {
     // Contas, pelo email (único). O hash só é calculado para contas que faltam.
-    const accountIds = {} as Record<AccountKey, string>;
+    // Guarda-se o estado atual: uma conta que já existia pode ter mudado de estado.
+    const accounts = {} as Record<
+      AccountKey,
+      { id: string; name: string; status: AccountStatus }
+    >;
     for (const [key, data] of Object.entries(ACCOUNTS) as [
       AccountKey,
       (typeof ACCOUNTS)[AccountKey],
@@ -301,8 +310,21 @@ async function main(): Promise<void> {
             },
           }),
       );
-      accountIds[key] = account.id;
+      accounts[key] = account;
     }
+
+    // Responsável e autor de comentários: membro do projeto com conta ativa,
+    // no momento em que são escolhidos (PN06, PN08).
+    const isActiveMember = async (
+      key: AccountKey,
+      projectId: string,
+    ): Promise<boolean> =>
+      accounts[key].status === AccountStatus.ACTIVE &&
+      (await prisma.projectMember.findUnique({
+        where: {
+          projectId_accountId: { projectId, accountId: accounts[key].id },
+        },
+      })) !== null;
 
     // Projetos e membros.
     for (const project of Object.values(PROJECTS)) {
@@ -319,15 +341,31 @@ async function main(): Promise<void> {
       );
 
       for (const member of project.members) {
-        const accountId = accountIds[member.account];
+        const { id: accountId, name, status } = accounts[member.account];
+        // Contas desativadas não são adicionadas a projetos (PN08, PN14);
+        // as pendentes podem ser (DE15).
+        if (status === AccountStatus.DEACTIVATED) {
+          const existing = await prisma.projectMember.findUnique({
+            where: {
+              projectId_accountId: { projectId: project.id, accountId },
+            },
+          });
+          if (!existing) {
+            skip(
+              `${name} está desativada; não é adicionada a "${project.name}".`,
+            );
+          } else {
+            counts.existing++;
+          }
+          continue;
+        }
         if (member.role === ProjectRole.MANAGER) {
           // No máximo um Gestor por projeto (DE06): se já houver outro, não se mexe.
           const manager = await prisma.projectMember.findFirst({
             where: { projectId: project.id, role: ProjectRole.MANAGER },
           });
           if (manager && manager.accountId !== accountId) {
-            counts.skipped++;
-            console.warn(`"${project.name}" já tem outro Gestor; mantém-se.`);
+            skip(`"${project.name}" já tem outro Gestor; mantém-se.`);
             continue;
           }
         }
@@ -346,26 +384,56 @@ async function main(): Promise<void> {
       }
     }
 
-    // Tarefas.
+    // Tarefas. Se o responsável previsto já não puder ser escolhido, a tarefa
+    // é criada "Sem responsável" (DE09).
     for (const task of Object.values(TASKS)) {
+      const projectId = PROJECTS[task.project].id;
       await ensure(
         () => prisma.task.findUnique({ where: { id: task.id } }),
-        () =>
-          prisma.task.create({
+        async () => {
+          let assigneeId: string | null = null;
+          if (task.assignee) {
+            if (await isActiveMember(task.assignee, projectId)) {
+              assigneeId = accounts[task.assignee].id;
+            } else {
+              console.warn(
+                `${accounts[task.assignee].name} não é membro ativo do projeto; ` +
+                  `"${task.title}" fica sem responsável.`,
+              );
+            }
+          }
+          return prisma.task.create({
             data: {
               id: task.id,
-              projectId: PROJECTS[task.project].id,
+              projectId,
               title: task.title,
               description: task.description,
               status: task.status,
-              assigneeId: task.assignee ? accountIds[task.assignee] : null,
+              assigneeId,
             },
-          }),
+          });
+        },
       );
     }
 
     // Comentários.
     for (const comment of COMMENTS) {
+      const existing = await prisma.comment.findUnique({
+        where: { id: comment.id },
+      });
+      if (
+        !existing &&
+        !(await isActiveMember(
+          comment.author,
+          PROJECTS[TASKS[comment.task].project].id,
+        ))
+      ) {
+        skip(
+          `${accounts[comment.author].name} não é membro ativo do projeto; ` +
+            `o comentário ${comment.id} não é criado.`,
+        );
+        continue;
+      }
       await ensure(
         () => prisma.comment.findUnique({ where: { id: comment.id } }),
         () =>
@@ -373,7 +441,7 @@ async function main(): Promise<void> {
             data: {
               id: comment.id,
               taskId: TASKS[comment.task].id,
-              authorId: accountIds[comment.author],
+              authorId: accounts[comment.author].id,
               body: comment.body,
             },
           }),

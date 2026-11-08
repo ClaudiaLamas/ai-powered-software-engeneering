@@ -12,13 +12,15 @@ API da Matriz: monólito modular em NestJS e TypeScript, com PostgreSQL e Prisma
 ## Preparar
 
 ```bash
-cp .env.example .env    # muda os valores fictícios
+cp .env.example .env        # muda os valores fictícios
 npm install
+npx prisma generate         # gera o cliente Prisma em src/generated/ (ignorado pelo Git)
+npx prisma migrate deploy   # aplica as migrations à base de dados de DATABASE_URL
 ```
 
 Os valores de `DATABASE_URL` têm de coincidir com os do `.env` da raiz, que o
-`docker-compose.yml` usa. O esquema da base de dados (`prisma/schema.prisma`)
-entra no incremento 1 ([docs/implementation-plan.md](../docs/implementation-plan.md)).
+`docker-compose.yml` usa. Volta a correr `npx prisma generate` sempre que
+`prisma/schema.prisma` mudar.
 
 ## Comandos
 
