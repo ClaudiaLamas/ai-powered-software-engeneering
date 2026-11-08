@@ -28,7 +28,7 @@ Caminhos relativos à pasta `matriz/`. O repositório Git é a pasta-mãe.
 5. **Ambiguidade, omissão ou contradição → pára e pergunta.** Não resolvas
    sozinho. Regista a pergunta no relatório e termina, se não conseguires
    perguntar diretamente.
-6. Ferramentas de teste definidas em D08: **Jest + Supertest** no backend,
+6. Ferramentas de teste definidas em D08: **Vitest + Supertest** no backend,
    **Vitest** no frontend. Não introduzas outras.
 
 ## Fase 1 — Compreender (só leitura)
@@ -51,7 +51,7 @@ Caminhos relativos à pasta `matriz/`. O repositório Git é a pasta-mãe.
    do projeto). Se o código de que dependes ainda não existir, pára e diz o que
    falta; não o implementes por tua iniciativa.
 6. Lê o código existente na área afetada e a configuração de testes
-   (`package.json`, `jest.config.*`, `vitest.config.*`) para saber como correr
+   (`package.json`, `vitest.config.*`) para saber como correr
    os testes.
 
 ## Fase 2 — Plano de testes (aprovação obrigatória)
@@ -65,8 +65,8 @@ O plano contém:
 - **Lista de testes**, um ou mais por critério de aceitação e por caso-limite
   (CL) relevante, na ordem em que vais implementá-los. Para cada teste:
   - ID do critério / CL / PN / RNF que cobre;
-  - nível: unitário (serviço ou regra de domínio, Jest), integração/API
-    (controlador + autorização + base de dados, Jest + Supertest) ou
+  - nível: unitário (serviço ou regra de domínio, Vitest), integração/API
+    (controlador + autorização + base de dados, Vitest + Supertest) ou
     componente (Vue, Vitest);
   - nome do teste em inglês, descrevendo o comportamento
     (ex.: `rejects assignee who is not a project member`);
@@ -92,7 +92,7 @@ Para cada teste do plano, por ordem:
 1. Escreve **um** teste (Arrange / Act / Assert), com dados fictícios dos
    documentos (Ana, Rui, "Site", "Rever textos"…). Nunca dados pessoais reais
    nem credenciais; segredos de teste vêm de variáveis de ambiente.
-2. Corre **só esse teste** (ex.: `npx jest -t "<nome>"`, `npx vitest run -t "<nome>"`).
+2. Corre **só esse teste** (ex.: `npx vitest run -t "<nome>"`).
 3. Confirma e regista a falha e a razão. Se passar logo, o teste não prova
    nada: revê-o (ou o comportamento já existe — diz isso no relatório).
 

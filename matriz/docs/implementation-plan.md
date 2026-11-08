@@ -18,7 +18,7 @@ Registadas nos documentos (decisões internas, por validar com o cliente).
 | Dados | PostgreSQL, com Prisma (migrations e seed); identificadores UUID | D04, constraints.md §4 |
 | Execução | Local, com o PostgreSQL num container Docker (`docker-compose.yml`); deploy fora do âmbito | D05 |
 | Autenticação | JWT no cabeçalho `Authorization: Bearer ...`, válido 1 hora, sem revogação; palavras-passe com hash (bcrypt ou argon2); `@nestjs/jwt` e Passport | D06 |
-| Testes | Jest e Supertest no backend; Vitest no frontend | D08 |
+| Testes | Vitest no backend e no frontend; Supertest nos testes de API | D08 |
 | Email | Mailpit no `docker-compose.yml` para os emails de ativação | D09, DE15 |
 | Versões | LTS atual do Node.js e versões estáveis mais recentes das restantes, confirmadas nos sites oficiais na instalação | constraints.md §4 |
 | Percurso do incremento 1 | Duas contas: o Administrador cria o projeto e o Gestor vê-o na listagem e consulta-o (DE02) | Decidido em 2026-11-08 |
@@ -59,8 +59,8 @@ Os incrementos 2 e 3 podem ser feitos em qualquer ordem, tal como 5, 6 e 7 depoi
 
 **Formas de verificação usadas abaixo:**
 
-- **[API]** teste automático Jest + Supertest contra a API e a base de dados de testes;
-- **[Unidade]** teste automático Jest de uma regra isolada;
+- **[API]** teste automático Vitest + Supertest contra a API e a base de dados de testes;
+- **[Unidade]** teste automático Vitest de uma regra isolada;
 - **[UI]** teste automático Vitest de um componente ou vista Vue;
 - **[Manual]** verificação no navegador (e, no incremento 2, no Mailpit).
 

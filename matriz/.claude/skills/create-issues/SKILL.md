@@ -90,7 +90,7 @@ Usa o modelo em [template.md](template.md). Regras:
   US06 depende de US01, US03, US04). Se o issue de setup do projeto ainda não
   existir, indica "Configuração inicial do projeto (D01–D08)" como dependência e
   propõe ao utilizador criá-lo, com base apenas nas decisões D01–D08.
-- **Definição de pronto:** testes que cobrem cada critério (Jest + Supertest no
+- **Definição de pronto:** testes que cobrem cada critério (Vitest + Supertest no
   backend, Vitest no frontend, D08), verificação de autorização no backend
   (RNF02), mensagens em português, documentação em `docs/` atualizada se algo mudar.
 - **Dados de exemplo:** só os nomes fictícios usados nos documentos (Ana, Rui,
