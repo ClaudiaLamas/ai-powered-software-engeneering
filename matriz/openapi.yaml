@@ -23,9 +23,9 @@ info:
     Fora desta especificação (fora do MVP): filtros e pesquisa (FN13), prazo
     (FN10), prioridade e urgência/importância (FN12).
 
-    Pressupostos por validar: a forma de autenticação (D06) e o formato dos
-    identificadores (D04) estão pendentes. Nenhuma regra foi validada pelo
-    cliente.
+    Autenticação com JWT (D06) e identificadores UUID (ver
+    `docs/constraints.md` §4); decisões internas, por validar. Nenhuma regra
+    foi validada pelo cliente.
 
 tags:
   - name: tasks
@@ -66,33 +66,33 @@ paths:
                   summary: Projeto com três tarefas
                   value:
                     items:
-                      - id: "t_01"
-                        projectId: "p_01"
+                      - id: "9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c01"
+                        projectId: "5b1f2c3a-8d4e-4f6a-9b7c-0d1e2f3a4b01"
                         title: Rever textos
                         description: null
                         status: IN_PROGRESS
                         assignee:
-                          id: "a_02"
+                          id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
                           name: Ana Silva
                           status: ACTIVE
                           isProjectMember: true
                         createdAt: "2026-10-29T09:00:00Z"
                         updatedAt: "2026-10-29T10:30:00Z"
-                      - id: "t_02"
-                        projectId: "p_01"
+                      - id: "9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c02"
+                        projectId: "5b1f2c3a-8d4e-4f6a-9b7c-0d1e2f3a4b01"
                         title: Publicar página inicial
                         description: Depois da revisão dos textos.
                         status: TODO
                         assignee: null
                         createdAt: "2026-10-29T09:05:00Z"
                         updatedAt: "2026-10-29T09:05:00Z"
-                      - id: "t_03"
-                        projectId: "p_01"
+                      - id: "9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c03"
+                        projectId: "5b1f2c3a-8d4e-4f6a-9b7c-0d1e2f3a4b01"
                         title: Criar logótipo
                         description: null
                         status: DONE
                         assignee:
-                          id: "a_03"
+                          id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d603"
                           name: Rui Costa
                           status: ACTIVE
                           isProjectMember: false
@@ -137,7 +137,7 @@ paths:
                 value:
                   title: Rever textos
                   description: Rever os textos da página inicial.
-                  assigneeId: "a_02"
+                  assigneeId: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
               withoutAssignee:
                 summary: Sem responsável
                 value:
@@ -151,19 +151,19 @@ paths:
               schema:
                 type: string
                 format: uri-reference
-              example: /tasks/t_01
+              example: /tasks/9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c01
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Task"
               example:
-                id: "t_01"
-                projectId: "p_01"
+                id: "9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c01"
+                projectId: "5b1f2c3a-8d4e-4f6a-9b7c-0d1e2f3a4b01"
                 title: Rever textos
                 description: Rever os textos da página inicial.
                 status: TODO
                 assignee:
-                  id: "a_02"
+                  id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
                   name: Ana Silva
                   status: ACTIVE
                   isProjectMember: true
@@ -244,10 +244,11 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+      bearerFormat: JWT
       description: |
-        Pedido autenticado com o token da sessão da conta. O formato do token e
-        a forma de autenticação estão pendentes (D06). Contas desativadas não
-        são aceites (US01).
+        Pedido autenticado com o JWT da conta, no cabeçalho
+        `Authorization: Bearer ...` (D06). Contas desativadas não são aceites
+        (US01).
 
   parameters:
     ProjectId:
@@ -261,9 +262,11 @@ components:
   schemas:
     Id:
       type: string
-      minLength: 1
-      description: Identificador opaco. O formato depende de D04.
-      examples: ["p_01"]
+      format: uuid
+      description: |
+        Identificador UUID. Conhecer o UUID de um recurso não dá acesso a ele:
+        a autorização é sempre verificada (RNF02).
+      examples: ["5b1f2c3a-8d4e-4f6a-9b7c-0d1e2f3a4b01"]
 
     TaskStatus:
       type: string

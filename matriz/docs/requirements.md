@@ -63,9 +63,9 @@ Respostas às 10 perguntas de clarificação prioritárias. Como não foi possí
 | R9 | O que significa "acompanhar o progresso"? (18) | Ver, por projeto, quantas tarefas há em cada estado e a percentagem de tarefas concluídas. | É a interpretação mais direta de F5. |
 | R10 | Quem pode ver cada projeto? (22) | Só os membros desse projeto (incluindo o Gestor). A permissão de Administrador não dá acesso ao conteúdo de projetos onde a conta não participa (ver DE02). | É mais seguro começar fechado e abrir depois. |
 
-### 2.3 Decisões internas (DE01–DE14)
+### 2.3 Decisões internas (DE01–DE15)
 
-Decisões tomadas pela equipa do projeto em 2026-10-29 (DE14 em 2026-11-04), depois da revisão do Specification Pack. **Não foram validadas pelo cliente**: são decisões nossas, não factos, e prevalecem sobre os pressupostos R e PN que contradizem.
+Decisões tomadas pela equipa do projeto em 2026-10-29 (DE14 em 2026-11-04 e DE15 em 2026-11-08), depois da revisão do Specification Pack. **Não foram validadas pelo cliente**: são decisões nossas, não factos, e prevalecem sobre os pressupostos R e PN que contradizem.
 
 | ID | Decisão | Substitui |
 |---|---|---|
@@ -83,12 +83,13 @@ Decisões tomadas pela equipa do projeto em 2026-10-29 (DE14 em 2026-11-04), dep
 | DE12 | As ações administrativas ficam registadas no MVP. | — |
 | DE13 | No futuro, o responsável de uma tarefa poderá pedir ajuda a outro membro da equipa, adicionando-o à tarefa. Fica fora do MVP. | — |
 | DE14 | Quando uma conta é desativada, ou o Gestor remove um membro (com a conta ativa ou desativada), as tarefas dessa pessoa que não estão "Concluída" passam a "Sem responsável" e as tarefas "Concluída" mantêm o nome dela como responsável, com a indicação "conta desativada" ou "já não é membro" (se as duas se aplicarem, mostra-se "conta desativada"). A indicação "já não é membro" desaparece se a pessoa voltar a ser adicionada ao projeto. Uma tarefa "Concluída" de uma conta desativada ou de quem já não é membro que seja reaberta passa a "Sem responsável". O responsável tem de ser membro do projeto com conta ativa no momento em que é escolhido. Uma conta desativada não pode ser adicionada a um projeto nem escolhida como responsável. Decidida em 2026-11-04. | PN06, PN07, PN08, PN10 |
+| DE15 | Uma conta nova fica "Pendente", sem palavra-passe. Ao criá-la, o backend gera um token aleatório de uso único, válido 24 horas, guarda só o hash do token e envia à pessoa um email com um link de ativação. Ao abrir o link, a pessoa define a sua palavra-passe (pelo menos 12 caracteres); a conta passa a "Ativa" e o token é invalidado. O Administrador pode reenviar o convite: é gerado um token novo e o anterior é invalidado. Uma conta pendente não consegue entrar; pode ser adicionada a projetos e nomeada Gestor, mas não pode ser escolhida como responsável. Pode ser desativada, o que invalida o token. A recuperação do acesso (palavra-passe esquecida) fica em aberto. Decidida em 2026-11-08. | PN14 (em parte) |
 
 As regras de negócio detalhadas (PN01–PN18) estão em [user-stories.md](user-stories.md#4-regras-de-negócio-pn01pn18). O vocabulário (conta, função, permissão) está no [glossário do README](../README.md#glossário).
 
 ## 3. Funções e permissões
 
-Todas as funções e permissões são **decisões internas ou pressupostos** (R4, DE01–DE14, PN01–PN18). As permissões detalhadas estão em [constraints.md](constraints.md#2-permissões).
+Todas as funções e permissões são **decisões internas ou pressupostos** (R4, DE01–DE15, PN01–PN18). As permissões detalhadas estão em [constraints.md](constraints.md#2-permissões).
 
 | Quem | O que precisa | Origem |
 |---|---|---|
@@ -105,7 +106,7 @@ Origem: F = facto do cliente; P, R = pressuposto; DE = decisão interna. A prior
 | ID | Funcionalidade | Justificação | Origem | MoSCoW | MVP |
 |---|---|---|---|---|---|
 | FN01 | Acesso identificado: cada pessoa entra com a sua conta | Sem identificar cada pessoa não é possível atribuir tarefas (FN06) nem restringir projetos aos membros. | F4, R10 | Must | Sim |
-| FN02 | Administrador cria e desativa contas e dá ou retira a permissão de Administrador | Sem contas não há membros para organizar projetos ou gerir tarefas; sem gestão da permissão, a administração depende de uma só conta. | P7, R4, DE03–DE05 | Must | Sim |
+| FN02 | Administrador cria e desativa contas e dá ou retira a permissão de Administrador | Sem contas não há membros para organizar projetos ou gerir tarefas; sem gestão da permissão, a administração depende de uma só conta. | P7, R4, DE03–DE05, DE15 | Must | Sim |
 | FN03 | Administrador cria projetos e atribui o Gestor; Gestor edita e arquiva o projeto (nome, descrição) | É a base de "organizar projetos". | F3, R6, DE06, DE07 | Must | Sim |
 | FN04 | Gestor adiciona e remove membros de um projeto | Define quem trabalha em cada projeto e quem o pode ver. | F2, F3, R6, R10, DE07 | Must | Sim |
 | FN05 | Ver a lista dos projetos a que pertenço, com o progresso de cada um (FN09). É o ecrã inicial (dashboard). | Permite encontrar e organizar o trabalho por projeto. | F3, F5 | Must | Sim |

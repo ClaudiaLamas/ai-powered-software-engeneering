@@ -5,18 +5,21 @@ Instruções para agentes de IA que trabalhem no repositório Matriz.
 ## Estado do projeto
 
 A especificação está concluída; ainda não há código. A arquitetura está decidida
-(monólito modular, decisão interna por validar; ver `docs/architecture.md`). A
-stack está decidida: TypeScript, NestJS no backend, Vue.js no frontend e
-PostgreSQL (D02–D04, decisões internas por validar). O alojamento e a
-autenticação estão por decidir (ver `docs/constraints.md`). Não assumas nenhuma
-escolha técnica que não esteja registada nos documentos.
+(monólito modular, decisão interna por validar; ver `docs/architecture.md`). Todas
+as decisões técnicas estão tomadas (D01–D09, decisões internas por validar; ver
+`docs/constraints.md` §4): aplicação web responsiva; TypeScript, NestJS no
+backend e Vue.js no frontend; PostgreSQL com Prisma e identificadores UUID;
+autenticação com JWT; execução local com Docker e emails locais com Mailpit;
+testes com Jest e Supertest (backend) e Vitest (frontend). Confirma as versões
+nos sites oficiais quando instalares. Não assumas nenhuma escolha técnica que
+não esteja registada nos documentos.
 
 ## Antes de qualquer tarefa
 
 1. Lê `README.md` e os documentos relevantes para a tarefa:
    - `docs/requirements.md` — âmbito, requisitos funcionais e não funcionais, MVP.
    - `docs/user-stories.md` — user stories e critérios de aceitação.
-   - `docs/constraints.md` — restrições, pressupostos e decisões pendentes.
+   - `docs/constraints.md` — restrições, pressupostos e decisões técnicas.
    - `docs/architecture.md` — arquitetura, componentes e responsabilidades.
    - `docs/database.md` — modelo de dados e diagrama ER.
    - `docs/ui/dashboard-wireframe.html` — wireframe do ecrã inicial e da vista de um projeto.

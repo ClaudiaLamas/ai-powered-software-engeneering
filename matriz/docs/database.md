@@ -2,7 +2,7 @@
 
 Este ficheiro descreve o modelo de dados lógico do MVP (FN01–FN09, FN14, FN27, FN28). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e da arquitetura em [architecture.md](architecture.md).
 
-O modelo é **lógico**: não fixa os tipos físicos. A base de dados é PostgreSQL (D04, decisão interna, por validar). Os tipos indicados (`id`, `string`, `boolean`, `enum`, `datetime`) são genéricos. Tal como o resto da especificação, **nenhuma regra foi validada pelo cliente**.
+O modelo é **lógico**: não fixa os tipos físicos. A base de dados é PostgreSQL, gerida com Prisma (migrations e seed), e os identificadores são UUID (D04 e pontos complementares em [constraints.md](constraints.md#4-decisões-técnicas); decisões internas, por validar). Os tipos indicados (`id`, `string`, `boolean`, `enum`, `datetime`) são genéricos; `id` é um UUID. Tal como o resto da especificação, **nenhuma regra foi validada pelo cliente**.
 
 **Convenção de nomes:** entidades, atributos, valores de `enum` e módulos têm nomes em inglês, para serem usados tal e qual no código. A documentação e a interface continuam em português; a coluna "Termo" e as notas indicam o termo do glossário e o texto mostrado ao utilizador.
 
@@ -15,6 +15,7 @@ O modelo é **lógico**: não fixa os tipos físicos. A base de dados é Postgre
 | PROJECT_MEMBER | membro do projeto | A participação de uma conta num projeto e a sua função nesse projeto (Gestor ou Membro). Resolve a relação N:M entre ACCOUNT e PROJECT. | Projetos e membros (`projects`) |
 | TASK | Tarefa | Uma tarefa de um projeto (R7). | Tarefas e comentários (`tasks`) |
 | COMMENT | Comentário | Um comentário de uma conta numa tarefa (FN14). | Tarefas e comentários (`tasks`) |
+| ACCOUNT_ACTIVATION_TOKEN | Token de ativação | Um token de uso único enviado por email para a pessoa definir a palavra-passe (DE15). | Autenticação e contas (`accounts`) |
 | ADMIN_AUDIT_LOG | Registo de ações administrativas | Uma entrada do registo (FN28, PN18). | Registo administrativo (`audit`) |
 
 Não há entidade "Equipa": a equipa de um projeto são as linhas de PROJECT_MEMBER desse projeto (R6). Não há entidade "Progresso": o indicador é calculado a partir de TASK (FN09, PN13) e não é guardado. "Administrador" não é uma entidade nem uma função: é um atributo de ACCOUNT (DE02).
@@ -30,12 +31,27 @@ Legenda: **PK** chave primária · **FK** chave estrangeira · **UK** valor úni
 | id | id | PK | Sim | Identificador interno. | — |
 | name | string | | Sim | Nome. Mostrado como autor, responsável e no registo. | Glossário, US02 |
 | email | string | UK | Sim | Único, incluindo contas desativadas. | PN11 |
-| status | enum | | Sim | `ACTIVE` ("Ativa") ou `DEACTIVATED` ("Desativada"). Começa em `ACTIVE`; não volta de `DEACTIVATED` para `ACTIVE`. | US02, PN17 |
+| password_hash | string | | Não | Hash da palavra-passe (bcrypt ou argon2). Vazio só enquanto a conta está `PENDING`. A palavra-passe é definida pela própria pessoa ao ativar a conta (pelo menos 12 caracteres) e nunca é guardada nem devolvida em claro. | D06, DE15 |
+| status | enum | | Sim | `PENDING` ("Pendente"), `ACTIVE` ("Ativa") ou `DEACTIVATED` ("Desativada"). Começa em `PENDING`; passa a `ACTIVE` quando a pessoa define a palavra-passe; `PENDING` e `ACTIVE` podem passar a `DEACTIVATED`; não sai de `DEACTIVATED`. A conta de sistema é criada já em `ACTIVE`. | US02, PN17, DE15 |
 | is_admin | boolean | | Sim | Permissão de Administrador. Começa em falso. | DE02, DE05, US02 |
 | is_system_account | boolean | | Sim | Verdadeiro só na conta de sistema, criada pela equipa do projeto. | DE04, PN16 |
 | created_at | datetime | | Sim | | — |
 
-Os dados de autenticação (por exemplo, palavra-passe ou identificador num sistema externo) não estão no modelo porque dependem de D06.
+A autenticação usa JWT (D06). Em ACCOUNT fica o hash da palavra-passe (`password_hash`); os tokens de ativação ficam em ACCOUNT_ACTIVATION_TOKEN.
+
+### ACCOUNT_ACTIVATION_TOKEN (Token de ativação)
+
+| Atributo | Tipo | Chave | Obr. | Notas | Origem |
+|---|---|---|---|---|---|
+| id | id | PK | Sim | Identificador interno. | — |
+| account_id | id | FK → ACCOUNT | Sim | Conta a ativar. | DE15 |
+| token_hash | string | UK | Sim | Hash do token enviado no link de ativação. O token em claro nunca é guardado. | DE15 |
+| expires_at | datetime | | Sim | 24 horas depois de `created_at`. | DE15 |
+| used_at | datetime | | Não | Preenchido quando o token é usado para ativar a conta. | DE15 |
+| invalidated_at | datetime | | Não | Preenchido quando o token deixa de valer sem ter sido usado: reenvio do convite ou desativação da conta. | DE15 |
+| created_at | datetime | | Sim | | — |
+
+Um token só é válido se `used_at` e `invalidated_at` estiverem vazios e `expires_at` ainda não tiver passado.
 
 ### PROJECT (Projeto)
 
@@ -88,7 +104,7 @@ A chave primária composta (project_id, account_id) impede que a mesma conta apa
 |---|---|---|---|---|---|
 | id | id | PK | Sim | Identificador interno. | — |
 | actor_id | id | FK → ACCOUNT | Sim | Administrador que executou a ação (autor). | PN18 |
-| action | enum | | Sim | `CREATE_ACCOUNT` ("Criar conta"), `DEACTIVATE_ACCOUNT` ("Desativar conta"), `GRANT_ADMIN` ("Dar permissão de Administrador"), `REVOKE_ADMIN` ("Retirar permissão de Administrador"), `CREATE_PROJECT` ("Criar projeto"), `ASSIGN_MANAGER` ("Atribuir Gestor"), `CHANGE_MANAGER` ("Trocar Gestor"), `ADD_MEMBER` ("Adicionar membro"). | PN18 |
+| action | enum | | Sim | `CREATE_ACCOUNT` ("Criar conta"), `RESEND_INVITE` ("Reenviar convite"), `DEACTIVATE_ACCOUNT` ("Desativar conta"), `GRANT_ADMIN` ("Dar permissão de Administrador"), `REVOKE_ADMIN` ("Retirar permissão de Administrador"), `CREATE_PROJECT` ("Criar projeto"), `ASSIGN_MANAGER` ("Atribuir Gestor"), `CHANGE_MANAGER` ("Trocar Gestor"), `ADD_MEMBER` ("Adicionar membro"). | PN18, DE15 |
 | target_account_id | id | FK → ACCOUNT | Não | Conta afetada, quando existe. | PN18, US14 |
 | target_project_id | id | FK → PROJECT | Não | Projeto afetado, quando existe (criar projeto, trocar Gestor, adicionar membro). | PN18 |
 | occurred_at | datetime | | Sim | Data e hora da ação. | PN18 |
@@ -100,6 +116,7 @@ Pelo menos um dos alvos tem de estar preenchido. As entradas nunca são alterada
 | Relacionamento | Cardinalidade | Leitura | Origem |
 |---|---|---|---|
 | ACCOUNT — PROJECT_MEMBER | 1 : 0..N | Uma conta participa em zero ou mais projetos; cada participação é de uma só conta. | DE01, R5 |
+| ACCOUNT — ACCOUNT_ACTIVATION_TOKEN | 1 : 0..N | Uma conta tem zero ou mais tokens de ativação (um por envio do convite); cada token é de uma só conta. No máximo um está válido. | DE15 |
 | PROJECT — PROJECT_MEMBER | 1 : 1..N | Um projeto tem pelo menos um membro (o Gestor); cada participação é de um só projeto. | DE06, PN03 |
 | ACCOUNT — PROJECT (via PROJECT_MEMBER) | N : M | Uma conta pode estar em vários projetos e um projeto tem várias contas. | DE01, R6 |
 | PROJECT — TASK | 1 : 0..N | Um projeto tem zero ou mais tarefas; uma tarefa pertence a exatamente um projeto. | R6, P3 |
@@ -129,6 +146,9 @@ Regras que o modelo tem de garantir. A coluna "Onde" indica se a regra pode ser 
 | Projeto arquivado: nenhuma alteração em PROJECT, PROJECT_MEMBER, TASK e COMMENT desse projeto. | Aplicação (`authorization`) | PN09 |
 | A conta de sistema não pode ser desativada nem perder a permissão; o último Administrador ativo também não. | Aplicação (`accounts`) | PN16, DE05 |
 | Uma conta desativada não volta a ficar ativa. | Aplicação (`accounts`) | PN17 |
+| `password_hash` só está vazio em contas `PENDING`. | Aplicação (`accounts`) | DE15 |
+| Cada conta tem no máximo um token de ativação válido: reenviar o convite invalida os anteriores; ativar a conta marca o token como usado; desativar a conta invalida o token válido. | Aplicação (`accounts`) | DE15 |
+| Contas `PENDING` podem ser adicionadas a projetos e nomeadas Gestor, mas não podem ser escolhidas como responsável. | Aplicação (`projects`, `tasks`) | DE15, PN06 |
 | O registo administrativo só aceita inserções. | Aplicação (`audit`); idealmente também permissões na base de dados | PN18 |
 | Eliminar uma tarefa elimina os seus comentários. | Base de dados (eliminação em cascata) | US06 (pressuposto, ver §6) |
 | Contas e projetos nunca são eliminados (só desativados ou arquivados). | Aplicação | US02, US10 (pressuposto, ver §6) |
@@ -141,7 +161,8 @@ erDiagram
         id id PK
         string name
         string email UK
-        enum status "ACTIVE | DEACTIVATED"
+        string password_hash "optional"
+        enum status "PENDING | ACTIVE | DEACTIVATED"
         boolean is_admin
         boolean is_system_account
         datetime created_at
@@ -177,6 +198,15 @@ erDiagram
         datetime created_at
         datetime edited_at "optional"
     }
+    ACCOUNT_ACTIVATION_TOKEN {
+        id id PK
+        id account_id FK
+        string token_hash UK
+        datetime expires_at
+        datetime used_at "optional"
+        datetime invalidated_at "optional"
+        datetime created_at
+    }
     ADMIN_AUDIT_LOG {
         id id PK
         id actor_id FK
@@ -187,6 +217,7 @@ erDiagram
     }
 
     ACCOUNT ||--o{ PROJECT_MEMBER : "participa como"
+    ACCOUNT ||--o{ ACCOUNT_ACTIVATION_TOKEN : "recebe"
     PROJECT ||--|{ PROJECT_MEMBER : "tem"
     PROJECT ||--o{ TASK : "contém"
     ACCOUNT |o--o{ TASK : "é responsável por"
@@ -209,7 +240,7 @@ erDiagram
 | Histórico de membros | Ao remover um membro, a linha de PROJECT_MEMBER é apagada; não se guarda histórico. As tarefas `DONE` mantêm `assignee_id`, e "já não é membro" deduz-se da falta da linha. | O histórico de alterações (FN18) está fora do MVP; só as adições pelo Administrador vão para o registo (PN18). |
 | Registo de remoções de membros pelo Gestor | Não são registadas. | PN18 só inclui "adicionar membros pelo Administrador". |
 | CL10 e CL11 | O modelo não muda com nenhuma das respostas possíveis. | CL11 pode exigir mudar a regra de email único (PN11) ou permitir reativar contas (PN17). |
-| Autenticação | Sem atributos de autenticação. | Depende de D06. |
+| Autenticação | `password_hash` em ACCOUNT, vazio enquanto a conta está pendente; ativação por token em ACCOUNT_ACTIVATION_TOKEN (DE15). | A recuperação do acesso (palavra-passe esquecida) está em aberto (constraints.md §5); pode vir a usar a mesma tabela. |
 
 ## 7. Coerência com a arquitetura
 

@@ -1,6 +1,6 @@
 # Restrições — Matriz
 
-Este ficheiro reúne as restrições de âmbito, as permissões, os requisitos não funcionais, as decisões técnicas pendentes e as questões em aberto. O cliente não indicou nenhuma restrição; **tudo o que está aqui são pressupostos, decisões internas (DE) ou decisões pendentes**.
+Este ficheiro reúne as restrições de âmbito, as permissões, os requisitos não funcionais, as decisões técnicas e as questões em aberto. O cliente não indicou nenhuma restrição; **tudo o que está aqui são pressupostos ou decisões internas (DE, D)**.
 
 ## 1. Restrições de âmbito
 
@@ -17,11 +17,12 @@ Decisões nossas, por validar com o cliente.
 
 ## 2. Permissões
 
-Resumo das decisões DE01–DE14 e das regras PN01–PN18. **Nenhuma foi validada pelo cliente.** As colunas Gestor e Membro referem-se à função da conta *naquele* projeto. Uma conta com permissão de Administrador que também participa num projeto tem, nesse projeto, as permissões da sua função.
+Resumo das decisões DE01–DE15 e das regras PN01–PN18. **Nenhuma foi validada pelo cliente.** As colunas Gestor e Membro referem-se à função da conta *naquele* projeto. Uma conta com permissão de Administrador que também participa num projeto tem, nesse projeto, as permissões da sua função.
 
 | Ação | Administrador | Gestor do projeto | Membro do projeto | Origem |
 |---|---|---|---|---|
 | Criar e desativar contas | Sim | Não | Não | US02, DE03 |
+| Reenviar o convite de uma conta pendente | Sim | Não | Não | US02, DE15 |
 | Dar e retirar a permissão de Administrador | Sim | Não | Não | US11, DE05 |
 | Criar projetos e atribuir o Gestor | Sim | Não | Não | US03, DE06 |
 | Trocar o Gestor (incluindo adicionar o novo Gestor à equipa) | Sim | Não | Não | US12, DE08 |
@@ -39,6 +40,7 @@ Resumo das decisões DE01–DE14 e das regras PN01–PN18. **Nenhuma foi validad
 
 - Um projeto arquivado fica só de leitura para todos (PN09).
 - Uma conta desativada não consegue entrar e não pode ser reativada (US01, US02, PN17).
+- Uma conta pendente não consegue entrar até definir a palavra-passe pelo link de ativação. Pode ser adicionada a projetos e nomeada Gestor, mas não pode ser escolhida como responsável (US02, DE15).
 - A conta de sistema não pode ser desativada nem perder a permissão de Administrador (PN16).
 - O responsável de uma tarefa tem de ser membro do projeto com conta ativa quando é escolhido (PN06). Uma tarefa "Concluída" pode manter como responsável quem já não é membro (PN07, DE14).
 - Uma conta desativada não pode ser adicionada a um projeto nem escolhida como responsável (PN08, DE14).
@@ -66,22 +68,29 @@ Estas áreas **não têm requisitos definidos**. Não se assumiu nada sobre elas
 | Acessibilidade | 31 |
 | Fusos horários | 28 |
 
-## 4. Decisões técnicas pendentes
+## 4. Decisões técnicas
 
-D02, D03, D04 e D07 estão decididas (decisões internas, por validar). As restantes ficam **pendentes** até haver respostas do cliente.
+Todas as decisões técnicas estão tomadas. São **decisões internas, por validar**: algumas dependem de perguntas ao cliente ainda sem resposta (coluna "Depende de") e têm de ser revistas se a resposta as contrariar.
 
-| ID | Decisão pendente | Depende de |
+| ID | Decisão | Depende de |
 |---|---|---|
-| D01 | Canais de acesso (navegador, aplicação móvel, outro) | Pergunta 27 |
+| D01 | Canais de acesso. **Decidida (decisão interna, por validar, 2026-11-08):** aplicação web, acedida pelo navegador e responsiva. | Pergunta 27 |
 | D02 | Linguagens de programação. **Decidida (decisão interna, por validar, 2026-11-08):** TypeScript, no backend e no frontend. | D01, D07 |
 | D03 | Frameworks. **Decidida (decisão interna, por validar, 2026-11-08):** NestJS no backend e Vue.js no frontend. | D01, D02 |
 | D04 | Forma de armazenamento dos dados. **Decidida (decisão interna, por validar, 2026-11-08):** base de dados relacional PostgreSQL. | RNF01, perguntas 23 e 25 |
-| D05 | Alojamento (infraestrutura própria ou externa) | Perguntas 23 e 26 |
-| D06 | Forma de autenticação das contas (FN01) | Pergunta 29 e regras internas da empresa |
+| D05 | Alojamento. **Decidida (decisão interna, por validar, 2026-11-08):** execução local, com o PostgreSQL num container Docker (`docker-compose.yml`). O deploy fica como extensão futura. | Perguntas 23 e 26 |
+| D06 | Forma de autenticação das contas (FN01). **Decidida (decisão interna, por validar, 2026-11-08):** JWT, enviado no cabeçalho `Authorization: Bearer ...`; palavras-passe guardadas como hash com bcrypt ou argon2 (algoritmo a escolher na implementação). No NestJS: `@nestjs/jwt` e Passport. | Pergunta 29 e regras internas da empresa |
 | D07 | Arquitetura da aplicação. **Decidida (decisão interna, por validar):** monólito modular; ver [architecture.md](architecture.md). | D01, RNF01 |
-| D08 | Forma de verificar os critérios de aceitação (testes) | D02, D03 |
+| D08 | Forma de verificar os critérios de aceitação (testes). **Decidida (decisão interna, por validar, 2026-11-08):** Jest e Supertest no backend (o NestJS já vem configurado com Jest); Vitest no frontend. | D02, D03 |
+| D09 | Envio de email (link de ativação, DE15). **Decidida (decisão interna, por validar, 2026-11-08):** na execução local, um container Mailpit no `docker-compose.yml` recebe os emails e mostra-os numa página local; nenhum email sai para fora. O envio real fica com o deploy (extensão futura). | D05, DE15 |
 
-D02 e D03 foram decididas antes de D01: Vue.js pressupõe a interface web assumida em [architecture.md](architecture.md#5-pressupostos-e-pontos-em-aberto).
+Pontos complementares, decididos na mesma data (decisões internas, por validar):
+
+| Ponto | Decisão |
+|---|---|
+| Versões | Versão LTS atual do Node.js e versões estáveis mais recentes do NestJS, do Vue.js e do PostgreSQL, confirmadas nos sites oficiais no momento da instalação. |
+| ORM | Prisma, que gera as migrations e o seed de forma reproduzível. A alternativa considerada foi o TypeORM. |
+| Identificadores | UUID. Não substituem a autorização: mesmo com UUID, o backend verifica sempre se a conta tem acesso ao recurso (RNF02). |
 
 ## 5. Questões em aberto
 
@@ -90,7 +99,8 @@ D02 e D03 foram decididas antes de D01: Vue.js pressupõe a interface web assumi
 | O Administrador pode nomear-se a si próprio Gestor de um projeto onde não participa? | CL10, PN14 |
 | Como volta a ter acesso uma pessoa cuja conta foi desativada, se a conta não pode ser reativada e o email é único? | CL11, PN11, PN17 |
 | Um projeto arquivado pode voltar a ficar ativo? Um projeto pode ser eliminado? | US10, PN09 |
-| Como recebe uma conta nova as suas credenciais para a primeira entrada? Como se recupera o acesso? Depende da forma de autenticação. | D06, US01, US02 |
+| Como se recupera o acesso quando a pessoa se esquece da palavra-passe? Pode usar o mesmo mecanismo de token da ativação (DE15). | D06, DE15, US01 |
+| Uma conta pendente pode receber a permissão de Administrador? | US11, DE15 |
 | Uma conta desativada com a sessão aberta sai de imediato ou só na próxima entrada? | US01, US15, PN17 |
-| Todas as respostas R1–R10, decisões DE01–DE14 e regras PN01–PN18 têm de ser validadas com o cliente. | [requirements.md](requirements.md#22-respostas-assumidas-r1r10), [requirements.md](requirements.md#23-decisões-internas-de01de14), [user-stories.md](user-stories.md#4-regras-de-negócio-pn01pn18) |
+| Todas as respostas R1–R10, decisões DE01–DE15 e regras PN01–PN18 têm de ser validadas com o cliente. | [requirements.md](requirements.md#22-respostas-assumidas-r1r10), [requirements.md](requirements.md#23-decisões-internas-de01de15), [user-stories.md](user-stories.md#4-regras-de-negócio-pn01pn18) |
 | Perguntas ao cliente sem resposta: 2, 4, 5, 19, 23, 26, 27, 31. | [requirements.md](requirements.md#6-perguntas-ao-cliente-ainda-por-responder) |

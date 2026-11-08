@@ -1,8 +1,8 @@
 # Arquitetura — Matriz
 
-Este ficheiro regista a decisão de arquitetura do MVP (decisão pendente D07 em [constraints.md](constraints.md#4-decisões-técnicas-pendentes)). É uma **decisão interna, por validar**, tomada com base nos documentos de especificação: [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e [AGENTS.md](../AGENTS.md).
+Este ficheiro regista a decisão de arquitetura do MVP (decisão D07 em [constraints.md](constraints.md#4-decisões-técnicas)). É uma **decisão interna, por validar**, tomada com base nos documentos de especificação: [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e [AGENTS.md](../AGENTS.md).
 
-A tecnologia foi decidida depois (D02–D04, ver [constraints.md](constraints.md#4-decisões-técnicas-pendentes)): TypeScript, NestJS no backend, Vue.js no frontend e PostgreSQL. O alojamento e a autenticação (D05, D06) continuam pendentes.
+A tecnologia foi decidida depois (D01–D06, D08 e D09, ver [constraints.md](constraints.md#4-decisões-técnicas)): aplicação web responsiva em Vue.js, backend em NestJS, tudo em TypeScript, PostgreSQL com Prisma, autenticação com JWT, execução local com Docker e emails locais com Mailpit.
 
 ## 1. Contexto relevante para a decisão
 
@@ -78,8 +78,8 @@ O nome entre parênteses é o nome do módulo no código, em inglês. As entidad
 |---|---|---|
 | **Frontend** | Interface em português (RNF03) para entrar na aplicação, ver os projetos, gerir tarefas e comentários, ver o progresso e, para quem tem permissão de Administrador, a área de administração. Mostra ou esconde ações conforme as permissões, mas **não** é a garantia de segurança: todas as regras são verificadas no backend. | FN01–FN09, FN14, FN27, FN28 |
 | **API** | Ponto de entrada único do backend. Recebe os pedidos do frontend, identifica a conta, encaminha para o módulo certo e devolve respostas e mensagens de erro (por exemplo, "o título é obrigatório"). | Todas |
-| **Módulo Autenticação e contas** (`accounts`) | Entrada na aplicação com a conta de cada pessoa; recusa contas desativadas. Criar e desativar contas; dar e retirar a permissão de Administrador; proteger a conta de sistema e o último Administrador ativo. | FN01, FN02; DE03–DE05, PN16, PN17; US01, US02, US11 |
-| **Módulo Autorização** (`authorization`) | Componente transversal que responde a "esta conta pode fazer esta ação neste projeto?". Usa a permissão de Administrador e a função (Gestor ou Membro) da conta no projeto, e aplica as regras gerais: só membros acedem ao conteúdo (RNF02), projeto arquivado só de leitura (PN09). A API consulta-o antes de encaminhar cada pedido (§4.2). | RNF02; DE01, DE02, PN02, PN09; tabela de permissões em constraints.md §2 |
+| **Módulo Autenticação e contas** (`accounts`) | Entrada na aplicação com a conta de cada pessoa; recusa contas pendentes e desativadas. Criar e desativar contas; ativar contas pelo link enviado por email (gerar o token, guardar só o seu hash, validá-lo e invalidá-lo) e reenviar o convite; enviar o email de ativação; dar e retirar a permissão de Administrador; proteger a conta de sistema e o último Administrador ativo. | FN01, FN02; DE03–DE05, DE15, PN16, PN17; US01, US02, US11 |
+| **Módulo Autorização** (`authorization`) | Componente transversal que responde a "esta conta pode fazer esta ação neste projeto?". Usa a permissão de Administrador e a função (Gestor ou Membro) da conta no projeto, e aplica as regras gerais: só membros acedem ao conteúdo (RNF02), projeto arquivado só de leitura (PN09). A API consulta-o antes de encaminhar cada pedido (§4.2). Os identificadores são UUID, mas não substituem esta verificação: saber o UUID de um recurso não dá acesso a ele. | RNF02; DE01, DE02, PN02, PN09; tabela de permissões em constraints.md §2 |
 | **Módulo Projetos e membros** (`projects`) | Criar projetos e atribuir o Gestor (Administrador); editar e arquivar (Gestor); adicionar e remover membros (Gestor); trocar o Gestor (Administrador); listar os projetos de cada conta; área de administração com a lista de todos os projetos. Garante exatamente um Gestor por projeto. | FN03, FN04, FN05, FN27; DE06–DE08; US03, US04, US05, US10, US12 |
 | **Módulo Tarefas e comentários** (`tasks`) | Criar, editar e eliminar tarefas e escolher o responsável (Gestor); mudar o estado entre os três estados fixos (Gestor e Membro); listar tarefas agrupadas por estado; criar, editar e apagar os próprios comentários. Valida que o responsável é membro do projeto, consultando o módulo Projetos e membros. | FN06, FN07, FN08, FN14; R7, R8, DE09–DE11, PN06; US06, US07, US08, US13 |
 | **Módulo Progresso** (`progress`) | Calcula, por projeto, o número de tarefas em cada estado e a percentagem de tarefas concluídas; trata o caso "Sem tarefas". Só lê dados; não altera nada. | FN09; R9; US09 |
@@ -94,8 +94,8 @@ O nome entre parênteses é o nome do módulo no código, em inglês. As entidad
 
 | Módulo | Depende de | Para quê |
 |---|---|---|
-| `accounts` | `audit` | Registar criar e desativar contas e dar e retirar a permissão de Administrador. |
-| `projects` | `accounts` | Validar que a conta a adicionar ou a nomear Gestor existe e está ativa (`PROJECT_MEMBER.account_id`). |
+| `accounts` | `audit` | Registar criar e desativar contas, reenviar convites e dar e retirar a permissão de Administrador. |
+| `projects` | `accounts` | Validar que a conta a adicionar ou a nomear Gestor existe e não está desativada (`PROJECT_MEMBER.account_id`); contas pendentes são aceites (DE15). |
 | `projects` | `audit` | Registar criar projetos, atribuir e trocar o Gestor e adicionar membros pelo Administrador. |
 | `tasks` | `projects` | Validar que o responsável é membro do projeto e que o projeto não está arquivado; saber se o responsável de uma tarefa ainda é membro, para mostrar "já não é membro" (PN07). |
 | `tasks` | `accounts` | Obter o nome e o estado do responsável e do autor dos comentários (`TASK.assignee_id`, `COMMENT.author_id`). |
@@ -113,9 +113,11 @@ Regras para manter as dependências sem ciclos:
 
 | Ponto | Situação |
 |---|---|
-| Canal de acesso (D01) | Assume-se uma **interface web** acedida pelo navegador, por ser o canal mais simples para equipas internas. Se o cliente pedir aplicação móvel ou acesso sem internet (pergunta 27), o backend e a API mantêm-se; muda o frontend. |
-| Base de dados (D04) | Os dados são fortemente relacionados (contas, projetos, funções, tarefas) e têm regras de integridade (um Gestor por projeto, responsável membro do projeto), o que aponta para uma base de dados relacional. **Decidido:** PostgreSQL (decisão interna, por validar). |
-| Autenticação (D06) | O módulo Autenticação e contas isola a forma de autenticar; se a empresa usar um sistema de identidade próprio, a mudança fica contida nesse módulo. |
+| Canal de acesso (D01) | **Decidido** (decisão interna, por validar): aplicação web, acedida pelo navegador e responsiva, por ser o canal mais simples para equipas internas. Se o cliente pedir aplicação móvel ou acesso sem internet (pergunta 27), o backend e a API mantêm-se; muda o frontend. |
+| Base de dados (D04) | Os dados são fortemente relacionados (contas, projetos, funções, tarefas) e têm regras de integridade (um Gestor por projeto, responsável membro do projeto), o que aponta para uma base de dados relacional. **Decidido:** PostgreSQL, com Prisma como ORM e UUID como identificadores (decisão interna, por validar). |
+| Autenticação (D06) | **Decidido** (decisão interna, por validar): JWT no cabeçalho `Authorization: Bearer ...`, com `@nestjs/jwt` e Passport; palavras-passe guardadas como hash (bcrypt ou argon2). O módulo Autenticação e contas isola a forma de autenticar; se a empresa usar um sistema de identidade próprio, a mudança fica contida nesse módulo. |
 | Linguagens e frameworks (D02, D03) | **Decidido** (decisão interna, por validar): TypeScript; NestJS no backend e Vue.js no frontend. |
-| Alojamento (D05) | Continua pendente. A decisão de arquitetura não depende dele. |
+| Alojamento (D05) | **Decidido** (decisão interna, por validar): execução local, com o PostgreSQL num container Docker (`docker-compose.yml`). O deploy fica como extensão futura. |
+| Testes (D08) | **Decidido** (decisão interna, por validar): Jest e Supertest no backend; Vitest no frontend. |
+| Envio de email (D09) | **Decidido** (decisão interna, por validar): na execução local, os emails de ativação (DE15) vão para um container Mailpit no `docker-compose.yml`, que os mostra numa página local. O envio real fica com o deploy. |
 | Validação | Esta decisão tem de ser revista se o cliente indicar uma escala muito maior do que RNF01 ou integrações com outras ferramentas (FN25). |

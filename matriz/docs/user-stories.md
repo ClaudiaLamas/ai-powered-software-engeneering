@@ -75,13 +75,55 @@ As 19 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 - **Quando** tento entrar com as credenciais que tinha,
 - **Então** vejo uma mensagem a indicar que a conta está desativada e não acedo a nenhum projeto.
 
+**Erro: conta pendente**
+
+- **Dado** que a minha conta está "Pendente" porque ainda não defini a palavra-passe,
+- **Quando** tento entrar com o meu email,
+- **Então** vejo uma mensagem a indicar que a conta ainda não foi ativada e que devo usar o link enviado por email, e não acedo a nenhum projeto (DE15).
+
 ### US02: Criar e desativar contas (FN02)
 
 **Caminho normal: criar**
 
 - **Dado** que sou Administrador,
 - **Quando** crio uma conta com nome e endereço de email,
-- **Então** a conta aparece na lista de contas com o estado "Ativa", sem permissão de Administrador e sem projetos, e a ação fica no registo (US14).
+- **Então** a conta aparece na lista de contas com o estado "Pendente", sem permissão de Administrador e sem projetos, a pessoa recebe um email com um link de ativação válido durante 24 horas e a ação fica no registo (US14) (DE15).
+
+**Caminho normal: ativar a conta**
+
+- **Dado** que a Ana recebeu o link de ativação há menos de 24 horas,
+- **Quando** abre o link e define uma palavra-passe com pelo menos 12 caracteres,
+- **Então** a conta passa a "Ativa", a Ana consegue entrar (US01) e o link deixa de funcionar (DE15).
+
+**Erro: palavra-passe curta**
+
+- **Dado** que a Ana abriu um link de ativação válido,
+- **Quando** define uma palavra-passe com menos de 12 caracteres,
+- **Então** vê uma mensagem a indicar o comprimento mínimo, a conta continua "Pendente" e o link continua válido.
+
+**Erro: link expirado**
+
+- **Dado** que a Ana recebeu o link de ativação há mais de 24 horas,
+- **Quando** o abre,
+- **Então** vê uma mensagem a indicar que o link expirou e que deve pedir um novo convite ao Administrador, e a conta continua "Pendente".
+
+**Erro: link já usado ou substituído**
+
+- **Dado** que a Ana já ativou a conta com o link, ou que o Administrador reenviou o convite depois de esse link ter sido enviado,
+- **Quando** abre esse link,
+- **Então** vê uma mensagem a indicar que o link não é válido, e nem a conta nem a palavra-passe mudam.
+
+**Caminho normal: reenviar o convite**
+
+- **Dado** que sou Administrador e a conta da Ana está "Pendente",
+- **Quando** reenvio o convite,
+- **Então** a Ana recebe um email com um link novo, válido durante 24 horas, o link anterior deixa de funcionar e a ação fica no registo (US14) (DE15).
+
+**Erro: reenviar o convite a uma conta que não está pendente**
+
+- **Dado** que a conta do Rui está "Ativa" ou "Desativada",
+- **Quando** procuro reenviar-lhe o convite,
+- **Então** não existe essa ação e nenhum email é enviado.
 
 **Caminho normal: desativar**
 
@@ -89,9 +131,15 @@ As 19 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 - **Quando** a desativo,
 - **Então** o seu estado passa a "Desativada", essa pessoa deixa de conseguir entrar (US01) e a ação fica no registo (US14).
 
+**Caminho normal: desativar uma conta pendente**
+
+- **Dado** que a conta da Ana está "Pendente",
+- **Quando** a desativo,
+- **Então** o seu estado passa a "Desativada", o link de ativação deixa de funcionar e a ação fica no registo (US14) (DE15).
+
 **Erro: email repetido**
 
-- **Dado** que já existe uma conta, ativa ou desativada, com o email "ana@empresa.pt",
+- **Dado** que já existe uma conta, pendente, ativa ou desativada, com o email "ana@empresa.pt",
 - **Quando** tento criar outra conta com o mesmo email,
 - **Então** a conta não é criada e vejo uma mensagem a indicar que o email já está em uso.
 
@@ -517,7 +565,7 @@ As 19 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 
 - **Dado** que sou Administrador e existem as contas da Ana (ativa, Administrador) e do Rui (desativada),
 - **Quando** abro a lista de contas,
-- **Então** vejo, para cada conta, o nome, o email, o estado ("Ativa" ou "Desativada") e se tem permissão de Administrador, e a conta de sistema aparece identificada como tal.
+- **Então** vejo, para cada conta, o nome, o email, o estado ("Pendente", "Ativa" ou "Desativada") e se tem permissão de Administrador, e a conta de sistema aparece identificada como tal.
 
 **Erro: sem permissão**
 
@@ -615,7 +663,7 @@ Nenhuma regra foi validada pelo cliente. A coluna "Origem" indica se a regra con
 | PN03 | Cada projeto tem exatamente um Gestor, que é também membro do projeto. É atribuído pelo Administrador quando cria o projeto. | DE06 | US03, US04 |
 | PN04 | O Gestor não pode ser removido do projeto nem remover-se. Só deixa de ser Gestor quando o Administrador o troca; passa então a Membro. | DE08; "passa a Membro" é pressuposto | US12, CL5 |
 | PN05 | Só o Gestor cria tarefas, edita o título e a descrição, escolhe ou muda o responsável e elimina tarefas. Qualquer membro, incluindo o Gestor, pode mudar o estado e comentar. | DE09, DE10 | US06, US07, US13, CL2 |
-| PN06 | Cada tarefa tem no máximo um responsável, que tem de ser membro do projeto com conta ativa no momento em que é escolhido. A tarefa pode ficar "Sem responsável". Uma tarefa "Concluída" pode manter como responsável quem já não é membro (PN07). | DE09, DE14 | US06 |
+| PN06 | Cada tarefa tem no máximo um responsável, que tem de ser membro do projeto com conta ativa (nem pendente nem desativada) no momento em que é escolhido. A tarefa pode ficar "Sem responsável". Uma tarefa "Concluída" pode manter como responsável quem já não é membro (PN07). | DE09, DE14, DE15 | US06 |
 | PN07 | Quando o Gestor remove um membro, com a conta ativa ou desativada, as suas tarefas nesse projeto que não estão "Concluída" passam a "Sem responsável". As tarefas "Concluída" mantêm-no como responsável, com a indicação "já não é membro"; se a conta estiver desativada, mostra-se só "conta desativada" (PN08). A indicação desaparece se a pessoa voltar a ser adicionada ao projeto. | DE14 | US04, US07, CL1 |
 | PN08 | Quando uma conta é desativada, as suas tarefas que não estão "Concluída", em todos os projetos, passam a "Sem responsável". As tarefas "Concluída" mantêm o nome da pessoa como responsável, com a indicação "conta desativada"; se uma delas for reaberta, passa a "Sem responsável". A conta continua na equipa dos projetos, com a indicação "conta desativada", até o Gestor a remover. Uma conta desativada não pode ser adicionada a um projeto nem escolhida como responsável. | DE14 | US02, US04, US06, US07, US18, CL4 |
 | PN09 | Um projeto arquivado fica só de leitura: tarefas, estados, membros e comentários não podem ser alterados. | DE11; resto é pressuposto | US04, US07, US13, CL3 |
@@ -623,11 +671,11 @@ Nenhuma regra foi validada pelo cliente. A coluna "Origem" indica se a regra con
 | PN11 | Cada conta é identificada por um endereço de email único, incluindo as contas desativadas. | Pressuposto | US02, CL11 |
 | PN12 | O nome do projeto e o título da tarefa são obrigatórios; as descrições são opcionais. | Pressuposto | US03, US06 |
 | PN13 | A percentagem de conclusão é tarefas concluídas ÷ total de tarefas × 100, arredondada à unidade. Sem tarefas, mostra "Sem tarefas". | Pressuposto | US09, CL7 |
-| PN14 | O Administrador pode trocar o Gestor de um projeto. O novo Gestor tem de ser membro do projeto com conta ativa. Se não houver membro adequado, o Administrador pode adicionar uma conta ativa à equipa e nomeá-la Gestor. **Em aberto:** se o Administrador se pode nomear a si próprio (CL10). | DE08 | US12, CL8, CL10 |
+| PN14 | O Administrador pode trocar o Gestor de um projeto. O novo Gestor tem de ser membro do projeto com conta ativa ou pendente (DE15). Se não houver membro adequado, o Administrador pode adicionar uma conta ativa ou pendente à equipa e nomeá-la Gestor. **Em aberto:** se o Administrador se pode nomear a si próprio (CL10). | DE08, DE15 | US12, CL8, CL10 |
 | PN15 | Qualquer membro do projeto pode comentar tarefas. Só o autor pode editar ou apagar os seus comentários. Os comentários mantêm-se quando o autor sai do projeto ou a conta é desativada. Um comentário não pode estar vazio. | DE11; autoria, permanência e "não vazio" são pressupostos | US13, CL12 |
 | PN16 | A conta de sistema (primeira conta de Administrador) não pode ser desativada nem perder a permissão de Administrador. Não é possível retirar a permissão nem desativar o último Administrador ativo. | DE04, DE05 | US02, US11, CL9 |
 | PN17 | Uma conta desativada não pode ser reativada. | DE03 | US02, CL11 |
-| PN18 | O registo de ações administrativas guarda: criar e desativar contas, dar e retirar a permissão de Administrador, criar projetos, atribuir e trocar o Gestor e adicionar membros pelo Administrador. Cada entrada tem autor, ação, alvo, data e hora. Só os Administradores o consultam e ninguém o pode alterar ou apagar. | DE12; conteúdo e acesso são pressupostos | US14 |
+| PN18 | O registo de ações administrativas guarda: criar e desativar contas, reenviar convites, dar e retirar a permissão de Administrador, criar projetos, atribuir e trocar o Gestor e adicionar membros pelo Administrador. Cada entrada tem autor, ação, alvo, data e hora. Só os Administradores o consultam e ninguém o pode alterar ou apagar. | DE12, DE15; conteúdo e acesso são pressupostos | US14 |
 
 ## 5. Fora do MVP
 

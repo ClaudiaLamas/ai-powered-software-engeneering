@@ -2,7 +2,7 @@
 
 Matriz é uma aplicação de gestão de projetos e tarefas para equipas de trabalho. Esta pasta contém a especificação inicial: requisitos, âmbito do MVP, user stories, restrições, arquitetura, modelo de dados, uma especificação parcial da API e um wireframe do dashboard.
 
-> **Estado:** especificação inicial, **não validada pelo cliente**. Só F1–F5 são factos. Tudo o resto (P, R, DE, PN, D) são pressupostos, decisões internas ou decisões pendentes, que devem ser confirmados antes do desenvolvimento.
+> **Estado:** especificação inicial, **não validada pelo cliente**. Só F1–F5 são factos. Tudo o resto (P, R, DE, PN, D) são pressupostos ou decisões internas, que devem ser confirmados antes do desenvolvimento.
 
 ## O que o cliente pediu
 
@@ -39,7 +39,7 @@ Prazos, prioridades, notificações, relatórios e pedidos de ajuda numa tarefa 
 
 | Termo | Significado |
 |---|---|
-| Conta | Acesso identificado de uma pessoa à Matriz (nome e email único). Não tem papel próprio. |
+| Conta | Acesso identificado de uma pessoa à Matriz (nome e email único). Não tem papel próprio. Está "Pendente" até a pessoa definir a palavra-passe pelo link de ativação, depois "Ativa" e, se for desativada, "Desativada" (DE15). |
 | Conta de sistema | A primeira conta de Administrador, criada pela equipa do projeto. Não pode ser desativada nem perder a permissão (DE04). |
 | Administrador | **Permissão da conta**, não uma função num projeto. Permite gerir contas, permissões, projetos e Gestores. Não dá acesso ao conteúdo de projetos onde a conta não participa (DE02). |
 | Função | O que uma conta é num projeto concreto: Gestor ou Membro. A mesma conta pode ser Gestor no projeto A e Membro no projeto B (DE01). |
@@ -49,7 +49,7 @@ Prazos, prioridades, notificações, relatórios e pedidos de ajuda numa tarefa 
 | Equipa | O conjunto dos membros de um projeto. Não é uma entidade separada (R6). |
 | Responsável | O único membro do projeto encarregado de uma tarefa (DE09). |
 
-As funções e a permissão são **decisões internas, por validar com o cliente** (DE01–DE14).
+As funções e a permissão são **decisões internas, por validar com o cliente** (DE01–DE15).
 
 ## Documentação
 
@@ -57,7 +57,7 @@ As funções e a permissão são **decisões internas, por validar com o cliente
 |---|---|
 | [docs/requirements.md](docs/requirements.md) | Factos, pressupostos, respostas assumidas, decisões internas, funções, funcionalidades e âmbito do MVP. |
 | [docs/user-stories.md](docs/user-stories.md) | User stories do MVP, critérios de aceitação, casos-limite e pressupostos de regras (PN). |
-| [docs/constraints.md](docs/constraints.md) | Restrições de âmbito, permissões, requisitos não funcionais, decisões pendentes e questões em aberto. |
+| [docs/constraints.md](docs/constraints.md) | Restrições de âmbito, permissões, requisitos não funcionais, decisões técnicas e questões em aberto. |
 | [docs/architecture.md](docs/architecture.md) | Decisão de arquitetura (D07: monólito modular), componentes, responsabilidades e dependências entre módulos. |
 | [docs/database.md](docs/database.md) | Modelo de dados lógico do MVP, regras de integridade e diagrama ER. |
 | [docs/ui/dashboard-wireframe.html](docs/ui/dashboard-wireframe.html) | Wireframe de baixa fidelidade do ecrã inicial e da vista de um projeto. |
@@ -73,9 +73,9 @@ Os IDs são iguais em todos os ficheiros.
 | F1–F5 | Factos ditos pelo cliente | **Facto** |
 | P1–P14 | Pressupostos implícitos identificados na análise inicial | Pressuposto |
 | R1–R10 | Respostas assumidas às perguntas de clarificação prioritárias | Pressuposto |
-| DE01–DE14 | Decisões da equipa do projeto (2026-10-29 e 2026-11-04), não validadas pelo cliente | Decisão interna |
+| DE01–DE15 | Decisões da equipa do projeto (2026-10-29, 2026-11-04 e 2026-11-08), não validadas pelo cliente | Decisão interna |
 | PN01–PN18 | Regras de negócio: concretizam decisões DE ou são pressupostos | Decisão interna ou pressuposto |
-| D01–D08 | Decisões técnicas pendentes (D02–D04 e D07 já decididas, por validar) | Decisão pendente |
+| D01–D09 | Decisões técnicas, todas tomadas, não validadas pelo cliente | Decisão interna |
 | FN01–FN29 | Funcionalidades propostas | Proposta |
 | US01–US19 | User stories do MVP | Proposta |
 | US20–US36 | User stories fora do MVP | Proposta |
