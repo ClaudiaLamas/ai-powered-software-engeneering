@@ -23,7 +23,7 @@ não esteja registada nos documentos.
    - `docs/architecture.md` — arquitetura, componentes e responsabilidades.
    - `docs/database.md` — modelo de dados e diagrama ER.
    - `docs/ui/dashboard-wireframe.html` — wireframe do ecrã inicial e da vista de um projeto.
-   - `openapi.yaml` — especificação parcial da API (listar e criar tarefas).
+   - `openapi.yaml` — contrato da API do MVP.
 2. Identifica os IDs (F, P, R, DE, PN, D, FN, US, CL, RNF) a que a tarefa diz respeito.
    Usa os termos do glossário do `README.md` (conta, função, Gestor, Membro,
    Administrador).

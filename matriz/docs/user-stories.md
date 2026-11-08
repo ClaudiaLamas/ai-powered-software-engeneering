@@ -79,7 +79,7 @@ As 19 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 
 - **Dado** que a minha conta está "Pendente" porque ainda não defini a palavra-passe,
 - **Quando** tento entrar com o meu email,
-- **Então** vejo uma mensagem a indicar que a conta ainda não foi ativada e que devo usar o link enviado por email, e não acedo a nenhum projeto (DE15).
+- **Então** vejo a mesma mensagem de erro que com credenciais erradas, para não revelar que o email existe, e não acedo a nenhum projeto (DE15).
 
 ### US02: Criar e desativar contas (FN02)
 
@@ -669,10 +669,10 @@ Nenhuma regra foi validada pelo cliente. A coluna "Origem" indica se a regra con
 | PN09 | Um projeto arquivado fica só de leitura: tarefas, estados, membros e comentários não podem ser alterados. | DE11; resto é pressuposto | US04, US07, US13, CL3 |
 | PN10 | Uma tarefa nova começa sempre em "Por fazer". Qualquer estado pode passar a qualquer outro, incluindo reabrir uma tarefa concluída. Ao reabrir uma tarefa cujo responsável tem a conta desativada ou já não é membro do projeto, a tarefa passa a "Sem responsável" (PN07, PN08). | Pressuposto; reabertura com conta desativada ou de quem já não é membro: DE14 | US06, US07 |
 | PN11 | Cada conta é identificada por um endereço de email único, incluindo as contas desativadas. | Pressuposto | US02, CL11 |
-| PN12 | O nome do projeto e o título da tarefa são obrigatórios; as descrições são opcionais. | Pressuposto | US03, US06 |
+| PN12 | O nome do projeto é obrigatório, com 3 a 100 caracteres, e a sua descrição é opcional, até 1000. O título da tarefa é obrigatório, com 3 a 150 caracteres, e a sua descrição é opcional, até 2000. Nomes e títulos só com espaços são recusados. | Pressuposto; limites do exemplo da Aula 02 (decisão interna, 2026-11-08) | US03, US06, US10 |
 | PN13 | A percentagem de conclusão é tarefas concluídas ÷ total de tarefas × 100, arredondada à unidade. Sem tarefas, mostra "Sem tarefas". | Pressuposto | US09, CL7 |
-| PN14 | O Administrador pode trocar o Gestor de um projeto. O novo Gestor tem de ser membro do projeto com conta ativa ou pendente (DE15). Se não houver membro adequado, o Administrador pode adicionar uma conta ativa ou pendente à equipa e nomeá-la Gestor. **Em aberto:** se o Administrador se pode nomear a si próprio (CL10). | DE08, DE15 | US12, CL8, CL10 |
-| PN15 | Qualquer membro do projeto pode comentar tarefas. Só o autor pode editar ou apagar os seus comentários. Os comentários mantêm-se quando o autor sai do projeto ou a conta é desativada. Um comentário não pode estar vazio. | DE11; autoria, permanência e "não vazio" são pressupostos | US13, CL12 |
+| PN14 | O Administrador pode trocar o Gestor de um projeto. O novo Gestor tem de ser membro do projeto com conta ativa ou pendente (DE15). Se não houver membro adequado, o Administrador pode adicionar uma conta ativa ou pendente à equipa e nomeá-la Gestor. Num projeto arquivado, o Gestor não pode ser trocado (PN09). **Em aberto:** se o Administrador se pode nomear a si próprio (CL10). | DE08, DE15 | US12, CL8, CL10 |
+| PN15 | Qualquer membro do projeto pode comentar tarefas. Só o autor pode editar ou apagar os seus comentários. Os comentários mantêm-se quando o autor sai do projeto ou a conta é desativada. Um comentário tem de 1 a 2000 caracteres e não pode ser só espaços. | DE11; autoria e permanência são pressupostos; limites do exemplo da Aula 02 (decisão interna, 2026-11-08) | US13, CL12 |
 | PN16 | A conta de sistema (primeira conta de Administrador) não pode ser desativada nem perder a permissão de Administrador. Não é possível retirar a permissão nem desativar o último Administrador ativo. | DE04, DE05 | US02, US11, CL9 |
 | PN17 | Uma conta desativada não pode ser reativada. | DE03 | US02, CL11 |
 | PN18 | O registo de ações administrativas guarda: criar e desativar contas, reenviar convites, dar e retirar a permissão de Administrador, criar projetos, atribuir e trocar o Gestor e adicionar membros pelo Administrador. Cada entrada tem autor, ação, alvo, data e hora. Só os Administradores o consultam e ninguém o pode alterar ou apagar. | DE12, DE15; conteúdo e acesso são pressupostos | US14 |

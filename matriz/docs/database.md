@@ -58,8 +58,8 @@ Um token só é válido se `used_at` e `invalidated_at` estiverem vazios e `expi
 | Atributo | Tipo | Chave | Obr. | Notas | Origem |
 |---|---|---|---|---|---|
 | id | id | PK | Sim | Identificador interno. | — |
-| name | string | | Sim | Nome. Não pode estar vazio. Não se exige que seja único. | PN12 |
-| description | string | | Não | Descrição. | PN12 |
+| name | string | | Sim | Nome, com 3 a 100 caracteres e não só espaços. Não se exige que seja único. | PN12 |
+| description | string | | Não | Descrição, até 1000 caracteres. | PN12 |
 | status | enum | | Sim | `ACTIVE` ("Ativo") ou `ARCHIVED` ("Arquivado"). Começa em `ACTIVE`. | R6, US03, US10 |
 | created_at | datetime | | Sim | | — |
 
@@ -80,8 +80,8 @@ A chave primária composta (project_id, account_id) impede que a mesma conta apa
 |---|---|---|---|---|---|
 | id | id | PK | Sim | Identificador interno. | — |
 | project_id | id | FK → PROJECT | Sim | Uma tarefa pertence sempre a um projeto. | R6, P3 |
-| title | string | | Sim | Título. Não pode estar vazio. | PN12 |
-| description | string | | Não | Descrição. | PN12 |
+| title | string | | Sim | Título, com 3 a 150 caracteres e não só espaços. | PN12 |
+| description | string | | Não | Descrição, até 2000 caracteres. | PN12 |
 | status | enum | | Sim | `TODO` ("Por fazer"), `IN_PROGRESS` ("Em curso") ou `DONE` ("Concluída"). Começa em `TODO`; qualquer transição é permitida. | R8, PN10 |
 | assignee_id | id | FK → ACCOUNT | Não | Responsável. Vazio = "Sem responsável". Referencia ACCOUNT (e não PROJECT_MEMBER) para uma tarefa "Concluída" manter o responsável quando este sai do projeto; nesse caso, mostra-se "já não é membro", calculado pela ausência de linha em PROJECT_MEMBER. Que o responsável é membro com conta ativa é verificado pela aplicação quando é escolhido. | DE09, DE14, PN06, PN07 |
 | created_at | datetime | | Sim | | — |
@@ -94,7 +94,7 @@ A chave primária composta (project_id, account_id) impede que a mesma conta apa
 | id | id | PK | Sim | Identificador interno. | — |
 | task_id | id | FK → TASK | Sim | | US13 |
 | author_id | id | FK → ACCOUNT | Sim | Referencia ACCOUNT (e não PROJECT_MEMBER) para o comentário se manter quando o autor sai do projeto. | PN15, CL12 |
-| body | string | | Sim | Texto do comentário. Não pode estar vazio. | PN15 |
+| body | string | | Sim | Texto do comentário, com 1 a 2000 caracteres e não só espaços. | PN15 |
 | created_at | datetime | | Sim | Mostrado com o nome do autor. | US13 |
 | edited_at | datetime | | Não | Preenchido quando o autor edita. | US13 |
 

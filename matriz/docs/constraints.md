@@ -79,7 +79,7 @@ Todas as decisões técnicas estão tomadas. São **decisões internas, por vali
 | D03 | Frameworks. **Decidida (decisão interna, por validar, 2026-11-08):** NestJS no backend e Vue.js no frontend. | D01, D02 |
 | D04 | Forma de armazenamento dos dados. **Decidida (decisão interna, por validar, 2026-11-08):** base de dados relacional PostgreSQL. | RNF01, perguntas 23 e 25 |
 | D05 | Alojamento. **Decidida (decisão interna, por validar, 2026-11-08):** execução local, com o PostgreSQL num container Docker (`docker-compose.yml`). O deploy fica como extensão futura. | Perguntas 23 e 26 |
-| D06 | Forma de autenticação das contas (FN01). **Decidida (decisão interna, por validar, 2026-11-08):** JWT, enviado no cabeçalho `Authorization: Bearer ...`; palavras-passe guardadas como hash com bcrypt ou argon2 (algoritmo a escolher na implementação). No NestJS: `@nestjs/jwt` e Passport. | Pergunta 29 e regras internas da empresa |
+| D06 | Forma de autenticação das contas (FN01). **Decidida (decisão interna, por validar, 2026-11-08):** JWT, enviado no cabeçalho `Authorization: Bearer ...`; palavras-passe guardadas como hash com bcrypt ou argon2 (algoritmo a escolher na implementação). No NestJS: `@nestjs/jwt` e Passport. O JWT é válido durante 1 hora e não é revogado: sair da aplicação apaga-o só no frontend, e uma conta desativada com a sessão aberta mantém o acesso até o token expirar (decisão interna, 2026-11-08). | Pergunta 29 e regras internas da empresa |
 | D07 | Arquitetura da aplicação. **Decidida (decisão interna, por validar):** monólito modular; ver [architecture.md](architecture.md). | D01, RNF01 |
 | D08 | Forma de verificar os critérios de aceitação (testes). **Decidida (decisão interna, por validar, 2026-11-08):** Jest e Supertest no backend (o NestJS já vem configurado com Jest); Vitest no frontend. | D02, D03 |
 | D09 | Envio de email (link de ativação, DE15). **Decidida (decisão interna, por validar, 2026-11-08):** na execução local, um container Mailpit no `docker-compose.yml` recebe os emails e mostra-os numa página local; nenhum email sai para fora. O envio real fica com o deploy (extensão futura). | D05, DE15 |
@@ -101,6 +101,6 @@ Pontos complementares, decididos na mesma data (decisões internas, por validar)
 | Um projeto arquivado pode voltar a ficar ativo? Um projeto pode ser eliminado? | US10, PN09 |
 | Como se recupera o acesso quando a pessoa se esquece da palavra-passe? Pode usar o mesmo mecanismo de token da ativação (DE15). | D06, DE15, US01 |
 | Uma conta pendente pode receber a permissão de Administrador? | US11, DE15 |
-| Uma conta desativada com a sessão aberta sai de imediato ou só na próxima entrada? | US01, US15, PN17 |
+| Quais são os limites de comprimento do nome e do email de uma conta? | US02, PN11 |
 | Todas as respostas R1–R10, decisões DE01–DE15 e regras PN01–PN18 têm de ser validadas com o cliente. | [requirements.md](requirements.md#22-respostas-assumidas-r1r10), [requirements.md](requirements.md#23-decisões-internas-de01de15), [user-stories.md](user-stories.md#4-regras-de-negócio-pn01pn18) |
 | Perguntas ao cliente sem resposta: 2, 4, 5, 19, 23, 26, 27, 31. | [requirements.md](requirements.md#6-perguntas-ao-cliente-ainda-por-responder) |

@@ -2,15 +2,14 @@ openapi: 3.1.0
 
 info:
   title: Matriz API
-  version: 0.1.0
-  summary: API do MVP da Matriz — operações sobre tarefas de um projeto.
+  version: 0.2.0
+  summary: Contrato da API do MVP da Matriz.
   description: |
-    Especificação parcial da API do backend da Matriz (monólito modular, ver
-    `docs/architecture.md`). Cobre duas operações do módulo `tasks`:
-
-    - `GET /projects/{projectId}/tasks` — listar as tarefas de um projeto
-      (FN08, US08; alimenta a vista agrupada por estado e o progresso, FN09).
-    - `POST /projects/{projectId}/tasks` — criar uma tarefa (FN06, US06).
+    Contrato da API do backend da Matriz (monólito modular, ver
+    `docs/architecture.md`). Cobre as operações das user stories do MVP
+    (US01–US19): autenticação e ativação de contas, contas, projetos e painel
+    inicial, membros e Gestor, tarefas e responsáveis, comentários e registo
+    administrativo.
 
     Convenções:
 
@@ -19,22 +18,691 @@ info:
     - Campos JSON em camelCase; correspondem às colunas em snake_case de
       `docs/database.md` (por exemplo, `assigneeId` ↔ `assignee_id`).
     - Erros no formato Problem Details (RFC 9457), com um campo `code` estável.
+    - Erros comuns, não repetidos em cada operação: `400 VALIDATION_ERROR`
+      (JSON mal formado, campo desconhecido ou UUID inválido) e
+      `401 UNAUTHENTICATED`.
+    - Um projeto onde a conta não participa responde `404`, como um projeto
+      que não existe, para não revelar que existe (DE02, PN02, RNF02). O mesmo
+      vale para as suas tarefas e comentários.
+    - Qualquer escrita num projeto arquivado responde `409 PROJECT_ARCHIVED`
+      (PN09).
+    - Listas sem paginação (escala de RNF01).
 
-    Fora desta especificação (fora do MVP): filtros e pesquisa (FN13), prazo
-    (FN10), prioridade e urgência/importância (FN12).
+    Fora do MVP e fora deste contrato: pesquisa e filtros (FN13), prazo
+    (FN10), prioridade (FN12), vários responsáveis por tarefa (DE09) e
+    eliminação de projetos (questão em aberto).
 
     Autenticação com JWT (D06) e identificadores UUID (ver
     `docs/constraints.md` §4); decisões internas, por validar. Nenhuma regra
     foi validada pelo cliente.
 
 tags:
+  - name: auth
+    description: Entrada, saída e ativação de contas (módulo `accounts`).
+  - name: accounts
+    description: Gestão de contas pelo Administrador (módulo `accounts`).
+  - name: projects
+    description: Projetos, painel inicial, membros e Gestor (módulos `projects` e `progress`).
   - name: tasks
-    description: Tarefas de um projeto (módulo `tasks`).
+    description: Tarefas de um projeto e responsáveis (módulo `tasks`).
+  - name: comments
+    description: Comentários em tarefas (módulo `tasks`).
+  - name: admin
+    description: Área de administração e registo administrativo (módulos `projects` e `audit`).
 
 security:
   - bearerAuth: []
 
 paths:
+  # ---------------------------------------------------------------- auth
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Entrar com email e palavra-passe
+      description: |
+        Devolve um JWT válido durante 1 hora (D06). FN01, US01.
+
+        Contas pendentes ainda não têm palavra-passe e recebem sempre
+        `401 INVALID_CREDENTIALS`, para não revelar que emails existem. Uma
+        conta desativada recebe `403 ACCOUNT_DEACTIVATED` só quando a
+        palavra-passe está certa.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Entrada aceite.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: 'Email ou palavra-passe errados, ou conta pendente. `code`: `INVALID_CREDENTIALS`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: about:blank
+                title: Não autenticado
+                status: 401
+                code: INVALID_CREDENTIALS
+                detail: O email ou a palavra-passe estão errados.
+        "403":
+          description: 'Conta desativada (US01, PN17). `code`: `ACCOUNT_DEACTIVATED`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: about:blank
+                title: Conta desativada
+                status: 403
+                code: ACCOUNT_DEACTIVATED
+                detail: Esta conta foi desativada.
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Sair da aplicação
+      description: |
+        US15. O backend não revoga o token: o frontend apaga-o e volta ao ecrã
+        de entrada. Um token já emitido continua válido até expirar (D06).
+      responses:
+        "204":
+          description: Saída registada.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/activate:
+    post:
+      tags: [auth]
+      operationId: activateAccount
+      summary: Ativar a conta e definir a palavra-passe
+      description: |
+        Usa o token do link de ativação (DE15, US02). A conta passa de
+        `PENDING` a `ACTIVE` e o token deixa de valer.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivateAccountRequest"
+      responses:
+        "204":
+          description: Conta ativada.
+        "400":
+          description: |
+            Valores de `code`:
+
+            - `VALIDATION_ERROR` — pedido mal formado.
+            - `PASSWORD_TOO_SHORT` — menos de 12 caracteres.
+            - `ACTIVATION_TOKEN_EXPIRED` — passaram mais de 24 horas.
+            - `ACTIVATION_TOKEN_INVALID` — token desconhecido, já usado ou
+              substituído por um reenvio do convite.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: about:blank
+                title: Link inválido
+                status: 400
+                code: ACTIVATION_TOKEN_EXPIRED
+                detail: O link de ativação expirou. Peça um novo convite ao Administrador.
+
+  /me:
+    get:
+      tags: [auth]
+      operationId: getMe
+      summary: Consultar a conta autenticada
+      description: FN01. Usado pelo frontend para mostrar o nome e a área de administração.
+      responses:
+        "200":
+          description: Conta autenticada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ------------------------------------------------------------ accounts
+  /accounts:
+    get:
+      tags: [accounts]
+      operationId: listAccounts
+      summary: Listar as contas
+      description: Só para o Administrador (US16). Ordenadas por nome (pressuposto).
+      responses:
+        "200":
+          description: Lista de contas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotAdmin"
+    post:
+      tags: [accounts]
+      operationId: createAccount
+      summary: Criar uma conta
+      description: |
+        Só para o Administrador (US02, DE15). A conta fica `PENDING`, sem
+        palavra-passe, e a pessoa recebe um email com o link de ativação,
+        válido durante 24 horas. A ação fica no registo (`CREATE_ACCOUNT`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccountRequest"
+      responses:
+        "201":
+          description: Conta criada.
+          headers:
+            Location:
+              $ref: "#/components/headers/Location"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotAdmin"
+        "409":
+          description: |
+            Já existe uma conta, pendente, ativa ou desativada, com esse email
+            (PN11). `code`: `EMAIL_IN_USE`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: about:blank
+                title: Email em uso
+                status: 409
+                code: EMAIL_IN_USE
+                detail: Este email já está em uso.
+
+  /accounts/{accountId}/deactivate:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    post:
+      tags: [accounts]
+      operationId: deactivateAccount
+      summary: Desativar uma conta
+      description: |
+        Só para o Administrador (US02). As tarefas da pessoa que não estão
+        `DONE` ficam sem responsável (PN08). Numa conta pendente, o token de
+        ativação deixa de valer (DE15). A ação fica no registo
+        (`DEACTIVATE_ACCOUNT`).
+      responses:
+        "200":
+          description: Conta desativada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotAdmin"
+        "404":
+          $ref: "#/components/responses/AccountNotFound"
+        "409":
+          description: |
+            Valores de `code`:
+
+            - `SYSTEM_ACCOUNT_PROTECTED` — é a conta de sistema (PN16).
+            - `LAST_ACTIVE_ADMIN` — é o último Administrador ativo (DE05).
+            - `ACCOUNT_ALREADY_DEACTIVATED` — a conta já está desativada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /accounts/{accountId}/resend-invite:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    post:
+      tags: [accounts]
+      operationId: resendInvite
+      summary: Reenviar o convite de uma conta pendente
+      description: |
+        Só para o Administrador (US02, DE15). Gera um token novo, válido
+        durante 24 horas, e invalida o anterior. A ação fica no registo
+        (`RESEND_INVITE`).
+      responses:
+        "204":
+          description: Convite reenviado.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotAdmin"
+        "404":
+          $ref: "#/components/responses/AccountNotFound"
+        "409":
+          description: 'A conta não está pendente. `code`: `ACCOUNT_NOT_PENDING`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /accounts/{accountId}/admin:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    put:
+      tags: [accounts]
+      operationId: grantAdmin
+      summary: Dar a permissão de Administrador
+      description: |
+        Só para o Administrador (US11, DE05). A ação fica no registo
+        (`GRANT_ADMIN`). Se uma conta pendente pode receber a permissão é uma
+        questão em aberto (`docs/constraints.md` §5).
+      responses:
+        "200":
+          description: Permissão dada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotAdmin"
+        "404":
+          $ref: "#/components/responses/AccountNotFound"
+        "409":
+          description: 'A conta está desativada. `code`: `ACCOUNT_DEACTIVATED`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      tags: [accounts]
+      operationId: revokeAdmin
+      summary: Retirar a permissão de Administrador
+      description: |
+        Só para o Administrador (US11, DE05). A conta mantém as suas funções
+        nos projetos. A ação fica no registo (`REVOKE_ADMIN`).
+      responses:
+        "200":
+          description: Permissão retirada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotAdmin"
+        "404":
+          $ref: "#/components/responses/AccountNotFound"
+        "409":
+          description: |
+            Valores de `code`:
+
+            - `SYSTEM_ACCOUNT_PROTECTED` — é a conta de sistema (PN16).
+            - `LAST_ACTIVE_ADMIN` — é o último Administrador ativo (DE05).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  # ------------------------------------------------------------ projects
+  /projects:
+    get:
+      tags: [projects]
+      operationId: listMyProjects
+      summary: Listar os projetos da conta (painel inicial)
+      description: |
+        Projetos onde a conta é Gestor ou Membro, incluindo os arquivados, com
+        a função da conta e o progresso de cada um (FN05, FN09, US05). A
+        permissão de Administrador não acrescenta projetos (PN02). Ordenados
+        por nome (pressuposto).
+      responses:
+        "200":
+          description: Lista dos projetos (pode ser vazia).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectSummaryList"
+              example:
+                items:
+                  - id: "5b1f2c3a-8d4e-4f6a-9b7c-0d1e2f3a4b01"
+                    name: Site
+                    status: ACTIVE
+                    myRole: MANAGER
+                    progress:
+                      todo: 1
+                      inProgress: 0
+                      done: 3
+                      total: 4
+                      percentDone: 75
+                  - id: "5b1f2c3a-8d4e-4f6a-9b7c-0d1e2f3a4b03"
+                    name: Intranet
+                    status: ARCHIVED
+                    myRole: MEMBER
+                    progress:
+                      todo: 0
+                      inProgress: 0
+                      done: 0
+                      total: 0
+                      percentDone: null
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [projects]
+      operationId: createProject
+      summary: Criar um projeto e atribuir o Gestor
+      description: |
+        Só para o Administrador (FN03, US03, DE06). O Gestor tem de ter conta
+        ativa ou pendente (DE15) e fica como único membro. Ficam no registo
+        `CREATE_PROJECT` e `ASSIGN_MANAGER`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectRequest"
+      responses:
+        "201":
+          description: Projeto criado.
+          headers:
+            Location:
+              $ref: "#/components/headers/Location"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: |
+            Valores de `code`:
+
+            - `VALIDATION_ERROR` — pedido mal formado.
+            - `NAME_INVALID` — nome em falta, só com espaços ou fora de 3–100
+              caracteres (PN12).
+            - `DESCRIPTION_TOO_LONG` — descrição com mais de 1000 caracteres.
+            - `MANAGER_REQUIRED` — Gestor em falta.
+            - `MANAGER_DEACTIVATED` — o Gestor tem a conta desativada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotAdmin"
+        "404":
+          $ref: "#/components/responses/AccountNotFound"
+
+  /projects/{projectId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [projects]
+      operationId: getProject
+      summary: Consultar um projeto
+      description: |
+        Nome, descrição, estado, Gestor, membros com a função de cada um e
+        progresso (US09, US18). Qualquer membro do projeto.
+      responses:
+        "200":
+          description: Projeto.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/ProjectNotFound"
+    patch:
+      tags: [projects]
+      operationId: updateProject
+      summary: Editar o projeto
+      description: Só o Gestor (US10, DE07).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectRequest"
+      responses:
+        "200":
+          description: Projeto editado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: |
+            Valores de `code`: `VALIDATION_ERROR`, `NAME_INVALID`,
+            `DESCRIPTION_TOO_LONG` (ver `createProject`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          $ref: "#/components/responses/ProjectNotFound"
+        "409":
+          $ref: "#/components/responses/ProjectArchived"
+
+  /projects/{projectId}/archive:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    post:
+      tags: [projects]
+      operationId: archiveProject
+      summary: Arquivar o projeto
+      description: |
+        Só o Gestor (US10, DE07). O projeto continua visível para os membros,
+        só de leitura (PN09).
+      responses:
+        "200":
+          description: Projeto arquivado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          $ref: "#/components/responses/ProjectNotFound"
+        "409":
+          $ref: "#/components/responses/ProjectArchived"
+
+  /projects/{projectId}/member-candidates:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [projects]
+      operationId: listMemberCandidates
+      summary: Listar as contas que podem ser adicionadas ao projeto
+      description: |
+        Só o Gestor (US04). Contas ativas ou pendentes que ainda não são
+        membros do projeto (PN08, DE15). Ordenadas por nome (pressuposto).
+      responses:
+        "200":
+          description: Contas que podem ser adicionadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountContactList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          $ref: "#/components/responses/ProjectNotFound"
+
+  /projects/{projectId}/members:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    post:
+      tags: [projects]
+      operationId: addProjectMember
+      summary: Adicionar um membro ao projeto
+      description: |
+        Só o Gestor (US04, DE07). A conta entra com a função Membro. Se a
+        pessoa já tinha sido membro, a indicação "já não é membro" desaparece
+        das suas tarefas `DONE` (PN07).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountIdRequest"
+      responses:
+        "201":
+          description: Membro adicionado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectMember"
+        "400":
+          description: |
+            Valores de `code`: `VALIDATION_ERROR`; `ACCOUNT_DEACTIVATED` — a
+            conta está desativada (PN08).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          description: |
+            Valores de `code`: `PROJECT_NOT_FOUND` (ver
+            `#/components/responses/ProjectNotFound`); `ACCOUNT_NOT_FOUND`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: |
+            Valores de `code`: `ALREADY_MEMBER`; `PROJECT_ARCHIVED` (PN09).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /projects/{projectId}/members/{accountId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/AccountId"
+    delete:
+      tags: [projects]
+      operationId: removeProjectMember
+      summary: Remover um membro do projeto
+      description: |
+        Só o Gestor (US04, DE07). As tarefas da pessoa nesse projeto que não
+        estão `DONE` ficam sem responsável; as `DONE` mantêm-na como
+        responsável, com a indicação "já não é membro" (PN07).
+      responses:
+        "204":
+          description: Membro removido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          description: |
+            Valores de `code`: `PROJECT_NOT_FOUND`; `MEMBER_NOT_FOUND` — a
+            conta não é membro do projeto.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: |
+            Valores de `code`: `CANNOT_REMOVE_MANAGER` — o Gestor não pode ser
+            removido (PN04, CL5); `PROJECT_ARCHIVED` (PN09).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /projects/{projectId}/manager:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    put:
+      tags: [projects]
+      operationId: changeProjectManager
+      summary: Trocar o Gestor do projeto
+      description: |
+        Só para o Administrador, mesmo que não participe no projeto (FN27,
+        US12, DE08). O novo Gestor tem de ter conta ativa ou pendente (PN14,
+        DE15). Se ainda não é membro, é adicionado e nomeado na mesma
+        operação, e ficam no registo `ADD_MEMBER` e `CHANGE_MANAGER`. O Gestor
+        anterior passa a Membro (PN04). Se o Administrador se pode nomear a si
+        próprio está em aberto (CL10).
+
+        Aqui o `404` só se aplica a um projeto que não existe: a permissão de
+        Administrador dá acesso a esta operação (PN02).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountIdRequest"
+      responses:
+        "200":
+          description: Gestor trocado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProjectSummary"
+        "400":
+          description: |
+            Valores de `code`: `VALIDATION_ERROR`; `ACCOUNT_DEACTIVATED` — o
+            novo Gestor tem a conta desativada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotAdmin"
+        "404":
+          description: 'Valores de `code`: `PROJECT_NOT_FOUND`; `ACCOUNT_NOT_FOUND`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: |
+            Valores de `code`: `ALREADY_MANAGER` — a conta já é o Gestor;
+            `PROJECT_ARCHIVED` (PN09).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  # --------------------------------------------------------------- tasks
   /projects/{projectId}/tasks:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
@@ -46,11 +714,10 @@ paths:
       description: |
         Devolve todas as tarefas do projeto, ordenadas por `createdAt`
         (mais antigas primeiro; pressuposto). O cliente agrupa-as por `status`
-        para a vista por estado (FN08) e calcula o indicador de progresso (FN09).
+        para a vista por estado (FN08, US08).
 
-        Acesso: qualquer membro do projeto (Gestor ou Membro). A permissão de
-        Administrador não dá acesso a projetos onde a conta não participa
-        (DE02, PN02, RNF02). Projetos arquivados continuam legíveis (PN09).
+        Acesso: qualquer membro do projeto (Gestor ou Membro). Projetos
+        arquivados continuam legíveis (PN09).
 
         Sem parâmetros de query: filtrar tarefas (incluindo por estado) é FN13,
         que está fora do MVP.
@@ -106,8 +773,6 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/ProjectNotFound"
 
@@ -122,9 +787,10 @@ paths:
         Acesso: só o Gestor do projeto (DE09, PN05). O projeto tem de estar
         ativo (PN09).
 
-        Regras: o título é obrigatório e não pode estar vazio (PN12); o
-        responsável é opcional e, se indicado, tem de ser membro do projeto com
-        conta ativa (PN06, PN08).
+        Regras: título obrigatório, com 3–150 caracteres e não só espaços;
+        descrição até 2000 caracteres (PN12); o responsável é opcional e, se
+        indicado, tem de ser membro do projeto com conta ativa (PN06, PN08,
+        DE15).
       requestBody:
         required: true
         content:
@@ -147,11 +813,7 @@ paths:
           description: Tarefa criada.
           headers:
             Location:
-              description: URL da tarefa criada.
-              schema:
-                type: string
-                format: uri-reference
-              example: /tasks/9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c01
+              $ref: "#/components/headers/Location"
           content:
             application/json:
               schema:
@@ -170,74 +832,283 @@ paths:
                 createdAt: "2026-10-29T09:00:00Z"
                 updatedAt: "2026-10-29T09:00:00Z"
         "400":
-          description: |
-            Dados inválidos. Valores de `code`:
-
-            - `VALIDATION_ERROR` — JSON mal formado, campo desconhecido ou de
-              tipo errado.
-            - `TITLE_REQUIRED` — título em falta ou vazio (PN12).
-            - `ASSIGNEE_NOT_MEMBER` — o responsável não é membro do projeto (PN06).
-            - `ASSIGNEE_DEACTIVATED` — o responsável tem a conta desativada (PN08).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-              examples:
-                titleRequired:
-                  value:
-                    type: about:blank
-                    title: Dados inválidos
-                    status: 400
-                    code: TITLE_REQUIRED
-                    detail: O título é obrigatório.
-                    errors:
-                      - field: title
-                        message: O título é obrigatório.
-                assigneeNotMember:
-                  value:
-                    type: about:blank
-                    title: Dados inválidos
-                    status: 400
-                    code: ASSIGNEE_NOT_MEMBER
-                    detail: O responsável tem de ser membro do projeto.
-                    errors:
-                      - field: assigneeId
-                        message: O responsável tem de ser membro do projeto.
+          $ref: "#/components/responses/TaskValidationError"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
-          description: |
-            Sem permissão. Valores de `code`:
-
-            - `NOT_PROJECT_MEMBER` — a conta não é membro do projeto (mesmo
-              com permissão de Administrador).
-            - `NOT_PROJECT_MANAGER` — a conta é Membro, mas não Gestor (PN05).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-              example:
-                type: about:blank
-                title: Sem permissão
-                status: 403
-                code: NOT_PROJECT_MANAGER
-                detail: Só o Gestor do projeto pode criar tarefas.
+          $ref: "#/components/responses/NotProjectManager"
         "404":
           $ref: "#/components/responses/ProjectNotFound"
         "409":
-          description: |
-            O projeto está arquivado e só de leitura (PN09).
-            `code`: `PROJECT_ARCHIVED`.
+          $ref: "#/components/responses/ProjectArchived"
+
+  /projects/{projectId}/assignable-accounts:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [tasks]
+      operationId: listAssignableAccounts
+      summary: Listar quem pode ser escolhido como responsável
+      description: |
+        Só o Gestor (US06). Membros do projeto com conta ativa; contas
+        pendentes e desativadas ficam de fora (PN06, PN08, DE15). Ordenados
+        por nome (pressuposto).
+      responses:
+        "200":
+          description: Contas que podem ser responsáveis.
           content:
-            application/problem+json:
+            application/json:
               schema:
-                $ref: "#/components/schemas/Problem"
-              example:
-                type: about:blank
-                title: Projeto arquivado
-                status: 409
-                code: PROJECT_ARCHIVED
-                detail: O projeto está arquivado e não pode ser alterado.
+                $ref: "#/components/schemas/AccountSummaryList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          $ref: "#/components/responses/ProjectNotFound"
+
+  /tasks/{taskId}:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      tags: [tasks]
+      operationId: getTask
+      summary: Consultar uma tarefa
+      description: |
+        Título, descrição, responsável e estado (US19). Qualquer membro do
+        projeto da tarefa. Os comentários estão em
+        `GET /tasks/{taskId}/comments`.
+      responses:
+        "200":
+          description: Tarefa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/TaskNotFound"
+    patch:
+      tags: [tasks]
+      operationId: updateTask
+      summary: Editar uma tarefa e escolher o responsável
+      description: |
+        Só o Gestor (US06, DE09, PN05). Os campos omitidos não mudam;
+        `assigneeId: null` deixa a tarefa "Sem responsável". O estado muda-se
+        com `PUT /tasks/{taskId}/status`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+      responses:
+        "200":
+          description: Tarefa editada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/TaskValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          $ref: "#/components/responses/TaskNotFound"
+        "409":
+          $ref: "#/components/responses/ProjectArchived"
+    delete:
+      tags: [tasks]
+      operationId: deleteTask
+      summary: Eliminar uma tarefa
+      description: Só o Gestor (US06, DE09). Os comentários da tarefa são eliminados com ela.
+      responses:
+        "204":
+          description: Tarefa eliminada.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          $ref: "#/components/responses/TaskNotFound"
+        "409":
+          $ref: "#/components/responses/ProjectArchived"
+
+  /tasks/{taskId}/status:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    put:
+      tags: [tasks]
+      operationId: changeTaskStatus
+      summary: Mudar o estado de uma tarefa
+      description: |
+        Qualquer membro do projeto (US07, DE10). Qualquer estado pode passar a
+        qualquer outro (PN10). Ao reabrir uma tarefa `DONE` cujo responsável
+        já não é membro do projeto ou tem a conta desativada, a tarefa fica
+        "Sem responsável" (PN07, PN08, PN10).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeTaskStatusRequest"
+      responses:
+        "200":
+          description: Estado mudado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/TaskNotFound"
+        "409":
+          $ref: "#/components/responses/ProjectArchived"
+
+  # ------------------------------------------------------------ comments
+  /tasks/{taskId}/comments:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      tags: [comments]
+      operationId: listTaskComments
+      summary: Listar os comentários de uma tarefa
+      description: Qualquer membro do projeto (US19). Ordenados por `createdAt`, mais antigos primeiro.
+      responses:
+        "200":
+          description: Lista dos comentários (pode ser vazia).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/TaskNotFound"
+    post:
+      tags: [comments]
+      operationId: createTaskComment
+      summary: Comentar uma tarefa
+      description: |
+        Qualquer membro do projeto (US13, PN15). O autor e a data são definidos
+        pelo backend.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentBodyRequest"
+      responses:
+        "201":
+          description: Comentário criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "400":
+          $ref: "#/components/responses/CommentValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/TaskNotFound"
+        "409":
+          $ref: "#/components/responses/ProjectArchived"
+
+  /comments/{commentId}:
+    parameters:
+      - $ref: "#/components/parameters/CommentId"
+    patch:
+      tags: [comments]
+      operationId: updateComment
+      summary: Editar o próprio comentário
+      description: Só o autor do comentário, mesmo que outra pessoa seja Gestor (US13, PN15).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentBodyRequest"
+      responses:
+        "200":
+          description: Comentário editado; `editedAt` é preenchido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "400":
+          $ref: "#/components/responses/CommentValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotCommentAuthor"
+        "404":
+          $ref: "#/components/responses/CommentNotFound"
+        "409":
+          $ref: "#/components/responses/ProjectArchived"
+    delete:
+      tags: [comments]
+      operationId: deleteComment
+      summary: Apagar o próprio comentário
+      description: Só o autor do comentário (US13, PN15).
+      responses:
+        "204":
+          description: Comentário apagado.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotCommentAuthor"
+        "404":
+          $ref: "#/components/responses/CommentNotFound"
+        "409":
+          $ref: "#/components/responses/ProjectArchived"
+
+  # --------------------------------------------------------------- admin
+  /admin/projects:
+    get:
+      tags: [admin]
+      operationId: listAllProjects
+      summary: Listar todos os projetos na área de administração
+      description: |
+        Só para o Administrador (US17, PN02, CL6). Mostra o nome, o estado, o
+        Gestor e os membros de cada projeto, sem tarefas, comentários nem
+        progresso. Ordenados por nome (pressuposto).
+      responses:
+        "200":
+          description: Lista de todos os projetos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProjectSummaryList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotAdmin"
+
+  /admin/audit-log:
+    get:
+      tags: [admin]
+      operationId: listAuditLog
+      summary: Consultar o registo de ações administrativas
+      description: |
+        Só para o Administrador (FN28, US14, PN18). Do mais recente para o
+        mais antigo. Não há operações para alterar ou apagar entradas.
+      responses:
+        "200":
+          description: Entradas do registo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogEntryList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotAdmin"
 
 components:
   securitySchemes:
@@ -246,9 +1117,10 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: |
-        Pedido autenticado com o JWT da conta, no cabeçalho
-        `Authorization: Bearer ...` (D06). Contas desativadas não são aceites
-        (US01).
+        JWT obtido em `POST /auth/login`, enviado no cabeçalho
+        `Authorization: Bearer ...` e válido durante 1 hora (D06). O backend
+        não revoga tokens: depois de sair (US15) ou de a conta ser desativada,
+        um token já emitido continua válido até expirar.
 
   parameters:
     ProjectId:
@@ -258,6 +1130,35 @@ components:
       description: Identificador do projeto.
       schema:
         $ref: "#/components/schemas/Id"
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      description: Identificador da tarefa.
+      schema:
+        $ref: "#/components/schemas/Id"
+    CommentId:
+      name: commentId
+      in: path
+      required: true
+      description: Identificador do comentário.
+      schema:
+        $ref: "#/components/schemas/Id"
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      description: Identificador da conta.
+      schema:
+        $ref: "#/components/schemas/Id"
+
+  headers:
+    Location:
+      description: URL do recurso criado.
+      schema:
+        type: string
+        format: uri-reference
+      example: /tasks/9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c01
 
   schemas:
     Id:
@@ -268,6 +1169,7 @@ components:
         a autorização é sempre verificada (RNF02).
       examples: ["5b1f2c3a-8d4e-4f6a-9b7c-0d1e2f3a4b01"]
 
+    # ---- enumerações
     TaskStatus:
       type: string
       enum: [TODO, IN_PROGRESS, DONE]
@@ -277,17 +1179,43 @@ components:
 
     AccountStatus:
       type: string
-      enum: [ACTIVE, DEACTIVATED]
+      enum: [PENDING, ACTIVE, DEACTIVATED]
       description: |
-        Estado da conta. `DEACTIVATED` é mostrado como "conta desativada" (PN08).
+        Estado da conta (DE15). Texto mostrado: `PENDING` = "Pendente",
+        `ACTIVE` = "Ativa", `DEACTIVATED` = "Desativada" (ao lado de um nome:
+        "conta desativada", PN08).
 
+    ProjectStatus:
+      type: string
+      enum: [ACTIVE, ARCHIVED]
+      description: 'Estado do projeto: `ACTIVE` = "Ativo", `ARCHIVED` = "Arquivado".'
+
+    ProjectRole:
+      type: string
+      enum: [MANAGER, MEMBER]
+      description: 'Função da conta no projeto (DE01): `MANAGER` = "Gestor", `MEMBER` = "Membro".'
+
+    AdminAction:
+      type: string
+      enum:
+        [
+          CREATE_ACCOUNT,
+          RESEND_INVITE,
+          DEACTIVATE_ACCOUNT,
+          GRANT_ADMIN,
+          REVOKE_ADMIN,
+          CREATE_PROJECT,
+          ASSIGN_MANAGER,
+          CHANGE_MANAGER,
+          ADD_MEMBER,
+        ]
+      description: Ação administrativa registada (PN18; textos em `docs/database.md`).
+
+    # ---- contas
     AccountSummary:
       type: object
-      description: |
-        Resumo de uma conta, usado para mostrar o responsável. Indicação
-        mostrada ao lado do nome: `status: DEACTIVATED` = "conta desativada";
-        senão, `isProjectMember: false` = "já não é membro" (PN07, PN08).
-      required: [id, name, status, isProjectMember]
+      description: Resumo de uma conta, para mostrar autores, membros e Gestores.
+      required: [id, name, status]
       properties:
         id:
           $ref: "#/components/schemas/Id"
@@ -295,12 +1223,297 @@ components:
           type: string
         status:
           $ref: "#/components/schemas/AccountStatus"
-        isProjectMember:
-          type: boolean
-          description: |
-            Se a conta é membro do projeto da tarefa. Só pode ser `false` em
-            tarefas `DONE` (PN07).
 
+    AccountSummaryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountSummary"
+
+    AccountContact:
+      description: Conta com email, para o Gestor a escolher ao adicionar membros (US04).
+      allOf:
+        - $ref: "#/components/schemas/AccountSummary"
+        - type: object
+          required: [email]
+          properties:
+            email:
+              type: string
+              format: email
+
+    AccountContactList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountContact"
+
+    Account:
+      description: Conta completa, para a própria conta (`/me`) e para o Administrador (US16).
+      allOf:
+        - $ref: "#/components/schemas/AccountContact"
+        - type: object
+          required: [isAdmin, isSystemAccount, createdAt]
+          properties:
+            isAdmin:
+              type: boolean
+            isSystemAccount:
+              type: boolean
+              description: Verdadeiro só na conta de sistema (DE04).
+            createdAt:
+              type: string
+              format: date-time
+
+    AccountList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Account"
+
+    Assignee:
+      description: |
+        Responsável de uma tarefa. Indicação mostrada ao lado do nome:
+        `status: DEACTIVATED` = "conta desativada"; senão,
+        `isProjectMember: false` = "já não é membro" (PN07, PN08).
+      allOf:
+        - $ref: "#/components/schemas/AccountSummary"
+        - type: object
+          required: [isProjectMember]
+          properties:
+            isProjectMember:
+              type: boolean
+              description: |
+                Se a conta é membro do projeto da tarefa. Só pode ser `false` em
+                tarefas `DONE` (PN07).
+
+    CreateAccountRequest:
+      type: object
+      required: [name, email]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          pattern: '\S'
+          description: Obrigatório, não só espaços. Limites de comprimento por definir.
+        email:
+          type: string
+          format: email
+          description: Único, incluindo contas pendentes e desativadas (PN11).
+
+    AccountIdRequest:
+      type: object
+      required: [accountId]
+      additionalProperties: false
+      properties:
+        accountId:
+          $ref: "#/components/schemas/Id"
+
+    # ---- autenticação
+    LoginRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+          writeOnly: true
+
+    LoginResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn, account]
+      properties:
+        accessToken:
+          type: string
+          description: 'JWT a enviar em `Authorization: Bearer ...`.'
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresIn:
+          type: integer
+          description: Validade do token, em segundos.
+          examples: [3600]
+        account:
+          $ref: "#/components/schemas/Account"
+
+    ActivateAccountRequest:
+      type: object
+      required: [token, password]
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          minLength: 1
+          description: Token do link de ativação (DE15).
+        password:
+          type: string
+          minLength: 12
+          writeOnly: true
+          description: Pelo menos 12 caracteres (DE15).
+
+    # ---- projetos
+    Progress:
+      type: object
+      description: |
+        Indicador de progresso (FN09, PN13). `percentDone` é
+        `done ÷ total × 100`, arredondado à unidade, ou `null` quando
+        `total` é 0 ("Sem tarefas").
+      required: [todo, inProgress, done, total, percentDone]
+      properties:
+        todo:
+          type: integer
+          minimum: 0
+        inProgress:
+          type: integer
+          minimum: 0
+        done:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+        percentDone:
+          type: [integer, "null"]
+          minimum: 0
+          maximum: 100
+
+    ProjectSummary:
+      type: object
+      description: Projeto no painel inicial (FN05).
+      required: [id, name, status, myRole, progress]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        myRole:
+          $ref: "#/components/schemas/ProjectRole"
+        progress:
+          $ref: "#/components/schemas/Progress"
+
+    ProjectSummaryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectSummary"
+
+    ProjectMember:
+      type: object
+      required: [account, role, addedAt]
+      properties:
+        account:
+          $ref: "#/components/schemas/AccountSummary"
+        role:
+          $ref: "#/components/schemas/ProjectRole"
+        addedAt:
+          type: string
+          format: date-time
+
+    Project:
+      type: object
+      description: Projeto visto por um membro (US09, US18).
+      required: [id, name, description, status, manager, members, progress, createdAt]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        description:
+          type: [string, "null"]
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        manager:
+          $ref: "#/components/schemas/AccountSummary"
+        members:
+          type: array
+          description: Todos os membros, incluindo o Gestor.
+          items:
+            $ref: "#/components/schemas/ProjectMember"
+        progress:
+          $ref: "#/components/schemas/Progress"
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminProjectSummary:
+      type: object
+      description: Projeto na área de administração, sem conteúdo (PN02, CL6).
+      required: [id, name, status, manager, members]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        manager:
+          $ref: "#/components/schemas/AccountSummary"
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectMember"
+
+    AdminProjectSummaryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminProjectSummary"
+
+    ProjectName:
+      type: string
+      minLength: 3
+      maxLength: 100
+      pattern: '\S'
+      description: Obrigatório, 3–100 caracteres, não só espaços (PN12).
+
+    ProjectDescription:
+      type: [string, "null"]
+      maxLength: 1000
+      description: Opcional, até 1000 caracteres (PN12).
+
+    CreateProjectRequest:
+      type: object
+      required: [name, managerId]
+      additionalProperties: false
+      properties:
+        name:
+          $ref: "#/components/schemas/ProjectName"
+        description:
+          $ref: "#/components/schemas/ProjectDescription"
+        managerId:
+          $ref: "#/components/schemas/Id"
+
+    UpdateProjectRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name:
+          $ref: "#/components/schemas/ProjectName"
+        description:
+          $ref: "#/components/schemas/ProjectDescription"
+
+    # ---- tarefas
     Task:
       type: object
       description: Tarefa de um projeto (`TASK` em `docs/database.md`).
@@ -322,7 +1535,6 @@ components:
           $ref: "#/components/schemas/Id"
         title:
           type: string
-          minLength: 1
         description:
           type: [string, "null"]
         status:
@@ -332,7 +1544,7 @@ components:
             Responsável; `null` = "Sem responsável" (PN06). Numa tarefa `DONE`
             pode ser quem já não é membro do projeto (PN07).
           oneOf:
-            - $ref: "#/components/schemas/AccountSummary"
+            - $ref: "#/components/schemas/Assignee"
             - type: "null"
         createdAt:
           type: string
@@ -350,26 +1562,139 @@ components:
           items:
             $ref: "#/components/schemas/Task"
 
+    TaskTitle:
+      type: string
+      minLength: 3
+      maxLength: 150
+      pattern: '\S'
+      description: Obrigatório, 3–150 caracteres, não só espaços (PN12).
+
+    TaskDescription:
+      type: [string, "null"]
+      maxLength: 2000
+      description: Opcional, até 2000 caracteres (PN12).
+
+    AssigneeId:
+      description: |
+        Responsável. `null` = "Sem responsável". Tem de ser membro do projeto
+        com conta ativa (PN06, PN08, DE15).
+      oneOf:
+        - $ref: "#/components/schemas/Id"
+        - type: "null"
+
     CreateTaskRequest:
       type: object
       required: [title]
       additionalProperties: false
       properties:
         title:
+          $ref: "#/components/schemas/TaskTitle"
+        description:
+          $ref: "#/components/schemas/TaskDescription"
+        assigneeId:
+          $ref: "#/components/schemas/AssigneeId"
+
+    UpdateTaskRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        title:
+          $ref: "#/components/schemas/TaskTitle"
+        description:
+          $ref: "#/components/schemas/TaskDescription"
+        assigneeId:
+          $ref: "#/components/schemas/AssigneeId"
+
+    ChangeTaskStatusRequest:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+
+    # ---- comentários
+    Comment:
+      type: object
+      required: [id, taskId, author, body, createdAt, editedAt]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        taskId:
+          $ref: "#/components/schemas/Id"
+        author:
+          $ref: "#/components/schemas/AccountSummary"
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        editedAt:
+          type: [string, "null"]
+          format: date-time
+
+    CommentList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Comment"
+
+    CommentBodyRequest:
+      type: object
+      required: [body]
+      additionalProperties: false
+      properties:
+        body:
           type: string
           minLength: 1
-          description: Obrigatório. Um título só com espaços é tratado como vazio (PN12).
-        description:
-          type: [string, "null"]
-          description: Opcional (PN12).
-        assigneeId:
-          description: |
-            Responsável. Opcional; omitido ou `null` = "Sem responsável".
-            Tem de ser membro do projeto com conta ativa (PN06, PN08).
-          oneOf:
-            - $ref: "#/components/schemas/Id"
-            - type: "null"
+          maxLength: 2000
+          pattern: '\S'
+          description: 1–2000 caracteres, não só espaços (PN15).
 
+    # ---- registo administrativo
+    AuditLogEntry:
+      type: object
+      required: [id, actor, action, targetAccount, targetProject, occurredAt]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        actor:
+          $ref: "#/components/schemas/AccountSummary"
+        action:
+          $ref: "#/components/schemas/AdminAction"
+        targetAccount:
+          oneOf:
+            - $ref: "#/components/schemas/AccountSummary"
+            - type: "null"
+        targetProject:
+          description: Projeto afetado, quando existe.
+          oneOf:
+            - type: object
+              required: [id, name]
+              properties:
+                id:
+                  $ref: "#/components/schemas/Id"
+                name:
+                  type: string
+            - type: "null"
+        occurredAt:
+          type: string
+          format: date-time
+
+    AuditLogEntryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLogEntry"
+
+    # ---- erros
     Problem:
       type: object
       description: Erro no formato Problem Details (RFC 9457).
@@ -405,8 +1730,8 @@ components:
   responses:
     BadRequest:
       description: |
-        Pedido inválido (por exemplo, `projectId` mal formado).
-        `code`: `VALIDATION_ERROR`.
+        Pedido inválido (JSON mal formado, campo desconhecido ou de tipo errado,
+        UUID inválido). `code`: `VALIDATION_ERROR`.
       content:
         application/problem+json:
           schema:
@@ -418,10 +1743,63 @@ components:
             code: VALIDATION_ERROR
             detail: O identificador do projeto não é válido.
 
+    TaskValidationError:
+      description: |
+        Dados da tarefa inválidos. Valores de `code`:
+
+        - `VALIDATION_ERROR` — JSON mal formado, campo desconhecido ou de tipo
+          errado.
+        - `TITLE_INVALID` — título em falta, só com espaços ou fora de 3–150
+          caracteres (PN12).
+        - `DESCRIPTION_TOO_LONG` — descrição com mais de 2000 caracteres.
+        - `ASSIGNEE_NOT_MEMBER` — o responsável não é membro do projeto (PN06).
+        - `ASSIGNEE_NOT_ACTIVE` — o responsável tem a conta pendente ou
+          desativada (PN08, DE15).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            titleInvalid:
+              value:
+                type: about:blank
+                title: Dados inválidos
+                status: 400
+                code: TITLE_INVALID
+                detail: O título é obrigatório e tem de ter entre 3 e 150 caracteres.
+                errors:
+                  - field: title
+                    message: O título tem de ter entre 3 e 150 caracteres.
+            assigneeNotMember:
+              value:
+                type: about:blank
+                title: Dados inválidos
+                status: 400
+                code: ASSIGNEE_NOT_MEMBER
+                detail: O responsável tem de ser membro do projeto.
+                errors:
+                  - field: assigneeId
+                    message: O responsável tem de ser membro do projeto.
+
+    CommentValidationError:
+      description: |
+        Valores de `code`: `VALIDATION_ERROR`; `BODY_INVALID` — comentário
+        vazio, só com espaços ou com mais de 2000 caracteres (PN15).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Dados inválidos
+            status: 400
+            code: BODY_INVALID
+            detail: O comentário não pode estar vazio.
+
     Unauthorized:
       description: |
-        Pedido sem autenticação válida, ou de uma conta desativada (US01).
-        `code`: `UNAUTHENTICATED`.
+        Pedido sem JWT, ou com JWT inválido ou expirado. `code`:
+        `UNAUTHENTICATED`.
       headers:
         WWW-Authenticate:
           schema:
@@ -438,10 +1816,8 @@ components:
             code: UNAUTHENTICATED
             detail: É preciso entrar com a sua conta.
 
-    Forbidden:
-      description: |
-        A conta não é membro do projeto, mesmo que tenha permissão de
-        Administrador (DE02, PN02). `code`: `NOT_PROJECT_MEMBER`.
+    NotAdmin:
+      description: 'A conta não tem permissão de Administrador. `code`: `NOT_ADMIN`.'
       content:
         application/problem+json:
           schema:
@@ -450,12 +1826,39 @@ components:
             type: about:blank
             title: Sem permissão
             status: 403
-            code: NOT_PROJECT_MEMBER
-            detail: Não tem acesso a este projeto.
+            code: NOT_ADMIN
+            detail: Só um Administrador pode fazer esta ação.
+
+    NotProjectManager:
+      description: 'A conta é Membro, mas não Gestor, do projeto (PN05). `code`: `NOT_PROJECT_MANAGER`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Sem permissão
+            status: 403
+            code: NOT_PROJECT_MANAGER
+            detail: Só o Gestor do projeto pode fazer esta ação.
+
+    NotCommentAuthor:
+      description: 'A conta não é o autor do comentário (PN15). `code`: `NOT_COMMENT_AUTHOR`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Sem permissão
+            status: 403
+            code: NOT_COMMENT_AUTHOR
+            detail: Só o autor pode alterar este comentário.
 
     ProjectNotFound:
       description: |
-        O projeto não existe. `code`: `PROJECT_NOT_FOUND`.
+        O projeto não existe ou a conta não é membro dele; a resposta é igual
+        nos dois casos (DE02, PN02). `code`: `PROJECT_NOT_FOUND`.
       content:
         application/problem+json:
           schema:
@@ -466,3 +1869,59 @@ components:
             status: 404
             code: PROJECT_NOT_FOUND
             detail: O projeto não existe.
+
+    TaskNotFound:
+      description: |
+        A tarefa não existe ou pertence a um projeto onde a conta não é membro.
+        `code`: `TASK_NOT_FOUND`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Não encontrado
+            status: 404
+            code: TASK_NOT_FOUND
+            detail: A tarefa não existe.
+
+    CommentNotFound:
+      description: |
+        O comentário não existe ou pertence a um projeto onde a conta não é
+        membro. `code`: `COMMENT_NOT_FOUND`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Não encontrado
+            status: 404
+            code: COMMENT_NOT_FOUND
+            detail: O comentário não existe.
+
+    AccountNotFound:
+      description: 'A conta não existe. `code`: `ACCOUNT_NOT_FOUND`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Não encontrado
+            status: 404
+            code: ACCOUNT_NOT_FOUND
+            detail: A conta não existe.
+
+    ProjectArchived:
+      description: 'O projeto está arquivado e só de leitura (PN09). `code`: `PROJECT_ARCHIVED`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Projeto arquivado
+            status: 409
+            code: PROJECT_ARCHIVED
+            detail: O projeto está arquivado e não pode ser alterado.

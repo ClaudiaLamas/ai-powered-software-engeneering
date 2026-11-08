@@ -61,7 +61,7 @@ As funções e a permissão são **decisões internas, por validar com o cliente
 | [docs/architecture.md](docs/architecture.md) | Decisão de arquitetura (D07: monólito modular), componentes, responsabilidades e dependências entre módulos. |
 | [docs/database.md](docs/database.md) | Modelo de dados lógico do MVP, regras de integridade e diagrama ER. |
 | [docs/ui/dashboard-wireframe.html](docs/ui/dashboard-wireframe.html) | Wireframe de baixa fidelidade do ecrã inicial e da vista de um projeto. |
-| [openapi.yaml](openapi.yaml) | Especificação parcial da API do backend: listar e criar tarefas de um projeto (FN06, FN08). |
+| [openapi.yaml](openapi.yaml) | Contrato da API do backend para o MVP (US01–US19). |
 | [AGENTS.md](AGENTS.md) | Instruções para agentes de IA que trabalhem no repositório. |
 
 ## Convenção de IDs
