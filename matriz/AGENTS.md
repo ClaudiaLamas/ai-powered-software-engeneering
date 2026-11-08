@@ -22,6 +22,7 @@ não esteja registada nos documentos.
    - `docs/constraints.md` — restrições, pressupostos e decisões técnicas.
    - `docs/architecture.md` — arquitetura, componentes e responsabilidades.
    - `docs/database.md` — modelo de dados e diagrama ER.
+   - `docs/implementation-plan.md` — incrementos do MVP e o estado de cada um.
    - `docs/ui/dashboard-wireframe.html` — wireframe do ecrã inicial e da vista de um projeto.
    - `openapi.yaml` — contrato da API do MVP.
 2. Identifica os IDs (F, P, R, DE, PN, D, FN, US, CL, RNF) a que a tarefa diz respeito.

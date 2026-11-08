@@ -60,6 +60,7 @@ As funções e a permissão são **decisões internas, por validar com o cliente
 | [docs/constraints.md](docs/constraints.md) | Restrições de âmbito, permissões, requisitos não funcionais, decisões técnicas e questões em aberto. |
 | [docs/architecture.md](docs/architecture.md) | Decisão de arquitetura (D07: monólito modular), componentes, responsabilidades e dependências entre módulos. |
 | [docs/database.md](docs/database.md) | Modelo de dados lógico do MVP, regras de integridade e diagrama ER. |
+| [docs/implementation-plan.md](docs/implementation-plan.md) | Sequência de incrementos para implementar o MVP, com critérios e verificação. |
 | [docs/ui/dashboard-wireframe.html](docs/ui/dashboard-wireframe.html) | Wireframe de baixa fidelidade do ecrã inicial e da vista de um projeto. |
 | [openapi.yaml](openapi.yaml) | Contrato da API do backend para o MVP (US01–US19). |
 | [AGENTS.md](AGENTS.md) | Instruções para agentes de IA que trabalhem no repositório. |
