@@ -1,0 +1,234 @@
+// Esquema Prisma da Matriz — deriva de docs/database.md (D04).
+// Nomes em inglês no código; tabelas e colunas em snake_case, como em database.md.
+// A ligação (DATABASE_URL) é configurada em prisma.config.ts (Prisma 7).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enumerações
+// ---------------------------------------------------------------------------
+
+/// Estado da conta: "Pendente", "Ativa", "Desativada" (US02, PN17, DE15).
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  DEACTIVATED
+
+  @@map("account_status")
+}
+
+/// Estado do projeto: "Ativo", "Arquivado" (R6, US03, US10).
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@map("project_status")
+}
+
+/// Estado da tarefa: "Por fazer", "Em curso", "Concluída" (R8, PN10).
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+
+  @@map("task_status")
+}
+
+/// Função num projeto: "Gestor", "Membro" (DE01, DE06, PN03).
+enum ProjectRole {
+  MANAGER
+  MEMBER
+
+  @@map("project_role")
+}
+
+/// Ação administrativa registada (PN18, DE15).
+enum AdminAction {
+  CREATE_ACCOUNT
+  RESEND_INVITE
+  DEACTIVATE_ACCOUNT
+  GRANT_ADMIN
+  REVOKE_ADMIN
+  CREATE_PROJECT
+  ASSIGN_MANAGER
+  CHANGE_MANAGER
+  ADD_MEMBER
+
+  @@map("admin_action")
+}
+
+// ---------------------------------------------------------------------------
+// ACCOUNT (Conta) — módulo accounts
+// ---------------------------------------------------------------------------
+
+model Account {
+  id              String        @id @default(uuid()) @db.Uuid
+  name            String
+  /// Único, incluindo contas desativadas (PN11).
+  email           String        @unique
+  /// Hash da palavra-passe (D06). Vazio só enquanto a conta está PENDING (DE15).
+  passwordHash    String?       @map("password_hash")
+  status          AccountStatus @default(PENDING)
+  isAdmin         Boolean       @default(false) @map("is_admin")
+  isSystemAccount Boolean       @default(false) @map("is_system_account")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  memberships      ProjectMember[]
+  activationTokens AccountActivationToken[]
+  assignedTasks    Task[]                   @relation("TaskAssignee")
+  comments         Comment[]                @relation("CommentAuthor")
+  auditActions     AdminAuditLog[]          @relation("AuditActor")
+  auditTargets     AdminAuditLog[]          @relation("AuditTargetAccount")
+
+  @@map("account")
+}
+
+// ---------------------------------------------------------------------------
+// ACCOUNT_ACTIVATION_TOKEN (Token de ativação) — módulo accounts
+// ---------------------------------------------------------------------------
+
+/// Válido só se usedAt e invalidatedAt estiverem vazios e expiresAt não tiver passado (DE15).
+/// No máximo um token válido por conta — garantido pela aplicação.
+model AccountActivationToken {
+  id            String    @id @default(uuid()) @db.Uuid
+  accountId     String    @map("account_id") @db.Uuid
+  /// Hash do token; o token em claro nunca é guardado (DE15).
+  tokenHash     String    @unique @map("token_hash")
+  /// 24 horas depois de createdAt (DE15) — definido pela aplicação.
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt        DateTime? @map("used_at") @db.Timestamptz(3)
+  invalidatedAt DateTime? @map("invalidated_at") @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  /// Contas nunca são eliminadas (§4): Restrict.
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([accountId])
+  @@map("account_activation_token")
+}
+
+// ---------------------------------------------------------------------------
+// PROJECT (Projeto) — módulo projects
+// ---------------------------------------------------------------------------
+
+model Project {
+  id          String        @id @default(uuid()) @db.Uuid
+  /// 3 a 100 caracteres, não só espaços (PN12) — validado na aplicação.
+  name        String        @db.VarChar(100)
+  /// Até 1000 caracteres (PN12).
+  description String?       @db.VarChar(1000)
+  status      ProjectStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  members      ProjectMember[]
+  tasks        Task[]
+  auditTargets AdminAuditLog[] @relation("AuditTargetProject")
+
+  @@map("project")
+}
+
+// ---------------------------------------------------------------------------
+// PROJECT_MEMBER (membro do projeto) — módulo projects
+// ---------------------------------------------------------------------------
+
+/// A PK composta impede a mesma conta duas vezes no mesmo projeto (DE01).
+/// No máximo um MANAGER por projeto: índice único parcial na migration (DE06).
+/// Remover um membro apaga a linha; não se guarda histórico (§6).
+model ProjectMember {
+  projectId String      @map("project_id") @db.Uuid
+  accountId String      @map("account_id") @db.Uuid
+  role      ProjectRole
+  addedAt   DateTime    @default(now()) @map("added_at") @db.Timestamptz(3)
+
+  /// Projetos e contas nunca são eliminados (§4): Restrict.
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([projectId, accountId])
+  @@index([accountId])
+  @@map("project_member")
+}
+
+// ---------------------------------------------------------------------------
+// TASK (Tarefa) — módulo tasks
+// ---------------------------------------------------------------------------
+
+model Task {
+  id          String     @id @default(uuid()) @db.Uuid
+  projectId   String     @map("project_id") @db.Uuid
+  /// 3 a 150 caracteres, não só espaços (PN12) — validado na aplicação.
+  title       String     @db.VarChar(150)
+  /// Até 2000 caracteres (PN12).
+  description String?    @db.VarChar(2000)
+  status      TaskStatus @default(TODO)
+  /// Responsável (zero ou um). Vazio = "Sem responsável" (DE09, DE14, PN06, PN07).
+  assigneeId  String?    @map("assignee_id") @db.Uuid
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  /// Projetos nunca são eliminados (§4): Restrict.
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  /// Contas nunca são eliminadas (§4): Restrict.
+  assignee Account?  @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  comments Comment[]
+
+  @@index([projectId, status])
+  @@index([assigneeId])
+  @@map("task")
+}
+
+// ---------------------------------------------------------------------------
+// COMMENT (Comentário) — módulo tasks
+// ---------------------------------------------------------------------------
+
+model Comment {
+  id        String    @id @default(uuid()) @db.Uuid
+  taskId    String    @map("task_id") @db.Uuid
+  authorId  String    @map("author_id") @db.Uuid
+  /// 1 a 2000 caracteres, não só espaços (PN15) — validado na aplicação.
+  body      String    @db.VarChar(2000)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  editedAt  DateTime? @map("edited_at") @db.Timestamptz(3)
+
+  /// Eliminar uma tarefa elimina os seus comentários (§4, US06).
+  task   Task    @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  /// Contas nunca são eliminadas (§4): Restrict.
+  author Account @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([taskId, createdAt])
+  @@index([authorId])
+  @@map("comment")
+}
+
+// ---------------------------------------------------------------------------
+// ADMIN_AUDIT_LOG (Registo de ações administrativas) — módulo audit
+// ---------------------------------------------------------------------------
+
+/// Só aceita inserções; as entradas nunca são alteradas nem apagadas (PN18).
+/// Pelo menos um dos alvos preenchido: CHECK na migration.
+model AdminAuditLog {
+  id              String      @id @default(uuid()) @db.Uuid
+  actorId         String      @map("actor_id") @db.Uuid
+  action          AdminAction
+  targetAccountId String?     @map("target_account_id") @db.Uuid
+  targetProjectId String?     @map("target_project_id") @db.Uuid
+  occurredAt      DateTime    @default(now()) @map("occurred_at") @db.Timestamptz(3)
+
+  /// Contas e projetos nunca são eliminados (§4): Restrict.
+  actor         Account  @relation("AuditActor", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  targetAccount Account? @relation("AuditTargetAccount", fields: [targetAccountId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  targetProject Project? @relation("AuditTargetProject", fields: [targetProjectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([occurredAt])
+  @@index([actorId])
+  @@index([targetAccountId])
+  @@index([targetProjectId])
+  @@map("admin_audit_log")
+}

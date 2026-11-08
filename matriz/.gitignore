@@ -20,3 +20,6 @@ npm-debug.log*
 # Sistema e editores
 .DS_Store
 .idea/
+
+# Cliente Prisma gerado (prisma generate)
+backend/src/generated/
