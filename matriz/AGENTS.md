@@ -4,7 +4,8 @@ Instruções para agentes de IA que trabalhem no repositório Matriz.
 
 ## Estado do projeto
 
-A especificação está concluída; ainda não há código. A arquitetura está decidida
+A especificação está concluída e a implementação começou: o incremento 1 está
+em curso (ver o estado em `docs/implementation-plan.md`). A arquitetura está decidida
 (monólito modular, decisão interna por validar; ver `docs/architecture.md`). Todas
 as decisões técnicas estão tomadas (D01–D09, decisões internas por validar; ver
 `docs/constraints.md` §4): aplicação web responsiva; TypeScript, NestJS no

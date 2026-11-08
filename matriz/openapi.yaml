@@ -2,14 +2,15 @@ openapi: 3.1.0
 
 info:
   title: Matriz API
-  version: 0.2.0
+  version: 0.3.0
   summary: Contrato da API do MVP da Matriz.
   description: |
     Contrato da API do backend da Matriz (monólito modular, ver
     `docs/architecture.md`). Cobre as operações das user stories do MVP
     (US01–US19): autenticação e ativação de contas, contas, projetos e painel
     inicial, membros e Gestor, tarefas e responsáveis, comentários e registo
-    administrativo.
+    administrativo. Inclui também `GET /health`, uma operação de
+    infraestrutura fora das user stories.
 
     Convenções:
 
@@ -49,11 +50,40 @@ tags:
     description: Comentários em tarefas (módulo `tasks`).
   - name: admin
     description: Área de administração e registo administrativo (módulos `projects` e `audit`).
+  - name: health
+    description: Estado da API e do acesso à base de dados (infraestrutura, fora das user stories).
 
 security:
   - bearerAuth: []
 
 paths:
+  # ---------------------------------------------------------------- health
+  /health:
+    get:
+      tags: [health]
+      operationId: getHealth
+      summary: Verificar a API e o acesso à base de dados
+      description: |
+        Operação de infraestrutura, fora das user stories. Sem autenticação.
+        Faz uma consulta simples à base de dados e não devolve dados de
+        negócio. Acrescentada em 2026-11-08 (decisão interna, por validar).
+      security: []
+      responses:
+        "200":
+          description: A API está a correr e acede à base de dados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+              example: { status: ok, database: up }
+        "503":
+          description: A API está a correr, mas não acede à base de dados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+              example: { status: error, database: down }
+
   # ---------------------------------------------------------------- auth
   /auth/login:
     post:
@@ -1161,6 +1191,18 @@ components:
       example: /tasks/9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c01
 
   schemas:
+    HealthStatus:
+      type: object
+      required: [status, database]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        database:
+          type: string
+          enum: [up, down]
+
     Id:
       type: string
       format: uuid
