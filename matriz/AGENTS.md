@@ -6,8 +6,10 @@ Instruções para agentes de IA que trabalhem no repositório Matriz.
 
 A especificação está concluída; ainda não há código. A arquitetura está decidida
 (monólito modular, decisão interna por validar; ver `docs/architecture.md`). A
-tecnologia e o alojamento estão por decidir (ver `docs/constraints.md`). Não
-assumas nenhuma escolha técnica que não esteja registada nos documentos.
+stack está decidida: TypeScript, NestJS no backend, Vue.js no frontend e
+PostgreSQL (D02–D04, decisões internas por validar). O alojamento e a
+autenticação estão por decidir (ver `docs/constraints.md`). Não assumas nenhuma
+escolha técnica que não esteja registada nos documentos.
 
 ## Antes de qualquer tarefa
 

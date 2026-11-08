@@ -75,7 +75,7 @@ Os IDs são iguais em todos os ficheiros.
 | R1–R10 | Respostas assumidas às perguntas de clarificação prioritárias | Pressuposto |
 | DE01–DE14 | Decisões da equipa do projeto (2026-10-29 e 2026-11-04), não validadas pelo cliente | Decisão interna |
 | PN01–PN18 | Regras de negócio: concretizam decisões DE ou são pressupostos | Decisão interna ou pressuposto |
-| D01–D08 | Decisões técnicas pendentes (D07 já decidida, por validar) | Decisão pendente |
+| D01–D08 | Decisões técnicas pendentes (D02–D04 e D07 já decididas, por validar) | Decisão pendente |
 | FN01–FN29 | Funcionalidades propostas | Proposta |
 | US01–US19 | User stories do MVP | Proposta |
 | US20–US36 | User stories fora do MVP | Proposta |

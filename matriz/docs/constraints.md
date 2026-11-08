@@ -68,18 +68,20 @@ Estas áreas **não têm requisitos definidos**. Não se assumiu nada sobre elas
 
 ## 4. Decisões técnicas pendentes
 
-Nenhuma tecnologia foi escolhida. Exceto D07, as decisões abaixo ficam **pendentes** até haver respostas do cliente.
+D02, D03, D04 e D07 estão decididas (decisões internas, por validar). As restantes ficam **pendentes** até haver respostas do cliente.
 
 | ID | Decisão pendente | Depende de |
 |---|---|---|
 | D01 | Canais de acesso (navegador, aplicação móvel, outro) | Pergunta 27 |
-| D02 | Linguagens de programação | D01, D07 |
-| D03 | Frameworks | D01, D02 |
-| D04 | Forma de armazenamento dos dados | RNF01, perguntas 23 e 25 |
+| D02 | Linguagens de programação. **Decidida (decisão interna, por validar, 2026-11-08):** TypeScript, no backend e no frontend. | D01, D07 |
+| D03 | Frameworks. **Decidida (decisão interna, por validar, 2026-11-08):** NestJS no backend e Vue.js no frontend. | D01, D02 |
+| D04 | Forma de armazenamento dos dados. **Decidida (decisão interna, por validar, 2026-11-08):** base de dados relacional PostgreSQL. | RNF01, perguntas 23 e 25 |
 | D05 | Alojamento (infraestrutura própria ou externa) | Perguntas 23 e 26 |
 | D06 | Forma de autenticação das contas (FN01) | Pergunta 29 e regras internas da empresa |
 | D07 | Arquitetura da aplicação. **Decidida (decisão interna, por validar):** monólito modular; ver [architecture.md](architecture.md). | D01, RNF01 |
 | D08 | Forma de verificar os critérios de aceitação (testes) | D02, D03 |
+
+D02 e D03 foram decididas antes de D01: Vue.js pressupõe a interface web assumida em [architecture.md](architecture.md#5-pressupostos-e-pontos-em-aberto).
 
 ## 5. Questões em aberto
 

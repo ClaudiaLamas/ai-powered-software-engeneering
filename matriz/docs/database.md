@@ -2,7 +2,7 @@
 
 Este ficheiro descreve o modelo de dados lógico do MVP (FN01–FN09, FN14, FN27, FN28). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e da arquitetura em [architecture.md](architecture.md).
 
-O modelo é **lógico**: não fixa a base de dados nem os tipos físicos (D04 continua pendente). Os tipos indicados (`id`, `string`, `boolean`, `enum`, `datetime`) são genéricos. Tal como o resto da especificação, **nenhuma regra foi validada pelo cliente**.
+O modelo é **lógico**: não fixa os tipos físicos. A base de dados é PostgreSQL (D04, decisão interna, por validar). Os tipos indicados (`id`, `string`, `boolean`, `enum`, `datetime`) são genéricos. Tal como o resto da especificação, **nenhuma regra foi validada pelo cliente**.
 
 **Convenção de nomes:** entidades, atributos, valores de `enum` e módulos têm nomes em inglês, para serem usados tal e qual no código. A documentação e a interface continuam em português; a coluna "Termo" e as notas indicam o termo do glossário e o texto mostrado ao utilizador.
 

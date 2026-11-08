@@ -2,7 +2,7 @@
 
 Este ficheiro regista a decisão de arquitetura do MVP (decisão pendente D07 em [constraints.md](constraints.md#4-decisões-técnicas-pendentes)). É uma **decisão interna, por validar**, tomada com base nos documentos de especificação: [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e [AGENTS.md](../AGENTS.md).
 
-Não se escolhem aqui linguagens, frameworks, base de dados concreta nem alojamento (D02–D06 continuam pendentes).
+A tecnologia foi decidida depois (D02–D04, ver [constraints.md](constraints.md#4-decisões-técnicas-pendentes)): TypeScript, NestJS no backend, Vue.js no frontend e PostgreSQL. O alojamento e a autenticação (D05, D06) continuam pendentes.
 
 ## 1. Contexto relevante para a decisão
 
@@ -84,7 +84,7 @@ O nome entre parênteses é o nome do módulo no código, em inglês. As entidad
 | **Módulo Tarefas e comentários** (`tasks`) | Criar, editar e eliminar tarefas e escolher o responsável (Gestor); mudar o estado entre os três estados fixos (Gestor e Membro); listar tarefas agrupadas por estado; criar, editar e apagar os próprios comentários. Valida que o responsável é membro do projeto, consultando o módulo Projetos e membros. | FN06, FN07, FN08, FN14; R7, R8, DE09–DE11, PN06; US06, US07, US08, US13 |
 | **Módulo Progresso** (`progress`) | Calcula, por projeto, o número de tarefas em cada estado e a percentagem de tarefas concluídas; trata o caso "Sem tarefas". Só lê dados; não altera nada. | FN09; R9; US09 |
 | **Módulo Registo administrativo** (`audit`) | Guarda quem fez cada ação administrativa, qual e quando (contas, permissão de Administrador, criação de projetos, troca de Gestor). Os módulos Autenticação e contas e Projetos e membros registam aqui as suas ações. Permite ao Administrador consultar o registo. | FN28; DE12; US14 |
-| **Base de dados** | Guarda contas, projetos, funções das contas em cada projeto, tarefas, comentários e o registo administrativo. É única e partilhada pelos módulos, mas cada módulo só escreve nos seus próprios dados. O tipo e o produto concretos ficam por decidir (D04). | Todas |
+| **Base de dados** | Guarda contas, projetos, funções das contas em cada projeto, tarefas, comentários e o registo administrativo. É única e partilhada pelos módulos, mas cada módulo só escreve nos seus próprios dados. É PostgreSQL (D04). | Todas |
 
 ### 4.2 Regras entre módulos
 
@@ -114,7 +114,8 @@ Regras para manter as dependências sem ciclos:
 | Ponto | Situação |
 |---|---|
 | Canal de acesso (D01) | Assume-se uma **interface web** acedida pelo navegador, por ser o canal mais simples para equipas internas. Se o cliente pedir aplicação móvel ou acesso sem internet (pergunta 27), o backend e a API mantêm-se; muda o frontend. |
-| Base de dados (D04) | Os dados são fortemente relacionados (contas, projetos, funções, tarefas) e têm regras de integridade (um Gestor por projeto, responsável membro do projeto), o que aponta para uma base de dados relacional. A escolha final fica pendente. |
+| Base de dados (D04) | Os dados são fortemente relacionados (contas, projetos, funções, tarefas) e têm regras de integridade (um Gestor por projeto, responsável membro do projeto), o que aponta para uma base de dados relacional. **Decidido:** PostgreSQL (decisão interna, por validar). |
 | Autenticação (D06) | O módulo Autenticação e contas isola a forma de autenticar; se a empresa usar um sistema de identidade próprio, a mudança fica contida nesse módulo. |
-| Linguagens, frameworks e alojamento (D02, D03, D05) | Continuam pendentes. A decisão de arquitetura não depende deles. |
+| Linguagens e frameworks (D02, D03) | **Decidido** (decisão interna, por validar): TypeScript; NestJS no backend e Vue.js no frontend. |
+| Alojamento (D05) | Continua pendente. A decisão de arquitetura não depende dele. |
 | Validação | Esta decisão tem de ser revista se o cliente indicar uma escala muito maior do que RNF01 ou integrações com outras ferramentas (FN25). |
