@@ -1,20 +1,15 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
-
-/** Lê JWT_SECRET (D06); a API não arranca sem ele. */
-export function jwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('Define JWT_SECRET no backend/.env (ver .env.example).');
-  }
-  return secret;
-}
+import { JWT_SECRET, jwtSecret } from './jwt-secret.js';
+import { JwtStrategy } from './jwt.strategy.js';
 
 /** Módulo Autenticação e contas (`accounts`, architecture.md). */
 @Module({
   imports: [
+    PassportModule,
     JwtModule.registerAsync({
       useFactory: () => ({
         secret: jwtSecret(),
@@ -24,7 +19,11 @@ export function jwtSecret(): string {
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    { provide: JWT_SECRET, useFactory: jwtSecret },
+  ],
   exports: [AuthService],
 })
 export class AccountsModule {}

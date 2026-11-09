@@ -4,6 +4,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { Public } from '../authorization/public.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** Tempo máximo de espera pela resposta da base de dados ao `SELECT 1`. */
@@ -14,7 +15,8 @@ export interface HealthStatus {
   database: 'up' | 'down';
 }
 
-/** GET /health: confirma que a API está a correr e que acede à base de dados. */
+/** GET /health: confirma que a API está a correr e que acede à base de dados. Sem autenticação. */
+@Public()
 @Controller('health')
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);
