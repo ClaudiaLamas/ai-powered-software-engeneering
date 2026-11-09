@@ -31,6 +31,12 @@ describe('POST /auth/login (US01)', () => {
     expect(res.body.account).not.toHaveProperty('passwordHash');
   });
 
+  it('200 com espaços à volta do email (o email é aparado antes de ser validado)', async () => {
+    const ana = await createAccount(app);
+    const res = await login({ email: `  ${ana.email} `, password: TEST_PASSWORD }).expect(200);
+    expect(res.body.account.id).toBe(ana.id);
+  });
+
   it('401 INVALID_CREDENTIALS com a palavra-passe errada', async () => {
     const ana = await createAccount(app);
     const res = await login({ email: ana.email, password: `${TEST_PASSWORD}x` })
