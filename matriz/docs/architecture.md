@@ -91,6 +91,7 @@ O nome entre parênteses é o nome do módulo no código, em inglês. As entidad
 
 - Cada módulo expõe uma interface própria; os outros módulos não acedem diretamente aos seus dados.
 - Todas as ações passam pelo módulo `authorization` antes de serem executadas: a API consulta-o antes de encaminhar cada pedido para o módulo responsável.
+- Todas as rotas exigem sessão, exceto as marcadas como públicas (`login`, `activate`, `health`). Em cada pedido, a conta (estado e permissão de Administrador) é lida na base de dados, não no token (D06). Ordem das verificações: `401` → `403 NOT_ADMIN` → `400 VALIDATION_ERROR` (formato) → `404` (não é membro) → `403` (função ou autoria) → `409` (arquivado) → `400` das regras (decisão interna, 2026-11-09).
 - Um módulo só pode chamar os módulos indicados na tabela abaixo. As dependências não formam ciclos.
 
 | Módulo | Depende de | Para quê |
@@ -116,7 +117,7 @@ Regras para manter as dependências sem ciclos:
 |---|---|
 | Canal de acesso (D01) | **Decidido** (decisão interna, por validar): aplicação web, acedida pelo navegador e responsiva, por ser o canal mais simples para equipas internas. Se o cliente pedir aplicação móvel ou acesso sem internet (pergunta 27), o backend e a API mantêm-se; muda o frontend. |
 | Base de dados (D04) | Os dados são fortemente relacionados (contas, projetos, funções, tarefas) e têm regras de integridade (um Gestor por projeto, responsável membro do projeto), o que aponta para uma base de dados relacional. **Decidido:** PostgreSQL, com Prisma como ORM e UUID como identificadores (decisão interna, por validar). |
-| Autenticação (D06) | **Decidido** (decisão interna, por validar): JWT no cabeçalho `Authorization: Bearer ...`, com `@nestjs/jwt` e Passport; palavras-passe guardadas como hash bcrypt (`bcryptjs`). O módulo Autenticação e contas isola a forma de autenticar; se a empresa usar um sistema de identidade próprio, a mudança fica contida nesse módulo. |
+| Autenticação (D06) | **Decidido** (decisão interna, por validar): JWT no cabeçalho `Authorization: Bearer ...`, com `@nestjs/jwt` e Passport; palavras-passe guardadas como hash bcrypt (`bcryptjs`). Em cada pedido, o backend lê a conta na base de dados e recusa o token de uma conta desativada, mesmo antes de expirar (decisão interna, 2026-11-09). O módulo Autenticação e contas isola a forma de autenticar; se a empresa usar um sistema de identidade próprio, a mudança fica contida nesse módulo. |
 | Linguagens e frameworks (D02, D03) | **Decidido** (decisão interna, por validar): TypeScript; NestJS no backend e Vue.js no frontend. |
 | Alojamento (D05) | **Decidido** (decisão interna, por validar): execução local, com o PostgreSQL num container Docker (`docker-compose.yml`). O deploy fica como extensão futura. |
 | Testes (D08) | **Decidido** (decisão interna, por validar): Vitest no backend e no frontend; Supertest nos testes de API. |
