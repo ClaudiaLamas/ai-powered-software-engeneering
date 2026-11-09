@@ -24,7 +24,15 @@ info:
       `401 UNAUTHENTICATED`.
     - Um projeto onde a conta não participa responde `404`, como um projeto
       que não existe, para não revelar que existe (DE02, PN02, RNF02). O mesmo
-      vale para as suas tarefas e comentários.
+      vale para as suas tarefas e comentários (`TASK_NOT_FOUND`,
+      `COMMENT_NOT_FOUND`), também para um Administrador que não é membro.
+    - `403` só quando a conta já pode saber que o recurso existe: um membro
+      sem a função necessária (`NOT_PROJECT_MANAGER`), quem não é o autor do
+      comentário (`NOT_COMMENT_AUTHOR`) ou uma conta sem a permissão de
+      Administrador numa operação de administração (`NOT_ADMIN`).
+    - A conta que faz o pedido vem sempre do token. O corpo nunca traz
+      `authorId`, `ownerId` ou `accountId` da própria conta: um campo que não
+      está no esquema dá `400 VALIDATION_ERROR`.
     - Qualquer escrita num projeto arquivado responde `409 PROJECT_ARCHIVED`
       (PN09).
     - Ordem das verificações (decisão interna, 2026-11-09): `401` (sessão) →
