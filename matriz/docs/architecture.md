@@ -92,6 +92,7 @@ O nome entre parênteses é o nome do módulo no código, em inglês. As entidad
 - Cada módulo expõe uma interface própria; os outros módulos não acedem diretamente aos seus dados.
 - Todas as ações passam pelo módulo `authorization` antes de serem executadas: a API consulta-o antes de encaminhar cada pedido para o módulo responsável.
 - Todas as rotas exigem sessão, exceto as marcadas como públicas (`login`, `activate`, `health`). Em cada pedido, a conta (estado e permissão de Administrador) é lida na base de dados, não no token (D06). Ordem das verificações: `401` → `403 NOT_ADMIN` → `400 VALIDATION_ERROR` (formato) → `404` (não é membro) → `403` (função ou autoria) → `409` (arquivado) → `400` das regras (decisão interna, 2026-11-09).
+- Cada operação de um projeto, tarefa ou comentário usa a conta do token (`@CurrentAccount()`), valida os identificadores do caminho (`@IdParam()`) e chama o `AuthorizationService` antes de fazer a operação: `requireMember`, `requireTask` ou `requireComment` (`404` a quem não é membro, como a um recurso que não existe) → `requireManager` ou `requireCommentAuthor` (`403`) → `requireWritable` (`409`). As verificações ficam no serviço e não num guard porque os guards correm antes da validação do pedido, e o `400` de formato vem antes do `404`. O acesso a uma tarefa, às suas atribuições e aos seus comentários é o acesso ao projeto da tarefa.
 - Um módulo só pode chamar os módulos indicados na tabela abaixo. As dependências não formam ciclos.
 
 | Módulo | Depende de | Para quê |
