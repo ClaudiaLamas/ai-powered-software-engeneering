@@ -1,20 +1,31 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, type Type } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'node:crypto';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
-import type { AccountStatus } from '../src/generated/prisma/client.js';
+import type {
+  AccountStatus,
+  ProjectRole,
+  ProjectStatus,
+} from '../src/generated/prisma/client.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
 /** Palavra-passe fictícia das contas de teste, gerada em cada execução. */
 export const TEST_PASSWORD = `pw-${randomUUID()}`;
 const TEST_HASH = bcrypt.hashSync(TEST_PASSWORD, 4);
 
-/** Arranca a aplicação como em main.ts, contra a base de dados de testes. */
-export async function createTestApp(): Promise<INestApplication<App>> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+/**
+ * Arranca a aplicação como em main.ts, contra a base de dados de testes.
+ * `extraModules` acrescenta módulos só para os testes (por exemplo, rotas de exemplo).
+ */
+export async function createTestApp(
+  extraModules: Type[] = [],
+): Promise<INestApplication<App>> {
+  const moduleRef = await Test.createTestingModule({
+    imports: [AppModule, ...extraModules],
+  }).compile();
   const app = moduleRef.createNestApplication<INestApplication<App>>();
   configureApp(app);
   await app.init();
@@ -35,5 +46,38 @@ export async function createAccount(
       isAdmin: overrides.isAdmin ?? false,
       passwordHash: status === 'PENDING' ? null : TEST_HASH,
     },
+  });
+}
+
+/** Cria um projeto de teste com os membros indicados (dados fictícios). */
+export async function createProject(
+  app: INestApplication,
+  members: { accountId: string; role: ProjectRole }[],
+  status: ProjectStatus = 'ACTIVE',
+) {
+  return app.get(PrismaService).project.create({
+    data: {
+      name: `Projeto ${randomUUID().slice(0, 8)}`,
+      status,
+      members: { create: members },
+    },
+  });
+}
+
+/** Cria uma tarefa de teste num projeto. */
+export async function createTask(app: INestApplication, projectId: string) {
+  return app.get(PrismaService).task.create({
+    data: { projectId, title: 'Tarefa de teste' },
+  });
+}
+
+/** Cria um comentário de teste numa tarefa. */
+export async function createComment(
+  app: INestApplication,
+  taskId: string,
+  authorId: string,
+) {
+  return app.get(PrismaService).comment.create({
+    data: { taskId, authorId, body: 'Comentário de teste' },
   });
 }
