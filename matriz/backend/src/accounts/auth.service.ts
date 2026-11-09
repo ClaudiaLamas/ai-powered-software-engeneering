@@ -72,4 +72,12 @@ export class AuthService {
       account: toAccountDto(account),
     };
   }
+
+  /** A conta autenticada (`GET /me`). O JwtStrategy já confirmou que existe e está ativa. */
+  async me(accountId: string): Promise<AccountDto> {
+    const account = await this.prisma.account.findUniqueOrThrow({
+      where: { id: accountId },
+    });
+    return toAccountDto(account);
+  }
 }

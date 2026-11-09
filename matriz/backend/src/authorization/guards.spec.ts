@@ -34,10 +34,10 @@ describe('AdminGuard (FN02, PN02)', () => {
 
 describe('JwtAuthGuard', () => {
   it('deixa passar sem token uma rota marcada com @Public()', async () => {
-    const reflector = { getAllAndOverride: vi.fn().mockReturnValue(true) } as unknown as Reflector;
-    const guard = new JwtAuthGuard(reflector);
+    const getAllAndOverride = vi.fn().mockReturnValue(true);
+    const guard = new JwtAuthGuard({ getAllAndOverride } as unknown as Reflector);
     await expect(guard.canActivate(contextWith(undefined))).resolves.toBe(true);
-    expect(reflector.getAllAndOverride).toHaveBeenCalledWith(IS_PUBLIC, expect.any(Array));
+    expect(getAllAndOverride).toHaveBeenCalledWith(IS_PUBLIC, expect.any(Array));
   });
 
   it('converte a falta de conta autenticada em 401 UNAUTHENTICATED', () => {
