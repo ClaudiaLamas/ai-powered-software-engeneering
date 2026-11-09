@@ -5,12 +5,13 @@
       "name": "backend",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-lc", "source ~/.nvm/nvm.sh && cd backend && nvm use >/dev/null && npm run start"],
-      "port": 3001
+      "port": 3001,
+      "autoPort": false
     },
     {
       "name": "frontend",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-lc", "source ~/.nvm/nvm.sh && cd frontend && nvm use >/dev/null && npm run dev -- --port 5174 --strictPort"],
+      "runtimeArgs": ["-lc", "source ~/.nvm/nvm.sh && cd frontend && nvm use >/dev/null && VITE_API_URL=http://localhost:3001 npm run dev -- --port 5174 --strictPort"],
       "port": 5174,
       "autoPort": false
     }
