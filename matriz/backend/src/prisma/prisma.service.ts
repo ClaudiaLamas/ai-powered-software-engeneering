@@ -13,7 +13,8 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
     super({
       adapter: new PrismaPg({
         connectionString: process.env.DATABASE_URL,
-        // Sem isto, um servidor inacessível deixaria os pedidos à espera.
+        // Limita só o tempo para abrir uma ligação ou obtê-la do pool; não
+        // limita as consultas (GET /health tem o seu próprio limite).
         connectionTimeoutMillis: 5000,
       }),
     });
