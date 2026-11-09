@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api/http'
 import { login } from '@/auth/auth-api'
+import { validateLogin } from '@/auth/login-validation'
+import FormField from '@/components/FormField.vue'
 import { safeRedirect } from '@/router/guard'
 
 const route = useRoute()
@@ -12,8 +14,13 @@ const email = ref('')
 const password = ref('')
 const error = ref<string | null>(null)
 const submitting = ref(false)
+// Os erros por campo só aparecem depois da primeira tentativa de entrar.
+const attempted = ref(false)
 
 const sessionExpired = computed(() => route.query.motivo === 'expirou')
+const fieldErrors = computed(() =>
+  attempted.value ? validateLogin({ email: email.value, password: password.value }) : {},
+)
 
 const MESSAGES: Record<string, string> = {
   INVALID_CREDENTIALS: 'O email ou a palavra-passe estão errados.',
@@ -34,7 +41,11 @@ function loginErrorMessage(e: unknown): string {
 }
 
 async function submit() {
+  if (submitting.value) return
+  attempted.value = true
   error.value = null
+  if (Object.keys(fieldErrors.value).length > 0) return
+
   submitting.value = true
   try {
     await login(email.value, password.value)
@@ -48,51 +59,30 @@ async function submit() {
 </script>
 
 <template>
-  <main class="login">
+  <main class="page-narrow stack">
     <h1>Matriz</h1>
     <p v-if="sessionExpired && !error" role="status" class="notice">
-      A sessão expirou. Entre outra vez.
+      A sessão expirou. Inicia sessão novamente.
     </p>
-    <form novalidate @submit.prevent="submit">
-      <label>
-        Email
-        <input v-model="email" type="email" autocomplete="username" required />
-      </label>
-      <label>
-        Palavra-passe
-        <input v-model="password" type="password" autocomplete="current-password" required />
-      </label>
-      <p v-if="error" role="alert" class="error">{{ error }}</p>
-      <button type="submit" :disabled="submitting">Entrar</button>
+    <form class="stack" novalidate @submit.prevent="submit">
+      <FormField
+        v-model="email"
+        label="Email"
+        type="email"
+        autocomplete="username"
+        :error="fieldErrors.email"
+      />
+      <FormField
+        v-model="password"
+        label="Palavra-passe"
+        type="password"
+        autocomplete="current-password"
+        :error="fieldErrors.password"
+      />
+      <p v-if="error" role="alert" class="alert">{{ error }}</p>
+      <button type="submit" class="btn btn-primary" :disabled="submitting">
+        {{ submitting ? 'A entrar…' : 'Entrar' }}
+      </button>
     </form>
   </main>
 </template>
-
-<style scoped>
-.login {
-  max-width: 24rem;
-  margin: 4rem auto;
-  padding: 0 1rem;
-}
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-input,
-button {
-  font: inherit;
-  padding: 0.5rem;
-}
-.error {
-  color: #b00020;
-}
-.notice {
-  margin-bottom: 1rem;
-}
-</style>
