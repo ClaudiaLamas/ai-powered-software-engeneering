@@ -3,7 +3,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
-import { JWT_SECRET, jwtSecret } from './jwt-secret.js';
+import {
+  JWT_SECRET,
+  JWT_TTL_SECONDS,
+  jwtSecret,
+  tokenTtlSeconds,
+} from './jwt-config.js';
 import { JwtStrategy } from './jwt.strategy.js';
 
 /** Módulo Autenticação e contas (`accounts`, architecture.md). */
@@ -13,6 +18,7 @@ import { JwtStrategy } from './jwt.strategy.js';
     JwtModule.registerAsync({
       useFactory: () => ({
         secret: jwtSecret(),
+        // A validade é dada em cada token pelo AuthService (JWT_EXPIRES_IN_SECONDS).
         signOptions: { algorithm: 'HS256' },
         verifyOptions: { algorithms: ['HS256'] },
       }),
@@ -22,7 +28,8 @@ import { JwtStrategy } from './jwt.strategy.js';
   providers: [
     AuthService,
     JwtStrategy,
-    { provide: JWT_SECRET, useFactory: jwtSecret },
+    { provide: JWT_SECRET, useFactory: () => jwtSecret() },
+    { provide: JWT_TTL_SECONDS, useFactory: () => tokenTtlSeconds() },
   ],
   exports: [AuthService],
 })

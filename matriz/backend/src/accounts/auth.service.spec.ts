@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { randomUUID } from 'node:crypto';
 import { ProblemException } from '../common/problem.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import { AuthService, TOKEN_TTL_SECONDS } from './auth.service.js';
+import { AuthService } from './auth.service.js';
 
 // Palavra-passe fictícia, gerada para cada execução dos testes.
 const PASSWORD = `pw-${randomUUID()}`;
@@ -24,11 +24,11 @@ function account(status: Status, passwordHash: string | null = HASH) {
   };
 }
 
-function setup(found: ReturnType<typeof account> | null) {
+function setup(found: ReturnType<typeof account> | null, ttlSeconds = 3600) {
   const findUnique = vi.fn().mockResolvedValue(found);
   const prisma = { account: { findUnique } } as unknown as PrismaService;
   const jwt = new JwtService({ secret: randomUUID() });
-  return { service: new AuthService(prisma, jwt), findUnique, jwt };
+  return { service: new AuthService(prisma, jwt, ttlSeconds), findUnique, jwt };
 }
 
 async function expectProblem(promise: Promise<unknown>, status: number, code: string) {
@@ -45,7 +45,6 @@ describe('AuthService.login (US01, D06)', () => {
     const result = await service.login(ana.email, PASSWORD);
 
     expect(result).toMatchObject({ tokenType: 'Bearer', expiresIn: 3600 });
-    expect(TOKEN_TTL_SECONDS).toBe(3600);
     const payload = await jwt.verifyAsync<Record<string, unknown>>(result.accessToken);
     expect(payload.sub).toBe(ana.id);
     expect(Object.keys(payload).sort()).toEqual(['exp', 'iat', 'sub']);
@@ -90,5 +89,44 @@ describe('AuthService.login (US01, D06)', () => {
   it('recusa com 401 uma conta desativada com a palavra-passe errada (não revela o estado)', async () => {
     const { service } = setup(account('DEACTIVATED'));
     await expectProblem(service.login('ana@exemplo.test', 'errada-errada'), 401, 'INVALID_CREDENTIALS');
+  });
+
+  it('usa a validade configurada (JWT_EXPIRES_IN_SECONDS) no token e em expiresIn', async () => {
+    const ana = account('ACTIVE');
+    const { service, jwt } = setup(ana, 900);
+
+    const result = await service.login(ana.email, PASSWORD);
+
+    expect(result.expiresIn).toBe(900);
+    const payload = await jwt.verifyAsync<{ iat: number; exp: number }>(result.accessToken);
+    expect(payload.exp - payload.iat).toBe(900);
+  });
+
+  it.each([
+    ['email desconhecido', null],
+    ['conta pendente', account('PENDING', null)],
+  ])('com %s também compara a palavra-passe com um hash, para o tempo de resposta não revelar o email', async (_, found) => {
+    const compare = vi.spyOn(bcrypt, 'compare');
+    const { service } = setup(found);
+
+    await expectProblem(service.login('x@exemplo.test', PASSWORD), 401, 'INVALID_CREDENTIALS');
+
+    expect(compare).toHaveBeenCalledOnce();
+    compare.mockRestore();
+  });
+});
+
+describe('AuthService.onModuleInit', () => {
+  it('calcula o hash fictício no arranque, e os logins seguintes já não o calculam', async () => {
+    const prisma = { account: { findUnique: vi.fn().mockResolvedValue(null) } } as unknown as PrismaService;
+    const service = new AuthService(prisma, new JwtService({ secret: randomUUID() }), 3600);
+    const hash = vi.spyOn(bcrypt, 'hash');
+
+    await service.onModuleInit();
+    expect(hash).toHaveBeenCalledOnce();
+
+    await service.login('ninguem@exemplo.test', 'x').catch(() => undefined);
+    expect(hash).toHaveBeenCalledOnce();
+    hash.mockRestore();
   });
 });

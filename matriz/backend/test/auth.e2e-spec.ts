@@ -51,17 +51,21 @@ describe('POST /auth/login (US01)', () => {
     expect(res.body).toMatchObject({ status: 403, code: 'ACCOUNT_DEACTIVATED' });
   });
 
-  it('400 VALIDATION_ERROR com um campo desconhecido', async () => {
+  it('400 VALIDATION_ERROR com um campo desconhecido, com a mensagem em português', async () => {
     const res = await login({ email: 'a@exemplo.test', password: 'x', extra: 1 }).expect(400);
     expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(res.body.errors).toEqual([{ field: 'extra', message: 'Campo desconhecido.' }]);
   });
 
-  it('400 VALIDATION_ERROR sem palavra-passe', async () => {
+  it('400 VALIDATION_ERROR sem palavra-passe, com uma só mensagem por campo', async () => {
     const res = await login({ email: 'a@exemplo.test' }).expect(400);
     expect(res.body.code).toBe('VALIDATION_ERROR');
-    expect(res.body.errors).toEqual(
-      expect.arrayContaining([expect.objectContaining({ field: 'password' })]),
-    );
+    expect(res.body.errors).toEqual([{ field: 'password', message: 'Indique a palavra-passe.' }]);
+  });
+
+  it('400 VALIDATION_ERROR sem email', async () => {
+    const res = await login({ password: 'x' }).expect(400);
+    expect(res.body.errors).toEqual([{ field: 'email', message: 'Indique um email válido.' }]);
   });
 
   it('400 VALIDATION_ERROR com JSON mal formado', async () => {

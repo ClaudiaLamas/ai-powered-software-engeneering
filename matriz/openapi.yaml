@@ -97,7 +97,13 @@ paths:
       operationId: login
       summary: Entrar com email e palavra-passe
       description: |
-        Devolve um JWT válido durante 1 hora (D06). FN01, US01.
+        Devolve um JWT válido durante `expiresIn` segundos: o valor de
+        `JWT_EXPIRES_IN_SECONDS` no backend, por omissão 3600 (1 hora, D06).
+        FN01, US01.
+
+        A palavra-passe é comparada com o hash bcrypt guardado; a resposta
+        nunca inclui o hash. Email desconhecido, palavra-passe errada e conta
+        pendente têm a mesma resposta e o mesmo tempo de resposta.
 
         Contas pendentes ainda não têm palavra-passe e recebem sempre
         `401 INVALID_CREDENTIALS`, para não revelar que emails existem. Uma
@@ -1155,7 +1161,9 @@ components:
       bearerFormat: JWT
       description: |
         JWT obtido em `POST /auth/login`, enviado no cabeçalho
-        `Authorization: Bearer ...` e válido durante 1 hora (D06). O backend
+        `Authorization: Bearer ...` e válido durante `expiresIn` segundos
+        (por omissão 1 hora, D06). Ao expirar, os pedidos recebem `401` e é
+        preciso entrar outra vez: não há renovação do token. O backend
         não revoga tokens: depois de sair (US15), um token já emitido continua
         válido até expirar. Em cada pedido, o backend lê a conta na base de
         dados e recusa o token de uma conta desativada, mesmo antes de expirar
@@ -1394,7 +1402,9 @@ components:
           enum: [Bearer]
         expiresIn:
           type: integer
-          description: Validade do token, em segundos.
+          description: |
+            Validade do token, em segundos (`JWT_EXPIRES_IN_SECONDS`; por
+            omissão 3600, D06).
           examples: [3600]
         account:
           $ref: "#/components/schemas/Account"

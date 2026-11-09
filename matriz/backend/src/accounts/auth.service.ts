@@ -1,12 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import { ProblemException } from '../common/problem.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountDto, toAccountDto } from './account.dto.js';
+import { JWT_TTL_SECONDS } from './jwt-config.js';
 
-/** Validade do JWT: 1 hora (D06). */
-export const TOKEN_TTL_SECONDS = 3600;
+/** Custo bcrypt das palavras-passe guardadas (o mesmo do seed). */
+const BCRYPT_COST = 12;
 
 /** Conteúdo do JWT: só o identificador da conta (D06). */
 export interface JwtPayload {
@@ -30,11 +32,28 @@ function invalidCredentials(): ProblemException {
 }
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
+  /**
+   * Hash de uma palavra-passe aleatória, para comparar quando a conta não
+   * existe ou está pendente: o login demora o mesmo e o tempo de resposta não
+   * revela se o email existe. Calculado no arranque.
+   */
+  private dummyHash?: Promise<string>;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    @Inject(JWT_TTL_SECONDS) private readonly ttlSeconds: number,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.getDummyHash();
+  }
+
+  private getDummyHash(): Promise<string> {
+    this.dummyHash ??= bcrypt.hash(randomUUID(), BCRYPT_COST);
+    return this.dummyHash;
+  }
 
   /**
    * Entrada com email e palavra-passe (FN01, US01).
@@ -46,10 +65,12 @@ export class AuthService {
     const account = await this.prisma.account.findUnique({
       where: { email: email.trim() },
     });
-    if (!account?.passwordHash || account.status === 'PENDING') {
-      throw invalidCredentials();
-    }
-    if (!(await bcrypt.compare(password, account.passwordHash))) {
+    const hasPassword = !!account?.passwordHash && account.status !== 'PENDING';
+    const matches = await bcrypt.compare(
+      password,
+      hasPassword ? account.passwordHash! : await this.getDummyHash(),
+    );
+    if (!account || !hasPassword || !matches) {
       throw invalidCredentials();
     }
     if (account.status === 'DEACTIVATED') {
@@ -63,12 +84,12 @@ export class AuthService {
 
     const payload: JwtPayload = { sub: account.id };
     const accessToken = await this.jwt.signAsync(payload, {
-      expiresIn: TOKEN_TTL_SECONDS,
+      expiresIn: this.ttlSeconds,
     });
     return {
       accessToken,
       tokenType: 'Bearer',
-      expiresIn: TOKEN_TTL_SECONDS,
+      expiresIn: this.ttlSeconds,
       account: toAccountDto(account),
     };
   }

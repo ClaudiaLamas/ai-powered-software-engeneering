@@ -83,8 +83,9 @@ cp frontend/.env.example frontend/.env
 | `backend/.env` | `PORT` | Porta da API (por omissão, 3000) |
 | | `DATABASE_URL` | Ligação ao PostgreSQL. Tem de usar os mesmos valores do `.env` da raiz |
 | | `JWT_SECRET` | Segredo para assinar os JWT (D06). Usa um valor aleatório e longo |
+| | `JWT_EXPIRES_IN_SECONDS` | Validade dos JWT, em segundos. Opcional; por omissão 3600 (1 hora, D06) |
 | | `SEED_DEMO_PASSWORD` | Palavra-passe das contas de demonstração do seed, com pelo menos 12 caracteres |
-| `frontend/.env` | `VITE_API_URL` | Endereço da API. Fica visível no navegador: não ponhas segredos aqui |
+| `frontend/.env` | `VITE_API_URL` | Endereço da API, para onde o Vite encaminha os pedidos `/api` em desenvolvimento. Não ponhas segredos aqui |
 
 O backend carrega `backend/.env` ao arrancar. As variáveis já definidas no ambiente têm prioridade sobre as do ficheiro.
 
@@ -142,6 +143,22 @@ curl -i http://localhost:3000/health
 ```
 
 Responde `200 {"status":"ok","database":"up"}` ou, sem acesso à base de dados, `503 {"status":"error","database":"down"}`. Outros comandos (testes, lint, build) estão em [backend/README.md](backend/README.md).
+
+### Ciclo do token (D06)
+
+1. **Entrar:** `POST /auth/login` com `{ "email", "password" }`. O backend compara a palavra-passe com o hash bcrypt e devolve `{ accessToken, tokenType: "Bearer", expiresIn, account }`, sem o hash.
+   - Email desconhecido, palavra-passe errada ou conta pendente: sempre `401 INVALID_CREDENTIALS`, com a mesma mensagem e o mesmo tempo de resposta, para não revelar se o email existe.
+   - Conta desativada: `403 ACCOUNT_DEACTIVATED`, só quando a palavra-passe está certa (US01).
+2. **Usar:** todos os pedidos, exceto `POST /auth/login` e `GET /health`, levam o cabeçalho `Authorization: Bearer <accessToken>`. Sem token, ou com um token inválido ou expirado, a resposta é `401 UNAUTHENTICATED`. Em cada pedido o backend lê a conta na base de dados: uma conta desativada recebe `401` mesmo antes de o token expirar, e a permissão de Administrador é sempre a atual.
+3. **Validade:** `JWT_EXPIRES_IN_SECONDS` (por omissão 3600). Não há renovação: quando o token expira, o frontend apaga a sessão e volta ao ecrã de entrada com "A sessão expirou. Entre outra vez."
+4. **Sair:** `POST /auth/logout` responde `204`. O backend não revoga o token: o frontend apaga-o do `sessionStorage` e volta ao ecrã de entrada. Um token copiado antes de sair continua válido até expirar.
+
+```bash
+TOKEN=$(curl -s -X POST localhost:3000/auth/login -H 'Content-Type: application/json' \
+  -d "{\"email\":\"ana.silva@matriz.test\",\"password\":\"$SEED_DEMO_PASSWORD\"}" | jq -r .accessToken)
+curl -s localhost:3000/me -H "Authorization: Bearer $TOKEN"
+curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:3000/auth/logout -H "Authorization: Bearer $TOKEN"
+```
 
 ### 9. Arranque do frontend
 

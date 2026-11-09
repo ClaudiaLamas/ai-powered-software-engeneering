@@ -5,7 +5,7 @@ import { unauthenticated } from '../common/problem.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthenticatedAccount } from '../authorization/authenticated-account.js';
 import type { JwtPayload } from './auth.service.js';
-import { JWT_SECRET } from './jwt-secret.js';
+import { JWT_SECRET } from './jwt-config.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
