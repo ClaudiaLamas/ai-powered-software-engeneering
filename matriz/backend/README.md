@@ -29,7 +29,7 @@ Os valores de `DATABASE_URL` têm de coincidir com os do `.env` da raiz, que o
 | `npm run start:dev` | Arranca a API em modo de desenvolvimento, a recarregar ao gravar |
 | `npm run build` | Compila para `dist/` |
 | `npm test` | Testes unitários (Vitest) |
-| `npm run test:e2e` | Testes de API (Vitest + Supertest) |
+| `npm run test:e2e` | Testes de API (Vitest + Supertest), contra uma base de dados própria: a de `DATABASE_URL` com o nome terminado em `_test` (`matriz_test`), ou `TEST_DATABASE_URL`. Antes de cada execução aplica as migrations e esvazia todas as tabelas dessa base; recusa qualquer nome que não termine em `_test`. Precisa do PostgreSQL do `docker-compose.yml` a correr |
 | `npm run test:cov` | Testes unitários com cobertura |
 | `npm run lint` | Verificação do código (oxlint) |
 | `npm run format` | Formatação (Prettier) |

@@ -17,7 +17,7 @@ Registadas nos documentos (decisões internas, por validar com o cliente).
 | Linguagem e frameworks | TypeScript; NestJS no backend; Vue.js no frontend | D02, D03 |
 | Dados | PostgreSQL, com Prisma (migrations e seed); identificadores UUID | D04, constraints.md §4 |
 | Execução | Local, com o PostgreSQL num container Docker (`docker-compose.yml`); deploy fora do âmbito | D05 |
-| Autenticação | JWT no cabeçalho `Authorization: Bearer ...`, válido 1 hora, sem revogação; palavras-passe com hash bcrypt (`bcryptjs`); `@nestjs/jwt` e Passport | D06 |
+| Autenticação | JWT no cabeçalho `Authorization: Bearer ...`, válido 1 hora, sem revogação; o token de uma conta desativada é recusado com `401` em cada pedido, mesmo antes de expirar (2026-11-09); palavras-passe com hash bcrypt (`bcryptjs`); `@nestjs/jwt` e Passport | D06 |
 | Testes | Vitest no backend e no frontend; Supertest nos testes de API | D08 |
 | Email | Mailpit no `docker-compose.yml` para os emails de ativação | D09, DE15 |
 | Versões | LTS atual do Node.js e versões estáveis mais recentes das restantes, confirmadas nos sites oficiais na instalação | constraints.md §4 |
@@ -26,6 +26,11 @@ Registadas nos documentos (decisões internas, por validar com o cliente).
 | Variáveis de ambiente do backend | `main.ts` carrega `backend/.env` com `process.loadEnvFile()` (nativo do Node.js, sem dependência); as variáveis já definidas no ambiente têm prioridade | Decidido em 2026-11-08 |
 | Percurso do incremento 1 | Duas contas: o Administrador cria o projeto e o Gestor vê-o na listagem e consulta-o (DE02) | Decidido em 2026-11-08 |
 | Dependências do seed e da autenticação | `bcryptjs`, `@prisma/adapter-pg` e `pg` (o Prisma 7 liga-se ao PostgreSQL por um driver adapter); `tsx` (desenvolvimento, para correr o seed) | Instaladas em 2026-11-08 |
+| Dependências da autenticação e da validação | `@nestjs/jwt`, `@nestjs/passport`, `passport`, `passport-jwt` (e `@types/passport-jwt`), `class-validator`, `class-transformer`. `@nestjs/config` não é usado: `main.ts` já carrega o `.env`. Vue Router e `@vue/test-utils` já vinham com o `create-vue` | Instaladas em 2026-11-09 |
+| Base de dados de testes | `matriz_test` (o nome de `DATABASE_URL` com `_test`, ou `TEST_DATABASE_URL`). Antes dos testes de API: `prisma migrate deploy` e esvaziar todas as tabelas; recusa nomes que não terminem em `_test`. Não usa `prisma migrate reset`, que o Prisma bloqueia quando é chamado por um agente de IA | Feito em 2026-11-09 |
+| Token no frontend | Guardado em `sessionStorage`; vai no cabeçalho `Authorization: Bearer`. Um `401` num pedido com sessão apaga-a e volta ao ecrã de entrada com "A sessão expirou. Entre outra vez." Sem refresh token | Decidido em 2026-11-09 |
+| Ligação do frontend à API | Em desenvolvimento, o Vite encaminha `/api` para o backend (`VITE_API_TARGET`, por omissão `http://localhost:3000`); o backend não tem CORS | Decidido em 2026-11-09 |
+| Autorização no backend | Guard JWT global (todas as rotas exigem sessão, exceto `@Public()`); a conta é lida na base de dados em cada pedido; `AdminGuard` e `AuthorizationService` (`requireMember`, `requireManager`, `requireWritable`). Ordem das verificações em architecture.md §4.2 | Decidido em 2026-11-09 |
 | Seed | `backend/prisma/seed.ts`, corrido só a pedido (`npm run db:seed`), nunca no arranque. Idempotente: identificadores fixos (contas pelo email); só cria o que falta e nunca altera nem apaga dados. Cria a conta de sistema, a Ana e o Bruno (ativos), uma conta pendente (sem palavra-passe nem token) e uma desativada; três projetos com acessos distintos (a conta de sistema não é membro de nenhum, DE02), tarefas, responsáveis e comentários. Dados fictícios; a palavra-passe comum vem de `SEED_DEMO_PASSWORD` (`.env`, ignorado pelo Git), guardada como hash bcrypt; sem entradas no registo administrativo | Decidido em 2026-11-08 |
 | Contrato da API | 32 operações das user stories em [openapi.yaml](../openapi.yaml), mais `GET /health` (infraestrutura, sem autenticação) | openapi.yaml 0.3.0; `GET /health` decidido em 2026-11-08 |
 | Âmbito | Só as funcionalidades Must (FN01–FN09, FN14, FN27, FN28); pesquisa, filtros, prioridade e prazos ficam fora | requirements.md §5 |
@@ -36,10 +41,8 @@ Nada disto está decidido. Cada linha precisa de aprovação antes do incremento
 
 | Proposta | Detalhe | Usada em |
 |---|---|---|
-| Dependências adicionais | `class-validator` e `class-transformer` (validação dos pedidos), `@nestjs/config` (variáveis de ambiente), `passport-jwt`, Vue Router, `@vue/test-utils` (testes de componentes com Vitest), um cliente SMTP (por exemplo, `nodemailer`) para o Mailpit | 1, 2 |
-| Base de dados de testes | Uma base de dados PostgreSQL separada para os testes de API, recriada pelas migrations antes de cada execução | 1 |
+| Dependências adicionais | Um cliente SMTP (por exemplo, `nodemailer`) para o Mailpit. As restantes foram instaladas no incremento 1 (secção 1.1) | 2 |
 | Migrations por incremento | O esquema cresce com os incrementos: cada um acrescenta só as tabelas de que precisa. **Não seguido no incremento 1:** a migration inicial já cria todas as tabelas de `database.md` | 1–6 |
-| Token no frontend | Guardado em `sessionStorage`: sobrevive a recarregar a página e desaparece ao fechar o separador | 1 |
 | Eventos internos | "Membro removido" e "conta desativada" (architecture.md §4.2) implementados como chamadas pela interface do módulo `tasks`, na mesma transação; mecanismo concreto a definir no incremento 4 | 4 |
 | Rota de ativação | `/ativar?token=...` no frontend, como no exemplo do fluxo de ativação | 2 |
 
@@ -69,7 +72,7 @@ Os incrementos 2 e 3 podem ser feitos em qualquer ordem, tal como 5, 6 e 7 depoi
 
 ### Incremento 1 — Base, autenticação e primeiro percurso de projetos
 
-**Estado:** Em curso (atualizado em 2026-11-08)
+**Estado:** Em curso (atualizado em 2026-11-09)
 
 | Parte | Estado |
 |---|---|
@@ -78,10 +81,12 @@ Os incrementos 2 e 3 podem ser feitos em qualquer ordem, tal como 5, 6 e 7 depoi
 | Base de dados: `schema.prisma` com todas as tabelas de `database.md` e a migration inicial | Feito (o esquema ficou completo, em vez de crescer por incremento) |
 | Seed: `backend/prisma/seed.ts` | Feito |
 | `PrismaService` partilhado e `GET /health` com teste unitário e teste de API | Feito |
-| `accounts`, `authorization`, `projects`, `progress`, `audit` | Por fazer |
-| Frontend: cliente HTTP, guarda de rotas, `LoginView`, `DashboardView`, `ProjectView` | Por fazer |
-| Base de dados de testes separada | Por fazer (o teste de `GET /health` usa a base de dados local, só para ler) |
-| Critérios de aceitação 1–6 | Por verificar |
+| `accounts`: login, logout e `GET /me`; `authorization`: guard JWT global, `AdminGuard`, `AuthorizationService`; erros Problem Details | Feito (2026-11-09) |
+| `accounts` (`listAccounts`), `projects`, `progress`, `audit` | Por fazer |
+| Frontend: cliente HTTP, sessão, guarda de rotas, `LoginView`, botão "Sair" | Feito (2026-11-09) |
+| Frontend: `DashboardView`, `ProjectView`, formulário de criação de projeto | Por fazer (a rota `/` mostra ainda a página de exemplo do `create-vue`) |
+| Base de dados de testes separada | Feito (`matriz_test`, 2026-11-09) |
+| Critérios de aceitação 1–6 | 1 e 2 verificados (testes e navegador, 2026-11-09); 3–6 por verificar |
 
 **Objetivo:** pôr a funcionar o primeiro percurso completo entre interface, API e base de dados. Termina quando é possível **iniciar sessão, criar um projeto, vê-lo na listagem e consultá-lo depois de recarregar a página e reiniciar o backend**.
 
@@ -351,7 +356,8 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 | 2 | A sugestão de segurança para o link de ativação (retirar o token do endereço visível e não carregar recursos externos na página) não está decidida. | 2 |
 | 3 | Uma conta pendente pode receber a permissão de Administrador? (constraints.md §5) | 2 |
 | 4 | O Administrador pode nomear-se a si próprio Gestor (CL10)? | 7 |
-| 5 | As propostas da secção 1.2 precisam de aprovação, em particular as dependências adicionais (AGENTS.md). | 1, 2 |
+| 5 | As propostas da secção 1.2 precisam de aprovação, em particular o cliente SMTP (AGENTS.md). | 2 |
+| 6 | O email no login é comparado tal como foi escrito (só sem espaços nas pontas). Não está decidido se deve ignorar maiúsculas. | 1, 2 |
 
 ## 5. Como manter este plano
 

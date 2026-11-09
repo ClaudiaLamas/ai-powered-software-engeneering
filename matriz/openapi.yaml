@@ -27,6 +27,12 @@ info:
       vale para as suas tarefas e comentários.
     - Qualquer escrita num projeto arquivado responde `409 PROJECT_ARCHIVED`
       (PN09).
+    - Ordem das verificações (decisão interna, 2026-11-09): `401` (sessão) →
+      `403 NOT_ADMIN` (operações só para o Administrador) →
+      `400 VALIDATION_ERROR` (formato do pedido) → `404` (não existe ou a
+      conta não é membro) → `403` (função no projeto ou autoria do
+      comentário) → `409` (projeto arquivado) → `400` com os códigos das
+      regras (por exemplo, `TITLE_INVALID`).
     - Listas sem paginação (escala de RNF01).
 
     Fora do MVP e fora deste contrato: pesquisa e filtros (FN13), prazo
@@ -91,7 +97,13 @@ paths:
       operationId: login
       summary: Entrar com email e palavra-passe
       description: |
-        Devolve um JWT válido durante 1 hora (D06). FN01, US01.
+        Devolve um JWT válido durante `expiresIn` segundos: o valor de
+        `JWT_EXPIRES_IN_SECONDS` no backend, por omissão 3600 (1 hora, D06).
+        FN01, US01.
+
+        A palavra-passe é comparada com o hash bcrypt guardado; a resposta
+        nunca inclui o hash. Email desconhecido, palavra-passe errada e conta
+        pendente têm a mesma resposta e o mesmo tempo de resposta.
 
         Contas pendentes ainda não têm palavra-passe e recebem sempre
         `401 INVALID_CREDENTIALS`, para não revelar que emails existem. Uma
@@ -145,10 +157,11 @@ paths:
       summary: Sair da aplicação
       description: |
         US15. O backend não revoga o token: o frontend apaga-o e volta ao ecrã
-        de entrada. Um token já emitido continua válido até expirar (D06).
+        de entrada. Um token já emitido continua válido até expirar, exceto se
+        a conta for desativada (D06).
       responses:
         "204":
-          description: Saída registada.
+          description: Saída aceite. Nada fica registado (PN18).
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -1148,9 +1161,13 @@ components:
       bearerFormat: JWT
       description: |
         JWT obtido em `POST /auth/login`, enviado no cabeçalho
-        `Authorization: Bearer ...` e válido durante 1 hora (D06). O backend
-        não revoga tokens: depois de sair (US15) ou de a conta ser desativada,
-        um token já emitido continua válido até expirar.
+        `Authorization: Bearer ...` e válido durante `expiresIn` segundos
+        (por omissão 1 hora, D06). Ao expirar, os pedidos recebem `401` e é
+        preciso entrar outra vez: não há renovação do token. O backend
+        não revoga tokens: depois de sair (US15), um token já emitido continua
+        válido até expirar. Em cada pedido, o backend lê a conta na base de
+        dados e recusa o token de uma conta desativada, mesmo antes de expirar
+        (D06).
 
   parameters:
     ProjectId:
@@ -1385,7 +1402,9 @@ components:
           enum: [Bearer]
         expiresIn:
           type: integer
-          description: Validade do token, em segundos.
+          description: |
+            Validade do token, em segundos (`JWT_EXPIRES_IN_SECONDS`; por
+            omissão 3600, D06).
           examples: [3600]
         account:
           $ref: "#/components/schemas/Account"
@@ -1840,8 +1859,8 @@ components:
 
     Unauthorized:
       description: |
-        Pedido sem JWT, ou com JWT inválido ou expirado. `code`:
-        `UNAUTHENTICATED`.
+        Pedido sem JWT, com JWT inválido ou expirado, ou com JWT de uma conta
+        desativada (D06). `code`: `UNAUTHENTICATED`.
       headers:
         WWW-Authenticate:
           schema:
