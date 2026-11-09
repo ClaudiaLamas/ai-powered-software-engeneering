@@ -59,6 +59,26 @@ describe('LoginView (US01)', () => {
     expect(wrapper.get('[role="alert"]').text()).toBe('Esta conta foi desativada.')
   })
 
+  it.each([
+    ['500 do backend (por exemplo, sem base de dados)', () =>
+      new Response(JSON.stringify({ statusCode: 500, message: 'Internal server error' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      })],
+    ['502 do proxy do Vite (backend parado)', () => new Response('', { status: 502 })],
+    ['falha de rede', () => Promise.reject(new TypeError('Failed to fetch'))],
+  ])('com %s, diz que não foi possível contactar o servidor', async (_, response) => {
+    fetchMock.mockImplementation(response)
+    const { wrapper } = await mountAt('/entrar')
+
+    await submit(wrapper)
+
+    expect(wrapper.get('[role="alert"]').text()).toBe(
+      'Não foi possível contactar o servidor. Tente outra vez.',
+    )
+    expect(getToken()).toBeNull()
+  })
+
   it('com credenciais certas, guarda a sessão e vai para o destino pedido', async () => {
     fetchMock.mockResolvedValue(
       new Response(
