@@ -4,13 +4,8 @@ import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
 
-// Usa a base de dados de DATABASE_URL (backend/.env): precisa do PostgreSQL
-// do docker-compose.yml a correr. Só lê; não altera dados.
-try {
-  process.loadEnvFile();
-} catch {
-  // Sem .env: usam-se só as variáveis do ambiente.
-}
+// Usa a base de dados de testes (vitest.config.e2e.ts): precisa do
+// PostgreSQL do docker-compose.yml a correr.
 
 describe('GET /health (e2e)', () => {
   let app: INestApplication<App>;
