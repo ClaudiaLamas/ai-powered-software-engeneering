@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-lc", "source ~/.nvm/nvm.sh && cd backend && nvm use >/dev/null && npm run start"],
+      "port": 3001
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-lc", "source ~/.nvm/nvm.sh && cd frontend && nvm use >/dev/null && npm run dev -- --port 5174 --strictPort"],
+      "port": 5174,
+      "autoPort": false
+    }
+  ]
+}
