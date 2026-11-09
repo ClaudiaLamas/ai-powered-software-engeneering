@@ -109,6 +109,65 @@ describe('LoginView (US01)', () => {
 
   it('avisa que a sessão expirou quando chega por um 401', async () => {
     const { wrapper } = await mountAt('/entrar?motivo=expirou')
-    expect(wrapper.get('[role="status"]').text()).toBe('A sessão expirou. Entre outra vez.')
+    expect(wrapper.get('[role="status"]').text()).toBe(
+      'A sessão expirou. Inicia sessão novamente.',
+    )
+  })
+
+  describe('validação no formulário', () => {
+    it('com os campos vazios, mostra o erro em cada campo e não chama a API', async () => {
+      const { wrapper } = await mountAt('/entrar')
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(fetchMock).not.toHaveBeenCalled()
+      const errors = wrapper.findAll('.field-error').map((e) => e.text())
+      expect(errors).toEqual(['Indique o email.', 'Indique a palavra-passe.'])
+      expect(wrapper.get('input[type="email"]').attributes('aria-invalid')).toBe('true')
+    })
+
+    it('com um email mal escrito, explica o formato e não chama a API', async () => {
+      const { wrapper } = await mountAt('/entrar')
+      await wrapper.get('input[type="email"]').setValue('ana.exemplo.test')
+      await wrapper.get('input[type="password"]').setValue('x')
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(wrapper.get('.field-error').text()).toBe(
+        'Indique um email válido, por exemplo nome@empresa.pt.',
+      )
+    })
+
+    it('o erro de um campo desaparece quando a pessoa o corrige', async () => {
+      const { wrapper } = await mountAt('/entrar')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      await wrapper.get('input[type="email"]').setValue('ana@exemplo.test')
+
+      expect(wrapper.findAll('.field-error').map((e) => e.text())).toEqual([
+        'Indique a palavra-passe.',
+      ])
+    })
+  })
+
+  it('desativa o botão e mostra "A entrar…" enquanto o pedido está em curso', async () => {
+    let respond: (r: Response) => void = () => {}
+    fetchMock.mockReturnValue(new Promise<Response>((resolve) => (respond = resolve)))
+    const { wrapper } = await mountAt('/entrar')
+
+    await submit(wrapper)
+
+    const button = wrapper.get('button[type="submit"]')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.text()).toBe('A entrar…')
+
+    respond(problem(401, 'INVALID_CREDENTIALS', 'O email ou a palavra-passe estão errados.'))
+    await flushPromises()
+    expect(button.attributes('disabled')).toBeUndefined()
+    expect(button.text()).toBe('Entrar')
   })
 })

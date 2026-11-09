@@ -84,7 +84,8 @@ Os incrementos 2 e 3 podem ser feitos em qualquer ordem, tal como 5, 6 e 7 depoi
 | `accounts`: login, logout e `GET /me`; `authorization`: guard JWT global, `AdminGuard`, `AuthorizationService` (projetos, tarefas, comentários, autoria), `@IdParam()`; erros Problem Details | Feito (2026-11-09); matriz de autorização testada com rotas de exemplo (`test/authorization-example.module.ts`) |
 | `accounts` (`listAccounts`), `projects`, `progress`, `audit` | Por fazer |
 | Frontend: cliente HTTP, sessão, guarda de rotas, `LoginView`, botão "Sair" | Feito (2026-11-09) |
-| Frontend: `DashboardView`, `ProjectView`, formulário de criação de projeto | Por fazer (a rota `/` mostra ainda a página de exemplo do `create-vue`) |
+| Frontend: validação do formulário de entrada, componentes e estilos partilhados (`FormField`, `AppHeader`, `main.css`), ecrã inicial provisório com a conta (`GET /me`) | Feito (2026-11-09) |
+| Frontend: `DashboardView`, `ProjectView`, formulário de criação de projeto | Por fazer (o ecrã inicial provisório dá lugar ao `DashboardView`) |
 | Base de dados de testes separada | Feito (`matriz_test`, 2026-11-09) |
 | Critérios de aceitação 1–6 | 1 e 2 verificados (testes e navegador, 2026-11-09); 3–6 por verificar |
 
