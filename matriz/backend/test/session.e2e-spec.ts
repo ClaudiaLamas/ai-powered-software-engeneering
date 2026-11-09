@@ -33,7 +33,10 @@ describe('Sessão: GET /me, POST /auth/logout e o JWT (D06, US15)', () => {
 
   describe('GET /me', () => {
     it('200 com o token do login: devolve a conta autenticada', async () => {
-      const ana = await createAccount(app, { name: 'Ana Teste', isAdmin: true });
+      const ana = await createAccount(app, {
+        name: 'Ana Teste',
+        isAdmin: true,
+      });
       const token = await loginAs(ana.email);
 
       const res = await request(app.getHttpServer())
@@ -41,8 +44,23 @@ describe('Sessão: GET /me, POST /auth/logout e o JWT (D06, US15)', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
-      expect(res.body).toMatchObject({ id: ana.id, name: 'Ana Teste', isAdmin: true });
+      expect(res.body).toMatchObject({
+        id: ana.id,
+        name: 'Ana Teste',
+        isAdmin: true,
+      });
       expect(res.body).not.toHaveProperty('passwordHash');
+      // Só os campos de `Account` (openapi.yaml): nada do hash nem de outros dados internos.
+      expect(Object.keys(res.body).sort()).toEqual([
+        'createdAt',
+        'email',
+        'id',
+        'isAdmin',
+        'isSystemAccount',
+        'name',
+        'status',
+      ]);
+      expect(JSON.stringify(res.body)).not.toMatch(/\$2[aby]\$/);
     });
 
     it('401 UNAUTHENTICATED sem token', async () => {
@@ -51,15 +69,21 @@ describe('Sessão: GET /me, POST /auth/logout e o JWT (D06, US15)', () => {
 
     it('401 UNAUTHENTICATED com um token mal formado', async () => {
       expectUnauthenticated(
-        await request(app.getHttpServer()).get('/me').set('Authorization', 'Bearer abc.def.ghi'),
+        await request(app.getHttpServer())
+          .get('/me')
+          .set('Authorization', 'Bearer abc.def.ghi'),
       );
     });
 
     it('401 UNAUTHENTICATED com um token assinado com outro segredo', async () => {
       const ana = await createAccount(app);
-      const forged = await new JwtService({ secret: randomUUID() }).signAsync({ sub: ana.id });
+      const forged = await new JwtService({ secret: randomUUID() }).signAsync({
+        sub: ana.id,
+      });
       expectUnauthenticated(
-        await request(app.getHttpServer()).get('/me').set('Authorization', `Bearer ${forged}`),
+        await request(app.getHttpServer())
+          .get('/me')
+          .set('Authorization', `Bearer ${forged}`),
       );
     });
 
@@ -67,10 +91,16 @@ describe('Sessão: GET /me, POST /auth/logout e o JWT (D06, US15)', () => {
       const ana = await createAccount(app);
       const jwt = app.get(JwtService);
       const twoHoursAgo = Math.floor(Date.now() / 1000) - 2 * 3600;
-      const expired = await jwt.signAsync({ sub: ana.id, iat: twoHoursAgo, exp: twoHoursAgo + 3600 });
+      const expired = await jwt.signAsync({
+        sub: ana.id,
+        iat: twoHoursAgo,
+        exp: twoHoursAgo + 3600,
+      });
 
       expectUnauthenticated(
-        await request(app.getHttpServer()).get('/me').set('Authorization', `Bearer ${expired}`),
+        await request(app.getHttpServer())
+          .get('/me')
+          .set('Authorization', `Bearer ${expired}`),
       );
     });
 
@@ -83,7 +113,9 @@ describe('Sessão: GET /me, POST /auth/logout e o JWT (D06, US15)', () => {
       });
 
       expectUnauthenticated(
-        await request(app.getHttpServer()).get('/me').set('Authorization', `Bearer ${token}`),
+        await request(app.getHttpServer())
+          .get('/me')
+          .set('Authorization', `Bearer ${token}`),
       );
     });
   });
@@ -106,7 +138,9 @@ describe('Sessão: GET /me, POST /auth/logout e o JWT (D06, US15)', () => {
     });
 
     it('401 UNAUTHENTICATED sem token', async () => {
-      expectUnauthenticated(await request(app.getHttpServer()).post('/auth/logout'));
+      expectUnauthenticated(
+        await request(app.getHttpServer()).post('/auth/logout'),
+      );
     });
   });
 

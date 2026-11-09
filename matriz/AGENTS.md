@@ -49,6 +49,31 @@ não esteja registada nos documentos.
   - as verificações que fizeste (testes, revisão, critérios de aceitação cumpridos)
     e o que ficou por verificar.
 
+## Testes
+
+Os testes usam Vitest no backend e no frontend e Supertest nos testes de API
+(D08). Não uses Jest.
+
+Comandos (Node.js do `.nvmrc`, com `nvm use`):
+
+| Onde | Comando | O que corre |
+|---|---|---|
+| `backend/` | `npm test` | Testes unitários (Vitest) |
+| `backend/` | `npm run test:e2e` | Testes de API (Vitest + Supertest), incluindo a autenticação (`test/auth.e2e-spec.ts`, `test/session.e2e-spec.ts`) |
+| `frontend/` | `npm run test:unit -- --run` | Testes de componentes e do cliente (Vitest) |
+
+Os testes de API usam uma base de dados própria, nunca a de desenvolvimento:
+a de `DATABASE_URL` com o nome terminado em `_test` (`matriz_test`), ou
+`TEST_DATABASE_URL`. Antes de cada execução, `test/global-setup.ts` aplica as
+migrations e esvazia todas as tabelas dessa base, e recusa qualquer nome que
+não termine em `_test`. Cada teste cria os seus próprios dados fictícios
+(`test/fixtures.ts`). Precisa do PostgreSQL do `docker-compose.yml` a correr
+(`docker compose up -d`). Não uses `prisma migrate reset`: o Prisma bloqueia-o
+quando é chamado por um agente de IA.
+
+Corre os testes relevantes antes de dar uma tarefa por terminada e indica os
+resultados reais.
+
 ## Ações que exigem aprovação
 
 Pede confirmação explícita antes de:
