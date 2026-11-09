@@ -33,6 +33,7 @@ Os valores de `DATABASE_URL` têm de coincidir com os do `.env` da raiz, que o
 | `npm run test:cov` | Testes unitários com cobertura |
 | `npm run lint` | Verificação do código (oxlint) |
 | `npm run format` | Formatação (Prettier) |
+| `curl -i localhost:3000/health` | Confirma que a API está a correr e acede à base de dados (`200` ou `503`) |
 | `npm run db:seed` | Cria os dados de demonstração (só o que falta; ver abaixo) |
 
 ## Dados de demonstração

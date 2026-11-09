@@ -2,7 +2,7 @@
 
 Este ficheiro define a sequência de incrementos para implementar o MVP (US01–US19) com o contrato de [openapi.yaml](../openapi.yaml). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md), [architecture.md](architecture.md) e [database.md](database.md).
 
-**Ainda não há código.** Todos os incrementos estão "Por iniciar". A ordem dos incrementos e tudo o que está marcado como **proposta** são sugestões deste plano, por aprovar; o que está marcado como **confirmado** vem dos documentos.
+O incremento 1 está "Em curso" (ver o seu estado abaixo); os restantes estão "Por iniciar". A ordem dos incrementos e tudo o que está marcado como **proposta** são sugestões deste plano, por aprovar; o que está marcado como **confirmado** vem dos documentos.
 
 ## 1. Decisões confirmadas e propostas
 
@@ -21,10 +21,13 @@ Registadas nos documentos (decisões internas, por validar com o cliente).
 | Testes | Vitest no backend e no frontend; Supertest nos testes de API | D08 |
 | Email | Mailpit no `docker-compose.yml` para os emails de ativação | D09, DE15 |
 | Versões | LTS atual do Node.js e versões estáveis mais recentes das restantes, confirmadas nos sites oficiais na instalação | constraints.md §4 |
+| Estrutura de pastas | `backend/` (NestJS) e `frontend/` (Vue) dentro de `matriz/`, com o `docker-compose.yml` na raiz de `matriz/` | Feito em 2026-11-08 |
+| Criação dos projetos | Backend gerado com o Nest CLI; frontend gerado com `create-vue` (Vite, TypeScript, Vue Router, Vitest) | Feito em 2026-11-08 |
+| Variáveis de ambiente do backend | `main.ts` carrega `backend/.env` com `process.loadEnvFile()` (nativo do Node.js, sem dependência); as variáveis já definidas no ambiente têm prioridade | Decidido em 2026-11-08 |
 | Percurso do incremento 1 | Duas contas: o Administrador cria o projeto e o Gestor vê-o na listagem e consulta-o (DE02) | Decidido em 2026-11-08 |
 | Dependências do seed e da autenticação | `bcryptjs`, `@prisma/adapter-pg` e `pg` (o Prisma 7 liga-se ao PostgreSQL por um driver adapter); `tsx` (desenvolvimento, para correr o seed) | Instaladas em 2026-11-08 |
 | Seed | `backend/prisma/seed.ts`, corrido só a pedido (`npm run db:seed`), nunca no arranque. Idempotente: identificadores fixos (contas pelo email); só cria o que falta e nunca altera nem apaga dados. Cria a conta de sistema, a Ana e o Bruno (ativos), uma conta pendente (sem palavra-passe nem token) e uma desativada; três projetos com acessos distintos (a conta de sistema não é membro de nenhum, DE02), tarefas, responsáveis e comentários. Dados fictícios; a palavra-passe comum vem de `SEED_DEMO_PASSWORD` (`.env`, ignorado pelo Git), guardada como hash bcrypt; sem entradas no registo administrativo | Decidido em 2026-11-08 |
-| Contrato da API | 32 operações de [openapi.yaml](../openapi.yaml) | openapi.yaml 0.2.0 |
+| Contrato da API | 32 operações das user stories em [openapi.yaml](../openapi.yaml), mais `GET /health` (infraestrutura, sem autenticação) | openapi.yaml 0.3.0; `GET /health` decidido em 2026-11-08 |
 | Âmbito | Só as funcionalidades Must (FN01–FN09, FN14, FN27, FN28); pesquisa, filtros, prioridade e prazos ficam fora | requirements.md §5 |
 
 ### 1.2 Propostas deste plano
@@ -33,11 +36,9 @@ Nada disto está decidido. Cada linha precisa de aprovação antes do incremento
 
 | Proposta | Detalhe | Usada em |
 |---|---|---|
-| Estrutura de pastas | `backend/` (NestJS) e `frontend/` (Vue) dentro de `matriz/`, com o `docker-compose.yml` na raiz de `matriz/` | 1 |
-| Criação dos projetos | Backend gerado com o Nest CLI; frontend gerado com `create-vue` (Vite, TypeScript, Vue Router, Vitest) | 1 |
 | Dependências adicionais | `class-validator` e `class-transformer` (validação dos pedidos), `@nestjs/config` (variáveis de ambiente), `passport-jwt`, Vue Router, `@vue/test-utils` (testes de componentes com Vitest), um cliente SMTP (por exemplo, `nodemailer`) para o Mailpit | 1, 2 |
 | Base de dados de testes | Uma base de dados PostgreSQL separada para os testes de API, recriada pelas migrations antes de cada execução | 1 |
-| Migrations por incremento | O esquema cresce com os incrementos: cada um acrescenta só as tabelas de que precisa | 1–6 |
+| Migrations por incremento | O esquema cresce com os incrementos: cada um acrescenta só as tabelas de que precisa. **Não seguido no incremento 1:** a migration inicial já cria todas as tabelas de `database.md` | 1–6 |
 | Token no frontend | Guardado em `sessionStorage`: sobrevive a recarregar a página e desaparece ao fechar o separador | 1 |
 | Eventos internos | "Membro removido" e "conta desativada" (architecture.md §4.2) implementados como chamadas pela interface do módulo `tasks`, na mesma transação; mecanismo concreto a definir no incremento 4 | 4 |
 | Rota de ativação | `/ativar?token=...` no frontend, como no exemplo do fluxo de ativação | 2 |
@@ -46,7 +47,7 @@ Nada disto está decidido. Cada linha precisa de aprovação antes do incremento
 
 | N.º | Incremento | User stories | Depende de | Estado |
 |---|---|---|---|---|
-| 1 | Base, autenticação e primeiro percurso de projetos | US01, US03, US15; US05, US16 e US18 em parte | — | Por iniciar |
+| 1 | Base, autenticação e primeiro percurso de projetos | US01, US03, US15; US05, US16 e US18 em parte | — | Em curso |
 | 2 | Contas e ativação | US02, US11, US16 | 1 | Por iniciar |
 | 3 | Projeto e equipa | US04, US10, US18 | 1 | Por iniciar |
 | 4 | Tarefas e responsáveis | US06, US07, US08, US19 (sem comentários) | 2, 3 | Por iniciar |
@@ -68,7 +69,19 @@ Os incrementos 2 e 3 podem ser feitos em qualquer ordem, tal como 5, 6 e 7 depoi
 
 ### Incremento 1 — Base, autenticação e primeiro percurso de projetos
 
-**Estado:** Por iniciar
+**Estado:** Em curso (atualizado em 2026-11-08)
+
+| Parte | Estado |
+|---|---|
+| Infraestrutura: `docker-compose.yml` com o PostgreSQL, `.env.example`, `.gitignore` | Feito |
+| Backend (Nest CLI) e frontend (`create-vue`) gerados; `.nvmrc` | Feito |
+| Base de dados: `schema.prisma` com todas as tabelas de `database.md` e a migration inicial | Feito (o esquema ficou completo, em vez de crescer por incremento) |
+| Seed: `backend/prisma/seed.ts` | Feito |
+| `PrismaService` partilhado e `GET /health` com teste unitário e teste de API | Feito |
+| `accounts`, `authorization`, `projects`, `progress`, `audit` | Por fazer |
+| Frontend: cliente HTTP, guarda de rotas, `LoginView`, `DashboardView`, `ProjectView` | Por fazer |
+| Base de dados de testes separada | Por fazer (o teste de `GET /health` usa a base de dados local, só para ler) |
+| Critérios de aceitação 1–6 | Por verificar |
 
 **Objetivo:** pôr a funcionar o primeiro percurso completo entre interface, API e base de dados. Termina quando é possível **iniciar sessão, criar um projeto, vê-lo na listagem e consultá-lo depois de recarregar a página e reiniciar o backend**.
 
