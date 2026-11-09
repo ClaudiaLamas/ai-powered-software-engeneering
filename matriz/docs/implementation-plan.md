@@ -61,6 +61,25 @@ Nada disto está decidido. Cada linha precisa de aprovação antes do incremento
 
 Os incrementos 2 e 3 podem ser feitos em qualquer ordem, tal como 5, 6 e 7 depois do 4.
 
+**Comandos dos testes** (D08; também no `AGENTS.md`):
+
+Comandos (Node.js do `.nvmrc`, com `nvm use`):
+
+| Onde | Comando | O que corre |
+|---|---|---|
+| `backend/` | `npm test` | Testes unitários (Vitest) |
+| `backend/` | `npm run test:e2e` | Testes de API (Vitest + Supertest), incluindo a autenticação (`test/auth.e2e-spec.ts`, `test/session.e2e-spec.ts`) |
+| `frontend/` | `npm run test:unit -- --run` | Testes de componentes e do cliente (Vitest) |
+
+Os testes de API usam uma base de dados própria, nunca a de desenvolvimento:
+a de `DATABASE_URL` com o nome terminado em `_test` (`matriz_test`), ou
+`TEST_DATABASE_URL`. Antes de cada execução, `test/global-setup.ts` aplica as
+migrations e esvazia todas as tabelas dessa base, e recusa qualquer nome que
+não termine em `_test`. Cada teste cria os seus próprios dados fictícios
+(`test/fixtures.ts`). Precisa do PostgreSQL do `docker-compose.yml` a correr
+(`docker compose up -d`). Não uses `prisma migrate reset`: o Prisma bloqueia-o
+quando é chamado por um agente de IA.
+
 **Formas de verificação usadas abaixo:**
 
 - **[API]** teste automático Vitest + Supertest contra a API e a base de dados de testes;
