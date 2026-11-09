@@ -21,6 +21,18 @@ const MESSAGES: Record<string, string> = {
   VALIDATION_ERROR: 'Indique um email válido e a palavra-passe.',
 }
 
+const SERVER_UNAVAILABLE = 'Não foi possível contactar o servidor. Tente outra vez.'
+
+/**
+ * Mensagem para um erro do login. Um erro 5xx (por exemplo, o backend sem base
+ * de dados ou o proxy do Vite sem backend) ou uma falha de rede não têm a ver
+ * com a conta: dizem que o servidor não respondeu.
+ */
+function loginErrorMessage(e: unknown): string {
+  if (!(e instanceof ApiError) || e.status >= 500) return SERVER_UNAVAILABLE
+  return MESSAGES[e.code] ?? e.detail ?? 'Não foi possível entrar.'
+}
+
 async function submit() {
   error.value = null
   submitting.value = true
@@ -28,10 +40,7 @@ async function submit() {
     await login(email.value, password.value)
     await router.replace(safeRedirect(route.query.redirect))
   } catch (e) {
-    error.value =
-      e instanceof ApiError
-        ? (MESSAGES[e.code] ?? e.detail ?? 'Não foi possível entrar.')
-        : 'Não foi possível contactar o servidor. Tente outra vez.'
+    error.value = loginErrorMessage(e)
   } finally {
     submitting.value = false
   }
