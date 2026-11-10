@@ -1,6 +1,6 @@
 ---
 name: implement-issue
-description: Implementa um issue do GitHub da Matriz (normalmente uma user story US01–US19) seguindo TDD estrito (red → green → refactor), um critério de aceitação de cada vez, com rastreabilidade aos IDs da documentação. Usar quando o utilizador pedir para implementar, desenvolver ou resolver um issue (por exemplo "implementa o issue #12", "faz a US06 com TDD").
+description: Implementa um issue do GitHub da Matriz (normalmente uma user story do MVP: US01–US19, US22, US23) seguindo TDD estrito (red → green → refactor), um critério de aceitação de cada vez, com rastreabilidade aos IDs da documentação. Usar quando o utilizador pedir para implementar, desenvolver ou resolver um issue (por exemplo "implementa o issue #12", "faz a US06 com TDD").
 model: inherit
 ---
 

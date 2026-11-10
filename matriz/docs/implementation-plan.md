@@ -1,6 +1,6 @@
 # Plano de implementação — Matriz
 
-Este ficheiro define a sequência de incrementos para implementar o MVP (US01–US19) com o contrato de [openapi.yaml](../openapi.yaml). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md), [architecture.md](architecture.md) e [database.md](database.md).
+Este ficheiro define a sequência de incrementos para implementar o MVP (US01–US19, US22, US23) com o contrato de [openapi.yaml](../openapi.yaml). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md), [architecture.md](architecture.md) e [database.md](database.md).
 
 O incremento 1 está "Em curso" (ver o seu estado abaixo); os restantes estão "Por iniciar". A ordem dos incrementos e tudo o que está marcado como **proposta** são sugestões deste plano, por aprovar; o que está marcado como **confirmado** vem dos documentos.
 
@@ -32,10 +32,13 @@ Registadas nos documentos (decisões internas, por validar com o cliente).
 | Ligação do frontend à API | Em desenvolvimento, o Vite encaminha `/api` para o backend (`VITE_API_TARGET`, por omissão `http://localhost:3000`); o backend não tem CORS | Decidido em 2026-11-09 |
 | Autorização no backend | Guard JWT global (todas as rotas exigem sessão, exceto `@Public()`); a conta é lida na base de dados em cada pedido; `AdminGuard` e `AuthorizationService` (`requireMember`, `requireManager`, `requireWritable`). Ordem das verificações em architecture.md §4.2 | Decidido em 2026-11-09 |
 | Seed | `backend/prisma/seed.ts`, corrido só a pedido (`npm run db:seed`), nunca no arranque. Idempotente: identificadores fixos (contas pelo email); só cria o que falta e nunca altera nem apaga dados. Cria a conta de sistema, a Ana e o Bruno (ativos), uma conta pendente (sem palavra-passe nem token) e uma desativada; três projetos com acessos distintos (a conta de sistema não é membro de nenhum, DE02), tarefas, responsáveis e comentários. Dados fictícios; a palavra-passe comum vem de `SEED_DEMO_PASSWORD` (`.env`, ignorado pelo Git), guardada como hash bcrypt; sem entradas no registo administrativo | Decidido em 2026-11-08 |
-| Contrato da API | 32 operações das user stories em [openapi.yaml](../openapi.yaml), mais `GET /health` (infraestrutura, sem autenticação) | openapi.yaml 0.3.0; `GET /health` decidido em 2026-11-08 |
-| Âmbito | Só as funcionalidades Must (FN01–FN09, FN14, FN27, FN28); pesquisa, filtros, prioridade e prazos ficam fora | requirements.md §5 |
+| Contrato da API | 32 operações das user stories em [openapi.yaml](../openapi.yaml), mais `GET /health` (infraestrutura, sem autenticação) | openapi.yaml 0.4.0 (prioridade, filtros e paginação das tarefas em 2026-11-10); `GET /health` decidido em 2026-11-08 |
+| Âmbito | Só as funcionalidades Must (FN01–FN09, FN12–FN14, FN27, FN28); pesquisa por texto, filtro por responsável (FN30) e prazos ficam fora | requirements.md §5; FN12 e FN13 entraram em 2026-11-10 |
 | Eliminação de projetos | Não é implementada: os projetos retiram-se de uso arquivando-os (`archiveProject`). A questão "um projeto pode ser eliminado?" continua em aberto (constraints.md §5) | Decidido em 2026-11-09 |
 | Nome e descrição do projeto | O nome conta e fica guardado sem os espaços das pontas; uma descrição vazia ou só com espaços fica `null` (PN12) | Decidido em 2026-11-09 |
+| Título e descrição da tarefa | Mesma regra que no projeto: o título conta e fica guardado sem os espaços das pontas; uma descrição vazia ou só com espaços fica `null` (PN12) | Decidido em 2026-11-10 |
+| Lista de tarefas | Filtros `status` e `priority`; paginação `page` e `pageSize` (20 por omissão, máximo 100); resposta com `total` e `countsByStatus`; o frontend faz um pedido por coluna da vista por estado (PN20, openapi.yaml 0.4.0) | Decidido em 2026-11-10 |
+| Responsável igual ao atual | Ao editar uma tarefa, um `assigneeId` igual ao responsável atual não é validado outra vez (por exemplo, numa tarefa `DONE` de quem já não é membro) | Decidido em 2026-11-10 |
 
 ### 1.2 Propostas deste plano
 
@@ -55,11 +58,11 @@ Nada disto está decidido. Cada linha precisa de aprovação antes do incremento
 | 1 | Base, autenticação e primeiro percurso de projetos | US01, US03, US15; US05, US16 e US18 em parte | — | Em curso |
 | 2 | Contas e ativação | US02, US11, US16 | 1 | Por iniciar |
 | 3 | Projeto e equipa | US04, US10, US18 | 1 | Por iniciar |
-| 4 | Tarefas e responsáveis | US06, US07, US08, US19 (sem comentários) | 2, 3 | Por iniciar |
+| 4 | Tarefas, responsáveis, prioridade e filtros | US06, US07, US08, US19 (sem comentários), US22, US23 | 2, 3 (ver a nota do incremento) | Por iniciar |
 | 5 | Progresso e painel inicial | US05, US09 | 4 | Por iniciar |
 | 6 | Comentários | US13, US19 | 4 | Por iniciar |
 | 7 | Área de administração | US12, US14, US17 | 2, 3 | Por iniciar |
-| 8 | Verificação final do MVP | Todas (US01–US19) | 1–7 | Por iniciar |
+| 8 | Verificação final do MVP | Todas (US01–US19, US22, US23) | 1–7 | Por iniciar |
 
 Os incrementos 2 e 3 podem ser feitos em qualquer ordem, tal como 5, 6 e 7 depois do 4.
 
@@ -220,13 +223,13 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 - [UI] botões do Gestor escondidos para o Membro.
 - [Manual] adicionar e remover um membro e confirmar que o projeto aparece e desaparece da listagem dessa pessoa.
 
-### Incremento 4 — Tarefas e responsáveis
+### Incremento 4 — Tarefas, responsáveis, prioridade e filtros
 
 **Estado:** Por iniciar
 
-**Objetivo:** gerir as tarefas de cada projeto e os seus responsáveis.
+**Objetivo:** gerir as tarefas de cada projeto, os seus responsáveis e a prioridade, e filtrar e paginar a lista.
 
-**User stories:** US06, US07, US08, US19 (sem comentários); CL1, CL2, CL4.
+**User stories:** US06, US07, US08, US19 (sem comentários), US22, US23; CL1, CL2, CL4.
 
 **Operações da API:** `listProjectTasks`, `createProjectTask`, `listAssignableAccounts`, `getTask`, `updateTask`, `deleteTask`, `changeTaskStatus`.
 
@@ -234,21 +237,25 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 | Camada | Ficheiros ou componentes |
 |---|---|
-| `tasks` | Criar, editar, eliminar; escolher o responsável (membro com conta ativa, PN06); mudar o estado e reabrir (PN10); reação a "membro removido" (PN07) e a "conta desativada" (PN08), na mesma transação (architecture.md §4.2) |
+| Base de dados | Migration com o enum `TaskPriority` e a coluna `task.priority` (`NOT NULL`, por omissão `MEDIUM`, database.md); índice para o filtro por prioridade. É uma alteração à estrutura de dados: pede confirmação antes de a criar (AGENTS.md) |
+| `tasks` | Criar, editar, eliminar; prioridade (PN19); lista filtrada e paginada com `total` e `countsByStatus` (PN20); escolher o responsável (membro com conta ativa, PN06); mudar o estado e reabrir (PN10); reação a "membro removido" (PN07) e a "conta desativada" (PN08), na mesma transação (architecture.md §4.2) |
 | `projects`, `accounts` | Emitir os eventos "membro removido" e "conta desativada" |
-| Frontend | Colunas por estado no `ProjectView` (wireframe, ecrã 2); formulário de tarefa para o Gestor; seletor de estado; `TaskDetailView` com título, descrição, responsável e estado; indicações "Sem responsável", "conta desativada" e "já não é membro" |
+| Frontend | Colunas por estado no `ProjectView` (wireframe, ecrã 2), cada uma com o seu pedido, o total real e "ver mais"; filtro por prioridade (e por estado); prioridade no cartão e no detalhe; formulário de tarefa para o Gestor, com a prioridade; seletor de estado; `TaskDetailView` com título, descrição, responsável e estado; indicações "Sem responsável", "conta desativada" e "já não é membro" |
 
 **Dependências:** incremento 2 (desativação de contas) e incremento 3 (membros do projeto).
 
+**Nota (decisão interna, 2026-11-10):** os incrementos 2 e 3 ainda não estão feitos. O CRUD de tarefas, a prioridade, os filtros e a regra de reabertura (PN10) podem avançar já, testados com dados criados nas fixtures. A reação a "membro removido" e a "conta desativada" (PN07, PN08; critério 2) fica para quando existirem as operações desses incrementos.
+
 **Critérios de aceitação:**
 
-1. Todos os critérios da US06, US07, US08 e da US19 sem comentários.
+1. Todos os critérios da US06, US07, US08, US22, US23 e da US19 sem comentários.
 2. CL1 (US04) e CL4 (US02): as tarefas que não estão "Concluída" ficam "Sem responsável"; as "Concluída" mantêm o nome com a indicação correta.
-3. Título com 3–150 caracteres e descrição até 2000 (PN12).
+3. Título com 3–150 caracteres sem contar os espaços das pontas e descrição até 2000 (PN12).
+4. Lista de tarefas com filtros e paginação, `total` e `countsByStatus` como no contrato (PN20).
 
 **Verificação:**
 
-- [API] cada critério, incluindo remover um membro e desativar uma conta com tarefas nos dois estados.
+- [API] cada critério, incluindo remover um membro e desativar uma conta com tarefas nos dois estados (quando existirem os incrementos 2 e 3); filtros, paginação, `total` e `countsByStatus`, incluindo uma página para além da última e parâmetros inválidos.
 - [Unidade] regra de reabertura (PN10) e escolha da indicação ao lado do nome (DE14).
 - [UI] agrupamento por estado e grupo vazio; indicações ao lado do responsável.
 - [Manual] criar, editar, mudar o estado e eliminar uma tarefa sem recarregar a página.
@@ -353,7 +360,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 **Objetivo:** confirmar que o MVP cumpre todos os critérios de aceitação e as regras gerais, sem funcionalidades novas.
 
-**User stories:** todas (US01–US19).
+**User stories:** todas (US01–US19, US22, US23).
 
 **Ficheiros e componentes previstos (proposta):** testes de API transversais; instruções para correr a aplicação localmente (no `README.md` de `matriz/`).
 
@@ -361,7 +368,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 **Critérios de aceitação:**
 
-1. Todos os critérios de aceitação das US01–US19 têm um teste automático ou uma verificação manual registada.
+1. Todos os critérios de aceitação das US01–US19, US22 e US23 têm um teste automático ou uma verificação manual registada.
 2. RNF02: para cada operação de um projeto, uma conta que não é membro (incluindo um Administrador) recebe `404`.
 3. Projeto arquivado: todas as escritas são recusadas com `409` (CL3).
 4. A interface funciona em largura de telemóvel (D01).

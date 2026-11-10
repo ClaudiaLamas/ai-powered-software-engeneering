@@ -8,7 +8,7 @@ A tecnologia foi decidida depois (D01–D06, D08 e D09, ver [constraints.md](con
 
 | Fator | O que sabemos | Origem |
 |---|---|---|
-| Âmbito | 12 funcionalidades Must (FN01–FN09, FN14, FN27, FN28), num único domínio: contas, projetos, tarefas e comentários. | requirements.md §5 |
+| Âmbito | 14 funcionalidades Must (FN01–FN09, FN12–FN14, FN27, FN28), num único domínio: contas, projetos, tarefas e comentários. | requirements.md §5 |
 | Escala | Até cerca de 10 equipas e 100 pessoas no arranque. | RNF01, R3 |
 | Regras de negócio | Muitas regras que atravessam entidades: o responsável tem de ser membro do projeto (PN06), projeto arquivado só de leitura (PN09), um só Gestor por projeto (DE06), o último Administrador não pode ser removido (DE05). | constraints.md §2 |
 | Segurança | Só os membros veem o conteúdo de um projeto; a permissão de Administrador não dá esse acesso. | RNF02, DE02 |
@@ -76,7 +76,7 @@ O nome entre parênteses é o nome do módulo no código, em inglês. As entidad
 
 | Componente | Responsabilidade | Funcionalidades e regras |
 |---|---|---|
-| **Frontend** | Interface em português (RNF03) para entrar na aplicação, ver os projetos, gerir tarefas e comentários, ver o progresso e, para quem tem permissão de Administrador, a área de administração. Mostra ou esconde ações conforme as permissões, mas **não** é a garantia de segurança: todas as regras são verificadas no backend. | FN01–FN09, FN14, FN27, FN28 |
+| **Frontend** | Interface em português (RNF03) para entrar na aplicação, ver os projetos, gerir tarefas e comentários, ver o progresso e, para quem tem permissão de Administrador, a área de administração. Mostra ou esconde ações conforme as permissões, mas **não** é a garantia de segurança: todas as regras são verificadas no backend. | FN01–FN09, FN12–FN14, FN27, FN28 |
 | **API** | Ponto de entrada único do backend. Recebe os pedidos do frontend, identifica a conta, encaminha para o módulo certo e devolve respostas e mensagens de erro (por exemplo, "o título é obrigatório"). | Todas |
 | **Módulo Autenticação e contas** (`accounts`) | Entrada na aplicação com a conta de cada pessoa; recusa contas pendentes e desativadas. Criar e desativar contas; ativar contas pelo link enviado por email (gerar o token, guardar só o seu hash, validá-lo e invalidá-lo) e reenviar o convite; enviar o email de ativação; dar e retirar a permissão de Administrador; proteger a conta de sistema e o último Administrador ativo. | FN01, FN02; DE03–DE05, DE15, PN16, PN17; US01, US02, US11 |
 | **Módulo Autorização** (`authorization`) | Componente transversal que responde a "esta conta pode fazer esta ação neste projeto?". Usa a permissão de Administrador e a função (Gestor ou Membro) da conta no projeto, e aplica as regras gerais: só membros acedem ao conteúdo (RNF02), projeto arquivado só de leitura (PN09). A API consulta-o antes de encaminhar cada pedido (§4.2). Os identificadores são UUID, mas não substituem esta verificação: saber o UUID de um recurso não dá acesso a ele. | RNF02; DE01, DE02, PN02, PN09; tabela de permissões em constraints.md §2 |
