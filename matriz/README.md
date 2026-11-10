@@ -33,7 +33,7 @@ O MVP inclui **apenas as funcionalidades Must** (proposta, por validar):
 
 Proposta, em resumo: o Administrador cria as contas e os projetos e atribui a cada projeto um Gestor. O Gestor forma a equipa do projeto e cria as tarefas, cada uma com um só responsável. Os membros avançam as tarefas por três estados fixos e comentam-nas. O progresso é acompanhado por projeto, com as tarefas agrupadas por estado e a percentagem de tarefas concluídas.
 
-Prazos, prioridades, notificações, relatórios e pedidos de ajuda numa tarefa ficam **fora do MVP** (FN10–FN13, FN15–FN26, FN29).
+Prazos, pesquisa, notificações, relatórios e pedidos de ajuda numa tarefa ficam **fora do MVP** (FN10, FN11, FN15–FN26, FN29, FN30). A prioridade e o filtro das tarefas por estado e prioridade entram no MVP (FN12, FN13).
 
 ## Glossário
 
@@ -180,7 +180,7 @@ Abre `http://localhost:5173`. Outros comandos estão em [frontend/README.md](fro
 | [docs/database.md](docs/database.md) | Modelo de dados lógico do MVP, regras de integridade e diagrama ER. |
 | [docs/implementation-plan.md](docs/implementation-plan.md) | Sequência de incrementos para implementar o MVP, com critérios e verificação. |
 | [docs/ui/dashboard-wireframe.html](docs/ui/dashboard-wireframe.html) | Wireframe de baixa fidelidade do ecrã inicial e da vista de um projeto. |
-| [openapi.yaml](openapi.yaml) | Contrato da API do backend para o MVP (US01–US19). |
+| [openapi.yaml](openapi.yaml) | Contrato da API do backend para o MVP (US01–US19, US22, US23). |
 | [AGENTS.md](AGENTS.md) | Instruções para agentes de IA que trabalhem no repositório. |
 
 ## Convenção de IDs
@@ -193,10 +193,10 @@ Os IDs são iguais em todos os ficheiros.
 | P1–P14 | Pressupostos implícitos identificados na análise inicial | Pressuposto |
 | R1–R10 | Respostas assumidas às perguntas de clarificação prioritárias | Pressuposto |
 | DE01–DE15 | Decisões da equipa do projeto (2026-10-29, 2026-11-04 e 2026-11-08), não validadas pelo cliente | Decisão interna |
-| PN01–PN18 | Regras de negócio: concretizam decisões DE ou são pressupostos | Decisão interna ou pressuposto |
+| PN01–PN20 | Regras de negócio: concretizam decisões DE ou são pressupostos | Decisão interna ou pressuposto |
 | D01–D09 | Decisões técnicas, todas tomadas, não validadas pelo cliente | Decisão interna |
-| FN01–FN29 | Funcionalidades propostas | Proposta |
-| US01–US19 | User stories do MVP | Proposta |
-| US20–US36 | User stories fora do MVP | Proposta |
+| FN01–FN30 | Funcionalidades propostas | Proposta |
+| US01–US19, US22, US23 | User stories do MVP | Proposta |
+| US20, US21, US24–US37 | User stories fora do MVP | Proposta |
 | CL1–CL12 | Casos-limite | Proposta |
 | RNF01–RNF03 | Requisitos não funcionais | Pressuposto |

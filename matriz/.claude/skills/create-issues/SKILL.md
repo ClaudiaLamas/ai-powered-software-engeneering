@@ -1,6 +1,6 @@
 ---
 name: create-issues
-description: Cria issues no GitHub a partir das user stories do MVP da Matriz (US01–US19), com rastreabilidade (FN, PN, DE, CL, RNF, D), critérios de aceitação, permissões, âmbito técnico por módulo, dependências e questões em aberto, tudo retirado da documentação do projeto. Usar quando o utilizador pedir para criar, gerar, preparar ou rever issues, tickets ou backlog a partir de user stories (por exemplo "cria o issue da US06", "gera issues para as US01 a US05").
+description: Cria issues no GitHub a partir das user stories do MVP da Matriz (US01–US19, US22, US23), com rastreabilidade (FN, PN, DE, CL, RNF, D), critérios de aceitação, permissões, âmbito técnico por módulo, dependências e questões em aberto, tudo retirado da documentação do projeto. Usar quando o utilizador pedir para criar, gerar, preparar ou rever issues, tickets ou backlog a partir de user stories (por exemplo "cria o issue da US06", "gera issues para as US01 a US05").
 ---
 
 # Criar issues a partir das user stories
@@ -16,7 +16,7 @@ Caminhos relativos à pasta `matriz/`. O repositório Git é a pasta-mãe.
 
 1. Identifica as user stories pedidas (por ID, intervalo ou funcionalidade FN).
    Se o pedido for vago ("cria os issues"), pergunta quais antes de continuar.
-2. **Só US01–US19 (MVP).** Se o pedido incluir US20–US36, não cries esses issues:
+2. **Só US01–US19, US22 e US23 (MVP).** Se o pedido incluir US20, US21 ou US24–US37, não cries esses issues:
    diz que estão fora do MVP (`docs/constraints.md` §1) e continua só com as do MVP.
 3. Verifica duplicados no GitHub:
    ```bash

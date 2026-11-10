@@ -1,6 +1,6 @@
 # Modelo de dados — Matriz
 
-Este ficheiro descreve o modelo de dados lógico do MVP (FN01–FN09, FN14, FN27, FN28). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e da arquitetura em [architecture.md](architecture.md).
+Este ficheiro descreve o modelo de dados lógico do MVP (FN01–FN09, FN12–FN14, FN27, FN28). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e da arquitetura em [architecture.md](architecture.md).
 
 O modelo é **lógico**: não fixa os tipos físicos. A base de dados é PostgreSQL, gerida com Prisma (migrations e seed), e os identificadores são UUID (D04 e pontos complementares em [constraints.md](constraints.md#4-decisões-técnicas); decisões internas, por validar). Os tipos indicados (`id`, `string`, `boolean`, `enum`, `datetime`) são genéricos; `id` é um UUID. Tal como o resto da especificação, **nenhuma regra foi validada pelo cliente**.
 
@@ -80,9 +80,10 @@ A chave primária composta (project_id, account_id) impede que a mesma conta apa
 |---|---|---|---|---|---|
 | id | id | PK | Sim | Identificador interno. | — |
 | project_id | id | FK → PROJECT | Sim | Uma tarefa pertence sempre a um projeto. | R6, P3 |
-| title | string | | Sim | Título, com 3 a 150 caracteres e não só espaços. | PN12 |
-| description | string | | Não | Descrição, até 2000 caracteres. | PN12 |
+| title | string | | Sim | Título, com 3 a 150 caracteres e não só espaços, contados sem os espaços das pontas; fica guardado sem eles (decisão interna, 2026-11-10). | PN12 |
+| description | string | | Não | Descrição, até 2000 caracteres. Uma descrição vazia ou só com espaços fica vazia ("sem descrição"; decisão interna, 2026-11-10). | PN12 |
 | status | enum | | Sim | `TODO` ("Por fazer"), `IN_PROGRESS` ("Em curso") ou `DONE` ("Concluída"). Começa em `TODO`; qualquer transição é permitida. | R8, PN10 |
+| priority | enum | | Sim | `LOW` ("Baixa"), `MEDIUM` ("Média") ou `HIGH` ("Alta"). Por omissão `MEDIUM`; as tarefas que já existiam ficam `MEDIUM` (decisão interna, 2026-11-10). Só o Gestor a define e muda. | FN12, PN19 |
 | assignee_id | id | FK → ACCOUNT | Não | Responsável. Vazio = "Sem responsável". Referencia ACCOUNT (e não PROJECT_MEMBER) para uma tarefa "Concluída" manter o responsável quando este sai do projeto; nesse caso, mostra-se "já não é membro", calculado pela ausência de linha em PROJECT_MEMBER. Que o responsável é membro com conta ativa é verificado pela aplicação quando é escolhido. | DE09, DE14, PN06, PN07 |
 | created_at | datetime | | Sim | | — |
 | updated_at | datetime | | Sim | | — |
@@ -138,7 +139,7 @@ Regras que o modelo tem de garantir. A coluna "Onde" indica se a regra pode ser 
 | No máximo um Gestor por projeto. | Base de dados (unicidade de `project_id` quando `role = MANAGER`, se a base de dados o permitir) | DE06 |
 | Pelo menos um Gestor por projeto: o projeto e o seu Gestor são criados na mesma transação; a troca de Gestor muda as duas linhas na mesma transação. | Aplicação (`projects`) | DE06, US03, US12 |
 | O Gestor não pode ser removido do projeto. | Aplicação (`projects`) | PN04 |
-| Ao ser escolhido, o responsável de uma tarefa é membro do projeto com conta ativa. | Aplicação (`tasks`, consultando `projects` e `accounts`) | PN06, PN08 |
+| Ao ser escolhido, o responsável de uma tarefa é membro do projeto com conta ativa. Um responsável igual ao atual não é verificado outra vez ao editar a tarefa (decisão interna, 2026-11-10). | Aplicação (`tasks`, consultando `projects` e `accounts`) | PN06, PN08 |
 | Ao remover um membro, as suas tarefas nesse projeto que não estão `DONE` ficam sem responsável e mantêm o estado; as `DONE` mantêm o responsável. | Aplicação (`tasks`, ao receber o evento "membro removido" de `projects`; architecture.md §4.2) | PN07, CL1 |
 | Ao desativar uma conta, as suas tarefas que não estão `DONE`, em todos os projetos, ficam sem responsável e mantêm o estado; as `DONE` mantêm o responsável. | Aplicação (`tasks`, ao receber o evento "conta desativada" de `accounts`; architecture.md §4.2) | PN08, CL4 |
 | Ao reabrir uma tarefa `DONE` cujo responsável tem a conta desativada ou já não é membro do projeto, a tarefa fica sem responsável. | Aplicação (`tasks`) | PN07, PN08, PN10 |
@@ -186,6 +187,7 @@ erDiagram
         string title
         string description "optional"
         enum status "TODO | IN_PROGRESS | DONE"
+        enum priority "LOW | MEDIUM | HIGH"
         id assignee_id FK "optional"
         datetime created_at
         datetime updated_at
@@ -232,7 +234,7 @@ erDiagram
 
 | Ponto | Pressuposto adotado | Porque é preciso confirmar |
 |---|---|---|
-| Atributos fora do MVP | Não há urgência, importância, prioridade nem data limite em TASK. | Prazo (FN10) e prioridade (FN12) estão fora do MVP; entram num incremento seguinte como colunas opcionais, sem mudar as relações. |
+| Atributos fora do MVP | Não há urgência, importância nem data limite em TASK. A prioridade (FN12) entrou no MVP como coluna obrigatória com valor por omissão (decisão interna, 2026-11-10). | O prazo (FN10) está fora do MVP; entra num incremento seguinte como coluna opcional, sem mudar as relações. |
 | Eliminar comentários e tarefas | Eliminação definitiva; os comentários de uma tarefa eliminada desaparecem com ela. | US06 e US13 dizem que "deixa de aparecer", mas não dizem se os dados se guardam. Depende da pergunta 25 (retenção). |
 | Contas e projetos nunca são eliminados | Só se desativam (contas) ou arquivam (projetos). | Questão em aberto: um projeto pode ser eliminado? (constraints.md §5) |
 | Membros desativados | A conta desativada continua em PROJECT_MEMBER dos projetos onde estava, até o Gestor a remover. | É o que PN08 indica; confirmar com o cliente. |

@@ -2,12 +2,12 @@ openapi: 3.1.0
 
 info:
   title: Matriz API
-  version: 0.3.0
+  version: 0.4.0
   summary: Contrato da API do MVP da Matriz.
   description: |
     Contrato da API do backend da Matriz (monólito modular, ver
     `docs/architecture.md`). Cobre as operações das user stories do MVP
-    (US01–US19): autenticação e ativação de contas, contas, projetos e painel
+    (US01–US19, US22, US23): autenticação e ativação de contas, contas, projetos e painel
     inicial, membros e Gestor, tarefas e responsáveis, comentários e registo
     administrativo. Inclui também `GET /health`, uma operação de
     infraestrutura fora das user stories.
@@ -41,11 +41,13 @@ info:
       conta não é membro) → `403` (função no projeto ou autoria do
       comentário) → `409` (projeto arquivado) → `400` com os códigos das
       regras (por exemplo, `TITLE_INVALID`).
-    - Listas sem paginação (escala de RNF01).
+    - Listas sem paginação (escala de RNF01), exceto as tarefas de um
+      projeto (`listProjectTasks`), paginadas e filtráveis por estado e
+      prioridade (decisão interna, 2026-11-10).
 
-    Fora do MVP e fora deste contrato: pesquisa e filtros (FN13), prazo
-    (FN10), prioridade (FN12), vários responsáveis por tarefa (DE09) e
-    eliminação de projetos (questão em aberto).
+    Fora do MVP e fora deste contrato: pesquisa por texto e filtro por
+    responsável (resto da FN13), prazo (FN10), vários responsáveis por tarefa
+    (DE09) e eliminação de projetos (questão em aberto).
 
     Autenticação com JWT (D06) e identificadores UUID (ver
     `docs/constraints.md` §4); decisões internas, por validar. Nenhuma regra
@@ -763,25 +765,38 @@ paths:
       operationId: listProjectTasks
       summary: Listar as tarefas de um projeto
       description: |
-        Devolve todas as tarefas do projeto, ordenadas por `createdAt`
-        (mais antigas primeiro; pressuposto). O cliente agrupa-as por `status`
-        para a vista por estado (FN08, US08).
+        Devolve uma página das tarefas do projeto que correspondem aos filtros,
+        ordenadas por `createdAt` (mais antigas primeiro; pressuposto) e, em
+        caso de empate, por `id`. Para a vista por estado (FN08, US08), o
+        cliente faz um pedido por coluna, com `status` e a sua paginação
+        (decisão interna, 2026-11-10).
+
+        Filtros (FN13 em parte, FN12): `status` e `priority`, opcionais e
+        combináveis. Sem filtros, devolve todas as tarefas do projeto.
+
+        Além dos itens, a resposta traz `total` (tarefas que correspondem a
+        todos os filtros) e `countsByStatus` (contagens por estado que
+        respeitam o filtro `priority`, mas ignoram o filtro `status` e a
+        paginação), para o cliente mostrar os totais reais de cada coluna.
+        Uma página para além da última devolve `items: []`.
 
         Acesso: qualquer membro do projeto (Gestor ou Membro). Projetos
         arquivados continuam legíveis (PN09).
-
-        Sem parâmetros de query: filtrar tarefas (incluindo por estado) é FN13,
-        que está fora do MVP.
+      parameters:
+        - $ref: "#/components/parameters/TaskStatusFilter"
+        - $ref: "#/components/parameters/TaskPriorityFilter"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
       responses:
         "200":
-          description: Lista das tarefas do projeto (pode ser vazia).
+          description: Uma página das tarefas do projeto (pode ser vazia).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskList"
+                $ref: "#/components/schemas/TaskPage"
               examples:
                 withTasks:
-                  summary: Projeto com três tarefas
+                  summary: Projeto com três tarefas, sem filtros
                   value:
                     items:
                       - id: "9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c01"
@@ -789,6 +804,7 @@ paths:
                         title: Rever textos
                         description: null
                         status: IN_PROGRESS
+                        priority: HIGH
                         assignee:
                           id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
                           name: Ana Silva
@@ -801,6 +817,7 @@ paths:
                         title: Publicar página inicial
                         description: Depois da revisão dos textos.
                         status: TODO
+                        priority: MEDIUM
                         assignee: null
                         createdAt: "2026-10-29T09:05:00Z"
                         updatedAt: "2026-10-29T09:05:00Z"
@@ -809,6 +826,7 @@ paths:
                         title: Criar logótipo
                         description: null
                         status: DONE
+                        priority: LOW
                         assignee:
                           id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d603"
                           name: Rui Costa
@@ -816,12 +834,53 @@ paths:
                           isProjectMember: false
                         createdAt: "2026-10-29T09:10:00Z"
                         updatedAt: "2026-10-30T16:00:00Z"
+                    total: 3
+                    page: 1
+                    pageSize: 20
+                    countsByStatus:
+                      todo: 1
+                      inProgress: 1
+                      done: 1
+                filteredColumn:
+                  summary: "Coluna \"Por fazer\" (`?status=TODO&pageSize=1`)"
+                  value:
+                    items:
+                      - id: "9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c02"
+                        projectId: "5b1f2c3a-8d4e-4f6a-9b7c-0d1e2f3a4b01"
+                        title: Publicar página inicial
+                        description: Depois da revisão dos textos.
+                        status: TODO
+                        priority: MEDIUM
+                        assignee: null
+                        createdAt: "2026-10-29T09:05:00Z"
+                        updatedAt: "2026-10-29T09:05:00Z"
+                    total: 1
+                    page: 1
+                    pageSize: 1
+                    countsByStatus:
+                      todo: 1
+                      inProgress: 1
+                      done: 1
                 empty:
                   summary: Projeto sem tarefas
                   value:
                     items: []
+                    total: 0
+                    page: 1
+                    pageSize: 20
+                    countsByStatus:
+                      todo: 0
+                      inProgress: 0
+                      done: 0
         "400":
-          $ref: "#/components/responses/BadRequest"
+          description: |
+            Parâmetros inválidos: `status` ou `priority` fora dos valores
+            permitidos, `page` menor que 1, `pageSize` fora de 1–100, parâmetro
+            desconhecido ou UUID inválido. `code`: `VALIDATION_ERROR`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -838,10 +897,11 @@ paths:
         Acesso: só o Gestor do projeto (DE09, PN05). O projeto tem de estar
         ativo (PN09).
 
-        Regras: título obrigatório, com 3–150 caracteres e não só espaços;
-        descrição até 2000 caracteres (PN12); o responsável é opcional e, se
-        indicado, tem de ser membro do projeto com conta ativa (PN06, PN08,
-        DE15).
+        Regras: título obrigatório, com 3–150 caracteres e não só espaços,
+        contados sem os espaços das pontas; descrição até 2000 caracteres
+        (PN12); prioridade opcional, por omissão `MEDIUM` (FN12, US22); o
+        responsável é opcional e, se indicado, tem de ser membro do projeto
+        com conta ativa (PN06, PN08, DE15).
       requestBody:
         required: true
         content:
@@ -854,9 +914,10 @@ paths:
                 value:
                   title: Rever textos
                   description: Rever os textos da página inicial.
+                  priority: HIGH
                   assigneeId: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
               withoutAssignee:
-                summary: Sem responsável
+                summary: Sem responsável nem prioridade (fica `MEDIUM`)
                 value:
                   title: Publicar página inicial
       responses:
@@ -875,6 +936,7 @@ paths:
                 title: Rever textos
                 description: Rever os textos da página inicial.
                 status: TODO
+                priority: HIGH
                 assignee:
                   id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
                   name: Ana Silva
@@ -943,11 +1005,17 @@ paths:
     patch:
       tags: [tasks]
       operationId: updateTask
-      summary: Editar uma tarefa e escolher o responsável
+      summary: Editar uma tarefa e escolher o responsável e a prioridade
       description: |
-        Só o Gestor (US06, DE09, PN05). Os campos omitidos não mudam;
+        Só o Gestor (US06, US22, DE09, PN05). Os campos omitidos não mudam;
         `assigneeId: null` deixa a tarefa "Sem responsável". O estado muda-se
         com `PUT /tasks/{taskId}/status`.
+
+        Um `assigneeId` igual ao responsável atual não é validado outra vez:
+        numa tarefa `DONE` cujo responsável já não é membro ou tem a conta
+        desativada, o cliente pode reenviá-lo sem erro (decisão interna,
+        2026-11-10). Um `assigneeId` de uma conta que não existe dá
+        `ASSIGNEE_NOT_MEMBER` (pressuposto).
       requestBody:
         required: true
         content:
@@ -1192,6 +1260,39 @@ components:
       description: Identificador da tarefa.
       schema:
         $ref: "#/components/schemas/Id"
+    TaskStatusFilter:
+      name: status
+      in: query
+      required: false
+      description: Só as tarefas neste estado. Não afeta `countsByStatus`.
+      schema:
+        $ref: "#/components/schemas/TaskStatus"
+    TaskPriorityFilter:
+      name: priority
+      in: query
+      required: false
+      description: Só as tarefas com esta prioridade. Afeta `total` e `countsByStatus`.
+      schema:
+        $ref: "#/components/schemas/TaskPriority"
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Número da página, a começar em 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      description: Tarefas por página.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
     CommentId:
       name: commentId
       in: path
@@ -1243,6 +1344,13 @@ components:
       description: |
         Estado da tarefa (R8). Texto mostrado ao utilizador:
         `TODO` = "Por fazer", `IN_PROGRESS` = "Em curso", `DONE` = "Concluída".
+
+    TaskPriority:
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+      description: |
+        Prioridade da tarefa (FN12, US22). Texto mostrado ao utilizador:
+        `LOW` = "Baixa", `MEDIUM` = "Média", `HIGH` = "Alta".
 
     AccountStatus:
       type: string
@@ -1597,6 +1705,7 @@ components:
           title,
           description,
           status,
+          priority,
           assignee,
           createdAt,
           updatedAt,
@@ -1612,6 +1721,8 @@ components:
           type: [string, "null"]
         status:
           $ref: "#/components/schemas/TaskStatus"
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
         assignee:
           description: |
             Responsável; `null` = "Sem responsável" (PN06). Numa tarefa `DONE`
@@ -1626,26 +1737,63 @@ components:
           type: string
           format: date-time
 
-    TaskList:
+    TaskPage:
       type: object
-      required: [items]
+      description: |
+        Uma página das tarefas de um projeto (`listProjectTasks`).
+      required: [items, total, page, pageSize, countsByStatus]
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/Task"
+        total:
+          type: integer
+          minimum: 0
+          description: Tarefas que correspondem a todos os filtros, em todas as páginas.
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+        countsByStatus:
+          $ref: "#/components/schemas/TaskCountsByStatus"
+
+    TaskCountsByStatus:
+      type: object
+      description: |
+        Tarefas do projeto por estado, com o filtro `priority` aplicado, sem o
+        filtro `status` e sem paginação. Sem filtro `priority`, são iguais a
+        `todo`, `inProgress` e `done` do `Progress` do projeto.
+      required: [todo, inProgress, done]
+      properties:
+        todo:
+          type: integer
+          minimum: 0
+        inProgress:
+          type: integer
+          minimum: 0
+        done:
+          type: integer
+          minimum: 0
 
     TaskTitle:
       type: string
       minLength: 3
       maxLength: 150
       pattern: '\S'
-      description: Obrigatório, 3–150 caracteres, não só espaços (PN12).
+      description: |
+        Obrigatório, 3–150 caracteres, não só espaços (PN12). Os espaços das
+        pontas não contam e não ficam guardados (decisão interna, 2026-11-10).
 
     TaskDescription:
       type: [string, "null"]
       maxLength: 2000
-      description: Opcional, até 2000 caracteres (PN12).
+      description: |
+        Opcional, até 2000 caracteres (PN12). Vazia ou só com espaços fica
+        `null`, "sem descrição" (decisão interna, 2026-11-10).
 
     AssigneeId:
       description: |
@@ -1664,6 +1812,8 @@ components:
           $ref: "#/components/schemas/TaskTitle"
         description:
           $ref: "#/components/schemas/TaskDescription"
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
         assigneeId:
           $ref: "#/components/schemas/AssigneeId"
 
@@ -1676,6 +1826,8 @@ components:
           $ref: "#/components/schemas/TaskTitle"
         description:
           $ref: "#/components/schemas/TaskDescription"
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
         assigneeId:
           $ref: "#/components/schemas/AssigneeId"
 

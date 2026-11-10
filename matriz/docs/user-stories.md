@@ -1,6 +1,6 @@
 # User stories — Matriz
 
-Backlog inicial: 19 user stories do MVP, que cobrem as funcionalidades Must (FN01–FN09, FN14, FN27, FN28), e 17 user stories **fora do MVP** (secção 5), com critérios de aceitação, casos-limite e regras de negócio. As regras PN são **decisões internas (DE) ou pressupostos**, todas por validar com o cliente. Os termos "conta", "função", "Gestor", "Membro" e "Administrador" seguem o [glossário do README](../README.md#glossário).
+Backlog inicial: 21 user stories do MVP, que cobrem as funcionalidades Must (FN01–FN09, FN12–FN14, FN27, FN28), e 16 user stories **fora do MVP** (secção 5), com critérios de aceitação, casos-limite e regras de negócio. As regras PN são **decisões internas (DE) ou pressupostos**, todas por validar com o cliente. Os termos "conta", "função", "Gestor", "Membro" e "Administrador" seguem o [glossário do README](../README.md#glossário).
 
 ## 1. User stories
 
@@ -25,6 +25,8 @@ Backlog inicial: 19 user stories do MVP, que cobrem as funcionalidades Must (FN0
 | US17 | Como **Administrador**, quero ver todos os projetos na área de administração, para saber quem é o Gestor de cada um e poder trocá-lo. | FN27 | Must |
 | US18 | Como **membro** de um projeto, quero ver a descrição, o Gestor e a equipa do projeto, para saber com quem trabalho. | FN03, FN04 | Must |
 | US19 | Como **membro** de um projeto, quero abrir uma tarefa, para ver a descrição, o responsável, o estado e os comentários. | FN06, FN14 | Must |
+| US22 | Como **Gestor** de um projeto, quero dar uma prioridade a uma tarefa, para que a equipa saiba o que fazer primeiro. | FN12 | Must |
+| US23 | Como **membro** de um projeto, quero filtrar as tarefas por estado e prioridade e vê-las por páginas, para encontrar uma tarefa rapidamente. | FN13 | Must |
 
 ### Rastreabilidade FN → US
 
@@ -39,6 +41,8 @@ Backlog inicial: 19 user stories do MVP, que cobrem as funcionalidades Must (FN0
 | FN07 | US07 |
 | FN08 | US08 |
 | FN09 | US09 |
+| FN12 | US22 |
+| FN13 | US23 |
 | FN14 | US13, US19 |
 | FN27 | US12, US17 |
 | FN28 | US14 |
@@ -47,7 +51,7 @@ A rastreabilidade das funcionalidades fora do MVP está na [secção 5](#5-fora-
 
 ## 2. Critérios de aceitação
 
-As 19 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o caminho normal e pelo menos um caso de erro.
+As 21 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o caminho normal e pelo menos um caso de erro.
 
 ### US01: Entrar com a conta (FN01)
 
@@ -633,6 +637,74 @@ As 19 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 - **Quando** tento abrir uma tarefa desse projeto,
 - **Então** o acesso é recusado.
 
+### US22: Prioridade (FN12)
+
+Passou para o MVP em 2026-11-10 (decisão interna); os valores e a permissão eram pressupostos e ficam como decisão interna.
+
+**Caminho normal: criar**
+
+- **Dado** que sou Gestor de um projeto ativo,
+- **Quando** crio a tarefa "Rever textos" com a prioridade "Alta",
+- **Então** a tarefa aparece com a prioridade "Alta".
+
+**Caminho normal: sem prioridade escolhida**
+
+- **Dado** que sou Gestor de um projeto ativo,
+- **Quando** crio uma tarefa sem escolher a prioridade,
+- **Então** a tarefa fica com a prioridade "Média".
+
+**Caminho normal: mudar**
+
+- **Dado** que a tarefa "Rever textos" tem a prioridade "Média",
+- **Quando**, como Gestor, a mudo para "Baixa",
+- **Então** a tarefa mostra "Baixa" e mantém o título, o responsável e o estado.
+
+**Erro: Membro tenta mudar a prioridade**
+
+- **Dado** que sou Membro, mas não Gestor, de um projeto ativo,
+- **Quando** tento mudar a prioridade de uma tarefa,
+- **Então** a ação é recusada e a prioridade não muda.
+
+**Erro: projeto arquivado**
+
+- **Dado** que o projeto está arquivado,
+- **Quando** o Gestor tenta mudar a prioridade de uma tarefa,
+- **Então** a ação é recusada e a prioridade não muda (PN09).
+
+### US23: Filtrar as tarefas por estado e prioridade (FN13)
+
+Passou para o MVP em 2026-11-10 (decisão interna), só com o filtro por estado e prioridade e a paginação; a pesquisa por texto e o filtro por responsável ficam na US37 (FN30), fora do MVP.
+
+**Caminho normal: filtrar por prioridade**
+
+- **Dado** que sou membro de um projeto com 6 tarefas, 2 delas com prioridade "Alta" (uma "Por fazer" e uma "Concluída"),
+- **Quando** filtro pela prioridade "Alta",
+- **Então** só vejo essas 2 tarefas, cada uma no grupo do seu estado, e os totais dos grupos são "Por fazer" 1, "Em curso" 0 e "Concluída" 1.
+
+**Caminho normal: filtrar por estado**
+
+- **Dado** que sou membro de um projeto com tarefas nos três estados,
+- **Quando** filtro pelo estado "Em curso",
+- **Então** só vejo as tarefas "Em curso".
+
+**Caminho normal: lista paginada**
+
+- **Dado** que um projeto tem 25 tarefas "Por fazer",
+- **Quando** abro o projeto,
+- **Então** o grupo "Por fazer" mostra as primeiras 20 e o total 25, e posso ver as restantes 5 sem perder as anteriores.
+
+**Caso: sem resultados**
+
+- **Dado** que nenhuma tarefa do projeto tem a prioridade "Baixa",
+- **Quando** filtro pela prioridade "Baixa",
+- **Então** os três grupos aparecem vazios, com o total 0.
+
+**Erro: sem acesso**
+
+- **Dado** que não sou membro do projeto, mesmo que tenha permissão de Administrador,
+- **Quando** tento ver ou filtrar as tarefas,
+- **Então** o acesso é recusado.
+
 ## 3. Casos-limite
 
 Dez dos doze casos têm comportamento definido; CL10 e CL11 ficam em aberto.
@@ -652,7 +724,7 @@ Dez dos doze casos têm comportamento definido; CL10 e CL11 ficam em aberto.
 | CL11 | Uma pessoa cuja conta foi desativada volta à empresa. | **Não resolvido.** A conta não pode ser reativada (PN17) e o email único (PN11) impede criar outra conta com o mesmo email. | PN11, PN17 |
 | CL12 | O autor de comentários é removido do projeto ou a sua conta é desativada. | Os comentários mantêm-se, com o nome do autor e, se for o caso, a indicação "conta desativada". | PN15 |
 
-## 4. Regras de negócio (PN01–PN18)
+## 4. Regras de negócio (PN01–PN20)
 
 Nenhuma regra foi validada pelo cliente. A coluna "Origem" indica se a regra concretiza uma decisão interna (DE) ou é um pressuposto nosso.
 
@@ -662,19 +734,21 @@ Nenhuma regra foi validada pelo cliente. A coluna "Origem" indica se a regra con
 | PN02 | A permissão de Administrador pertence à conta e acumula com funções em projetos. Não dá acesso a tarefas, comentários ou progresso de projetos onde a conta não participa. Na área de administração, o Administrador vê de cada projeto só o nome, o estado, o Gestor e os membros, para poder trocar o Gestor. | DE02; a área de administração é pressuposto | US01, US09, CL6 |
 | PN03 | Cada projeto tem exatamente um Gestor, que é também membro do projeto. É atribuído pelo Administrador quando cria o projeto. | DE06 | US03, US04 |
 | PN04 | O Gestor não pode ser removido do projeto nem remover-se. Só deixa de ser Gestor quando o Administrador o troca; passa então a Membro. | DE08; "passa a Membro" é pressuposto | US12, CL5 |
-| PN05 | Só o Gestor cria tarefas, edita o título e a descrição, escolhe ou muda o responsável e elimina tarefas. Qualquer membro, incluindo o Gestor, pode mudar o estado e comentar. | DE09, DE10 | US06, US07, US13, CL2 |
+| PN05 | Só o Gestor cria tarefas, edita o título, a descrição e a prioridade, escolhe ou muda o responsável e elimina tarefas. Qualquer membro, incluindo o Gestor, pode mudar o estado e comentar. | DE09, DE10 | US06, US07, US13, US22, CL2 |
 | PN06 | Cada tarefa tem no máximo um responsável, que tem de ser membro do projeto com conta ativa (nem pendente nem desativada) no momento em que é escolhido. A tarefa pode ficar "Sem responsável". Uma tarefa "Concluída" pode manter como responsável quem já não é membro (PN07). | DE09, DE14, DE15 | US06 |
 | PN07 | Quando o Gestor remove um membro, com a conta ativa ou desativada, as suas tarefas nesse projeto que não estão "Concluída" passam a "Sem responsável". As tarefas "Concluída" mantêm-no como responsável, com a indicação "já não é membro"; se a conta estiver desativada, mostra-se só "conta desativada" (PN08). A indicação desaparece se a pessoa voltar a ser adicionada ao projeto. | DE14 | US04, US07, CL1 |
 | PN08 | Quando uma conta é desativada, as suas tarefas que não estão "Concluída", em todos os projetos, passam a "Sem responsável". As tarefas "Concluída" mantêm o nome da pessoa como responsável, com a indicação "conta desativada"; se uma delas for reaberta, passa a "Sem responsável". A conta continua na equipa dos projetos, com a indicação "conta desativada", até o Gestor a remover. Uma conta desativada não pode ser adicionada a um projeto nem escolhida como responsável. | DE14 | US02, US04, US06, US07, US18, CL4 |
 | PN09 | Um projeto arquivado fica só de leitura: tarefas, estados, membros e comentários não podem ser alterados. | DE11; resto é pressuposto | US04, US07, US13, CL3 |
 | PN10 | Uma tarefa nova começa sempre em "Por fazer". Qualquer estado pode passar a qualquer outro, incluindo reabrir uma tarefa concluída. Ao reabrir uma tarefa cujo responsável tem a conta desativada ou já não é membro do projeto, a tarefa passa a "Sem responsável" (PN07, PN08). | Pressuposto; reabertura com conta desativada ou de quem já não é membro: DE14 | US06, US07 |
 | PN11 | Cada conta é identificada por um endereço de email único, incluindo as contas desativadas. | Pressuposto | US02, CL11 |
-| PN12 | O nome do projeto é obrigatório, com 3 a 100 caracteres, e a sua descrição é opcional, até 1000. O título da tarefa é obrigatório, com 3 a 150 caracteres, e a sua descrição é opcional, até 2000. Nomes e títulos só com espaços são recusados. O nome do projeto conta e fica guardado sem os espaços das pontas; uma descrição de projeto vazia ou só com espaços fica "sem descrição". | Pressuposto; limites do exemplo da Aula 02 (decisão interna, 2026-11-08); espaços e descrição vazia do projeto (decisão interna, 2026-11-09) | US03, US06, US10 |
+| PN12 | O nome do projeto é obrigatório, com 3 a 100 caracteres, e a sua descrição é opcional, até 1000. O título da tarefa é obrigatório, com 3 a 150 caracteres, e a sua descrição é opcional, até 2000. Nomes e títulos só com espaços são recusados. O nome do projeto e o título da tarefa contam e ficam guardados sem os espaços das pontas; uma descrição vazia ou só com espaços fica "sem descrição". | Pressuposto; limites do exemplo da Aula 02 (decisão interna, 2026-11-08); espaços e descrição vazia do projeto (decisão interna, 2026-11-09) e da tarefa (decisão interna, 2026-11-10) | US03, US06, US10 |
 | PN13 | A percentagem de conclusão é tarefas concluídas ÷ total de tarefas × 100, arredondada à unidade. Sem tarefas, mostra "Sem tarefas". | Pressuposto | US09, CL7 |
 | PN14 | O Administrador pode trocar o Gestor de um projeto. O novo Gestor tem de ser membro do projeto com conta ativa ou pendente (DE15). Se não houver membro adequado, o Administrador pode adicionar uma conta ativa ou pendente à equipa e nomeá-la Gestor. Num projeto arquivado, o Gestor não pode ser trocado (PN09). **Em aberto:** se o Administrador se pode nomear a si próprio (CL10). | DE08, DE15 | US12, CL8, CL10 |
 | PN15 | Qualquer membro do projeto pode comentar tarefas. Só o autor pode editar ou apagar os seus comentários. Os comentários mantêm-se quando o autor sai do projeto ou a conta é desativada. Um comentário tem de 1 a 2000 caracteres e não pode ser só espaços. | DE11; autoria e permanência são pressupostos; limites do exemplo da Aula 02 (decisão interna, 2026-11-08) | US13, CL12 |
 | PN16 | A conta de sistema (primeira conta de Administrador) não pode ser desativada nem perder a permissão de Administrador. Não é possível retirar a permissão nem desativar o último Administrador ativo. | DE04, DE05 | US02, US11, CL9 |
 | PN17 | Uma conta desativada não pode ser reativada. | DE03 | US02, CL11 |
+| PN19 | Cada tarefa tem uma prioridade: Baixa, Média ou Alta. Uma tarefa nova fica "Média" se o Gestor não escolher outra. Só o Gestor a define e muda. | decisão interna, 2026-11-10 | US22 |
+| PN20 | A lista de tarefas de um projeto pode ser filtrada por estado e por prioridade, em conjunto ou não, e é paginada (20 tarefas por página por omissão, no máximo 100), ordenada da mais antiga para a mais recente. Com ela vêm o total de tarefas que correspondem aos filtros e o número de tarefas em cada estado com o filtro de prioridade aplicado, para cada grupo mostrar o total real. | decisão interna, 2026-11-10 | US08, US23 |
 | PN18 | O registo de ações administrativas guarda: criar e desativar contas, reenviar convites, dar e retirar a permissão de Administrador, criar projetos, atribuir e trocar o Gestor e adicionar membros pelo Administrador. Cada entrada tem autor, ação, alvo, data e hora. Só os Administradores o consultam e ninguém o pode alterar ou apagar. | DE12, DE15; conteúdo e acesso são pressupostos | US14 |
 
 ## 5. Fora do MVP
@@ -685,8 +759,6 @@ Estas user stories correspondem a funcionalidades **fora do MVP** (Should, Could
 |---|---|---|---|---|
 | US20 | Como **Gestor**, quero dar um prazo a uma tarefa, para que se percebam os atrasos. | FN10 | Should | Fora do MVP |
 | US21 | Como **utilizador**, quero ver as minhas tarefas de todos os projetos, para organizar o meu dia. | FN11 | Should | Fora do MVP |
-| US22 | Como **Gestor**, quero dar uma prioridade a uma tarefa, para que a equipa saiba o que fazer primeiro. | FN12 | Should | Fora do MVP |
-| US23 | Como **membro**, quero filtrar e pesquisar tarefas, para encontrar uma tarefa rapidamente. | FN13 | Should | Fora do MVP |
 | US24 | Como **membro**, quero receber notificações, para saber quando algo muda nas minhas tarefas. | FN15 | Could | Fora do MVP |
 | US25 | Como **membro**, quero anexar ficheiros a uma tarefa, para guardar a documentação junto ao trabalho. | FN16 | Could | Fora do MVP |
 | US26 | Como **Gestor**, quero criar subtarefas e dependências, para dividir trabalho complexo. | FN17 | Could | Fora do MVP |
@@ -700,6 +772,7 @@ Estas user stories correspondem a funcionalidades **fora do MVP** (Should, Could
 | US34 | Como **Gestor**, quero organizar as tarefas em sprints e backlog, para trabalhar de forma ágil. | FN24 | Won't | Fora do MVP |
 | US35 | Como **Administrador**, quero importar dados de outras ferramentas, para não perder o histórico. | FN25 | Won't | Fora do MVP |
 | US36 | Como **utilizador**, quero escolher a língua da interface, para trabalhar na minha língua. | FN26 | Won't | Fora do MVP |
+| US37 | Como **membro**, quero pesquisar tarefas por texto e filtrá-las por responsável, para encontrar uma tarefa rapidamente. | FN30 | Should | Fora do MVP |
 
 ### Critérios de aceitação (Should e Could)
 
@@ -717,12 +790,7 @@ As stories Won't (US32–US36) não têm critérios: dependem de perguntas ao cl
 - **Caso sem tarefas:** **Dado** que não sou responsável por nenhuma tarefa, **Quando** abro a vista, **Então** vejo uma mensagem a indicar que não tenho tarefas.
 - **Erro: projeto de onde saí:** **Dado** que fui removido de um projeto, **Quando** abro a vista, **Então** não aparece nenhuma tarefa desse projeto, nem as "Concluída" que mantêm o meu nome (PN07, R10).
 
-#### US22: Prioridade (FN12)
-
-- **Caminho normal:** **Dado** que sou Gestor de um projeto ativo, **Quando** dou a prioridade "Alta" a uma tarefa, **Então** a tarefa mostra essa prioridade. Os valores são Baixa, Média e Alta *(pressuposto)*.
-- **Erro: sem permissão:** **Dado** que sou Membro, mas não Gestor, **Quando** tento mudar a prioridade, **Então** a ação é recusada *(pressuposto)*.
-
-#### US23: Filtrar e pesquisar (FN13)
+#### US37: Pesquisar e filtrar por responsável (FN30)
 
 - **Caminho normal:** **Dado** que estou num projeto com 20 tarefas, **Quando** filtro por responsável "Ana" ou pesquiso "textos", **Então** só vejo as tarefas correspondentes.
 - **Caso sem resultados:** **Dado** que nenhuma tarefa corresponde, **Quando** pesquiso, **Então** vejo a mensagem "Nenhuma tarefa encontrada".
