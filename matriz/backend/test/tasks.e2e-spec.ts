@@ -2,7 +2,9 @@ import { INestApplication } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
+import type { ProjectAccess } from '../src/authorization/authorization.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { TasksService } from '../src/tasks/tasks.service.js';
 import {
   TEST_PASSWORD,
   createAccount,
@@ -620,6 +622,122 @@ describe('Tarefas (API)', () => {
         .expect(409);
       expect(conflict.body.code).toBe('PROJECT_ARCHIVED');
       await api().remove(task.id).expect(401);
+    });
+  });
+
+  /**
+   * O projeto é arquivado depois da verificação do controlador
+   * (`requireWritable`) e antes da escrita: a escrita tem de ver o estado
+   * atual do projeto e responder `409` (PN09), em vez de escrever num projeto
+   * só de leitura.
+   */
+  describe('projeto arquivado a meio do pedido (PN09)', () => {
+    async function archivedAfterCheck() {
+      const { member, project } = await team();
+      const task = await createTask(app, project.id, {
+        title: 'Tarefa antiga',
+      });
+      // Acesso tal como o controlador o viu: projeto ainda ativo.
+      const access: ProjectAccess = {
+        projectId: project.id,
+        role: 'MANAGER',
+        projectStatus: 'ACTIVE',
+      };
+      await prisma.project.update({
+        where: { id: project.id },
+        data: { status: 'ARCHIVED' },
+      });
+      return { access, member, task, tasks: app.get(TasksService) };
+    }
+
+    async function expectArchived(write: Promise<unknown>) {
+      await expect(write).rejects.toMatchObject({
+        status: 409,
+        code: 'PROJECT_ARCHIVED',
+      });
+    }
+
+    it('não cria a tarefa', async () => {
+      const { access, member, tasks } = await archivedAfterCheck();
+      await expectArchived(
+        tasks.create(access, {
+          title: 'Tarefa nova',
+          assigneeId: member.account.id,
+        }),
+      );
+      const count = await prisma.task.count({
+        where: { projectId: access.projectId },
+      });
+      expect(count).toBe(1);
+    });
+
+    it('não edita a tarefa', async () => {
+      const { access, task, tasks } = await archivedAfterCheck();
+      await expectArchived(
+        tasks.update({ ...access, taskId: task.id }, { title: 'Alterada' }),
+      );
+      const stored = await prisma.task.findUniqueOrThrow({
+        where: { id: task.id },
+      });
+      expect(stored.title).toBe('Tarefa antiga');
+    });
+
+    it('não elimina a tarefa', async () => {
+      const { access, task, tasks } = await archivedAfterCheck();
+      await expectArchived(tasks.remove({ ...access, taskId: task.id }));
+      expect(
+        await prisma.task.findUnique({ where: { id: task.id } }),
+      ).not.toBeNull();
+    });
+
+    it('espera por um arquivo ainda por confirmar e responde 409', async () => {
+      const { project } = await team();
+      const task = await createTask(app, project.id, {
+        title: 'Tarefa antiga',
+      });
+      const tasks = app.get(TasksService);
+      const access = {
+        projectId: project.id,
+        role: 'MANAGER' as const,
+        projectStatus: 'ACTIVE' as const,
+        taskId: task.id,
+      };
+      let archived!: () => void;
+      const archiveDone = new Promise<void>((r) => (archived = r));
+      let releaseArchive!: () => void;
+      const hold = new Promise<void>((r) => (releaseArchive = r));
+
+      // Arquivar numa transação que fica aberta até a escrita começar.
+      const archiving = prisma.$transaction(async (tx) => {
+        await tx.project.update({
+          where: { id: project.id },
+          data: { status: 'ARCHIVED' },
+        });
+        archived();
+        await hold;
+      });
+      await archiveDone;
+
+      const writes = [
+        tasks.create(access, { title: 'Tarefa nova' }),
+        tasks.update(access, { title: 'Alterada' }),
+      ].map((p) =>
+        p.then(
+          () => 'escreveu',
+          (e: { code?: string }) => e.code,
+        ),
+      );
+      setTimeout(releaseArchive, 200);
+      await archiving;
+
+      expect(await Promise.all(writes)).toEqual([
+        'PROJECT_ARCHIVED',
+        'PROJECT_ARCHIVED',
+      ]);
+      const stored = await prisma.task.findMany({
+        where: { projectId: project.id },
+      });
+      expect(stored.map((t) => t.title)).toEqual(['Tarefa antiga']);
     });
   });
 });

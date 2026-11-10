@@ -5,7 +5,7 @@ import type {
 } from '../authorization/authorization.service.js';
 import { AuthorizationService } from '../authorization/authorization.service.js';
 import { ProblemException } from '../common/problem.js';
-import type { Prisma } from '../generated/prisma/client.js';
+import type { Prisma, ProjectStatus } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   type TaskDto,
@@ -32,7 +32,21 @@ import type {
  * As verificações de acesso (`404` → `403` → `409`) são feitas pelo
  * controlador com o AuthorizationService antes de chamar este serviço; o
  * projeto de uma tarefa vem sempre da própria tarefa, nunca do pedido.
+ *
+ * As escritas correm em `writeInActiveProject`, que volta a ver o estado do
+ * projeto com a linha bloqueada: um arquivo feito entretanto dá `409` (PN09).
  */
+
+/** Cliente Prisma dentro de uma transação interativa. */
+type Tx = Prisma.TransactionClient;
+
+const taskNotFound = () =>
+  new ProblemException(
+    404,
+    'TASK_NOT_FOUND',
+    'Não encontrado',
+    'A tarefa não existe.',
+  );
 @Injectable()
 export class TasksService {
   constructor(
@@ -52,17 +66,21 @@ export class TasksService {
     const title = normalizeTitle(body.title);
     const description = normalizeDescription(body.description);
     const assigneeId = body.assigneeId ?? null;
-    if (assigneeId) await this.requireAssignable(access.projectId, assigneeId);
 
-    const task = await this.prisma.task.create({
-      data: {
-        projectId: access.projectId,
-        title,
-        description,
-        ...(body.priority && { priority: body.priority }),
-        assigneeId,
-      },
-      select: taskSelect(access.projectId),
+    const task = await this.writeInActiveProject(access, async (tx) => {
+      if (assigneeId) {
+        await this.requireAssignable(tx, access.projectId, assigneeId);
+      }
+      return tx.task.create({
+        data: {
+          projectId: access.projectId,
+          title,
+          description,
+          ...(body.priority && { priority: body.priority }),
+          assigneeId,
+        },
+        select: taskSelect(access.projectId),
+      });
     });
     return toTaskDto(task);
   }
@@ -140,23 +158,26 @@ export class TasksService {
       data.description = normalizeDescription(body.description);
     }
     if (body.priority !== undefined) data.priority = body.priority;
-    if (body.assigneeId !== undefined) {
-      const current = await this.prisma.task.findUniqueOrThrow({
-        where: { id: access.taskId },
-        select: { assigneeId: true },
-      });
-      if (body.assigneeId && body.assigneeId !== current.assigneeId) {
-        await this.requireAssignable(access.projectId, body.assigneeId);
-      }
-      data.assigneeId = body.assigneeId;
-    }
 
-    // Só escreve se o projeto ainda estiver ativo no momento da escrita.
-    const { count } = await this.prisma.task.updateMany({
-      where: { id: access.taskId, project: { status: 'ACTIVE' } },
-      data,
+    await this.writeInActiveProject(access, async (tx) => {
+      if (body.assigneeId !== undefined) {
+        const current = await tx.task.findUnique({
+          where: { id: access.taskId },
+          select: { assigneeId: true },
+        });
+        if (!current) throw taskNotFound();
+        if (body.assigneeId && body.assigneeId !== current.assigneeId) {
+          await this.requireAssignable(tx, access.projectId, body.assigneeId);
+        }
+        data.assigneeId = body.assigneeId;
+      }
+      const { count } = await tx.task.updateMany({
+        where: { id: access.taskId },
+        data,
+      });
+      // Outro pedido eliminou a tarefa depois das verificações do controlador.
+      if (count === 0) throw taskNotFound();
     });
-    if (count === 0) await this.raiseWriteConflict(access);
     return this.get(access);
   }
 
@@ -165,10 +186,12 @@ export class TasksService {
    * `requireWritable`. Os comentários são eliminados em cascata (database.md §4).
    */
   async remove(access: TaskAccess): Promise<void> {
-    const { count } = await this.prisma.task.deleteMany({
-      where: { id: access.taskId, project: { status: 'ACTIVE' } },
+    await this.writeInActiveProject(access, async (tx) => {
+      const { count } = await tx.task.deleteMany({
+        where: { id: access.taskId },
+      });
+      if (count === 0) throw taskNotFound();
     });
-    if (count === 0) await this.raiseWriteConflict(access);
   }
 
   /**
@@ -176,8 +199,12 @@ export class TasksService {
    * com conta ativa (`ASSIGNEE_NOT_ACTIVE`, PN08, DE15). Uma conta que não
    * existe não é membro (pressuposto do contrato).
    */
-  private async requireAssignable(projectId: string, accountId: string) {
-    const membership = await this.prisma.projectMember.findUnique({
+  private async requireAssignable(
+    tx: Tx,
+    projectId: string,
+    accountId: string,
+  ) {
+    const membership = await tx.projectMember.findUnique({
       where: { projectId_accountId: { projectId, accountId } },
       select: { account: { select: { status: true } } },
     });
@@ -186,20 +213,26 @@ export class TasksService {
   }
 
   /**
-   * A escrita não aconteceu: outro pedido arquivou o projeto (`409`) ou
-   * eliminou a tarefa (`404`) depois das verificações do controlador.
+   * Corre `write` numa transação com a linha do projeto bloqueada
+   * (`FOR SHARE`) e só depois de confirmar que o projeto continua ativo.
+   * Arquivar é um `UPDATE` dessa linha, por isso espera pelo fim da escrita,
+   * ou a escrita espera pelo arquivo e vê-o: nunca se escreve num projeto
+   * arquivado (PN09). O `409` vem antes dos `400` das regras, como no
+   * controlador.
    */
-  private async raiseWriteConflict(access: TaskAccess): Promise<never> {
-    const project = await this.prisma.project.findUniqueOrThrow({
-      where: { id: access.projectId },
-      select: { status: true },
+  private writeInActiveProject<T>(
+    access: ProjectAccess,
+    write: (tx: Tx) => Promise<T>,
+  ): Promise<T> {
+    return this.prisma.$transaction(async (tx) => {
+      const [project] = await tx.$queryRaw<{ status: ProjectStatus }[]>`
+        SELECT status FROM project WHERE id = ${access.projectId}::uuid FOR SHARE`;
+      // O projeto não é eliminado no MVP; sem linha, trata-se como só de leitura.
+      this.authz.requireWritable({
+        ...access,
+        projectStatus: project?.status ?? 'ARCHIVED',
+      });
+      return write(tx);
     });
-    this.authz.requireWritable({ ...access, projectStatus: project.status });
-    throw new ProblemException(
-      404,
-      'TASK_NOT_FOUND',
-      'Não encontrado',
-      'A tarefa não existe.',
-    );
   }
 }
