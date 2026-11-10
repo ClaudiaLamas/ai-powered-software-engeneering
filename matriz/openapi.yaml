@@ -1553,12 +1553,16 @@ components:
       minLength: 3
       maxLength: 100
       pattern: '\S'
-      description: Obrigatório, 3–100 caracteres, não só espaços (PN12).
+      description: |
+        Obrigatório, 3–100 caracteres, não só espaços (PN12). Os espaços das
+        pontas não contam e não ficam guardados (decisão interna, 2026-11-09).
 
     ProjectDescription:
       type: [string, "null"]
       maxLength: 1000
-      description: Opcional, até 1000 caracteres (PN12).
+      description: |
+        Opcional, até 1000 caracteres (PN12). Vazia ou só com espaços fica
+        `null`, "sem descrição" (decisão interna, 2026-11-09).
 
     CreateProjectRequest:
       type: object
