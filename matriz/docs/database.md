@@ -58,8 +58,8 @@ Um token só é válido se `used_at` e `invalidated_at` estiverem vazios e `expi
 | Atributo | Tipo | Chave | Obr. | Notas | Origem |
 |---|---|---|---|---|---|
 | id | id | PK | Sim | Identificador interno. | — |
-| name | string | | Sim | Nome, com 3 a 100 caracteres e não só espaços. Não se exige que seja único. | PN12 |
-| description | string | | Não | Descrição, até 1000 caracteres. | PN12 |
+| name | string | | Sim | Nome, com 3 a 100 caracteres e não só espaços, contados sem os espaços das pontas; fica guardado sem eles (decisão interna, 2026-11-09). Não se exige que seja único. | PN12 |
+| description | string | | Não | Descrição, até 1000 caracteres. Uma descrição vazia ou só com espaços fica vazia ("sem descrição"; decisão interna, 2026-11-09). | PN12 |
 | status | enum | | Sim | `ACTIVE` ("Ativo") ou `ARCHIVED` ("Arquivado"). Começa em `ACTIVE`. | R6, US03, US10 |
 | created_at | datetime | | Sim | | — |
 

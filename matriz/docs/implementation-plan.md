@@ -34,6 +34,8 @@ Registadas nos documentos (decisões internas, por validar com o cliente).
 | Seed | `backend/prisma/seed.ts`, corrido só a pedido (`npm run db:seed`), nunca no arranque. Idempotente: identificadores fixos (contas pelo email); só cria o que falta e nunca altera nem apaga dados. Cria a conta de sistema, a Ana e o Bruno (ativos), uma conta pendente (sem palavra-passe nem token) e uma desativada; três projetos com acessos distintos (a conta de sistema não é membro de nenhum, DE02), tarefas, responsáveis e comentários. Dados fictícios; a palavra-passe comum vem de `SEED_DEMO_PASSWORD` (`.env`, ignorado pelo Git), guardada como hash bcrypt; sem entradas no registo administrativo | Decidido em 2026-11-08 |
 | Contrato da API | 32 operações das user stories em [openapi.yaml](../openapi.yaml), mais `GET /health` (infraestrutura, sem autenticação) | openapi.yaml 0.3.0; `GET /health` decidido em 2026-11-08 |
 | Âmbito | Só as funcionalidades Must (FN01–FN09, FN14, FN27, FN28); pesquisa, filtros, prioridade e prazos ficam fora | requirements.md §5 |
+| Eliminação de projetos | Não é implementada: os projetos retiram-se de uso arquivando-os (`archiveProject`). A questão "um projeto pode ser eliminado?" continua em aberto (constraints.md §5) | Decidido em 2026-11-09 |
+| Nome e descrição do projeto | O nome conta e fica guardado sem os espaços das pontas; uma descrição vazia ou só com espaços fica `null` (PN12) | Decidido em 2026-11-09 |
 
 ### 1.2 Propostas deste plano
 
@@ -101,12 +103,13 @@ quando é chamado por um agente de IA.
 | Seed: `backend/prisma/seed.ts` | Feito |
 | `PrismaService` partilhado e `GET /health` com teste unitário e teste de API | Feito |
 | `accounts`: login, logout e `GET /me`; `authorization`: guard JWT global, `AdminGuard`, `AuthorizationService` (projetos, tarefas, comentários, autoria), `@IdParam()`; erros Problem Details | Feito (2026-11-09); matriz de autorização testada com rotas de exemplo (`test/authorization-example.module.ts`) |
-| `accounts` (`listAccounts`), `projects`, `progress`, `audit` | Por fazer |
+| `projects` (`createProject`, `listMyProjects`, `getProject`), `progress` (contagens e PN13), `audit` (escrita de `CREATE_PROJECT` e `ASSIGN_MANAGER`) | Feito (2026-11-10), com testes de API (`test/projects.e2e-spec.ts`) e unitários |
+| `accounts` (`listAccounts`) | Por fazer |
 | Frontend: cliente HTTP, sessão, guarda de rotas, `LoginView`, botão "Sair" | Feito (2026-11-09) |
 | Frontend: validação do formulário de entrada, componentes e estilos partilhados (`FormField`, `AppHeader`, `main.css`), ecrã inicial provisório com a conta (`GET /me`) | Feito (2026-11-09) |
 | Frontend: `DashboardView`, `ProjectView`, formulário de criação de projeto | Por fazer (o ecrã inicial provisório dá lugar ao `DashboardView`) |
 | Base de dados de testes separada | Feito (`matriz_test`, 2026-11-09) |
-| Critérios de aceitação 1–6 | 1 e 2 verificados (testes e navegador, 2026-11-09); 3–6 por verificar |
+| Critérios de aceitação 1–6 | 1 e 2 verificados (testes e navegador, 2026-11-09); 3–5 verificados na API (2026-11-10); 6 por verificar (precisa do frontend) |
 
 **Objetivo:** pôr a funcionar o primeiro percurso completo entre interface, API e base de dados. Termina quando é possível **iniciar sessão, criar um projeto, vê-lo na listagem e consultá-lo depois de recarregar a página e reiniciar o backend**.
 
@@ -186,7 +189,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 ### Incremento 3 — Projeto e equipa
 
-**Estado:** Por iniciar
+**Estado:** Por iniciar. Adiantado (2026-11-10): `updateProject` e `archiveProject` no backend, com testes de API (US10). Falta a equipa (`listMemberCandidates`, `addProjectMember`, `removeProjectMember`) e o frontend.
 
 **Objetivo:** o Gestor edita e arquiva o projeto e forma a equipa.
 
