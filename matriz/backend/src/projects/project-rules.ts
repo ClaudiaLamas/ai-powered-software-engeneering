@@ -1,22 +1,10 @@
-import { ProblemException } from '../common/problem.js';
+import type { ProblemException } from '../common/problem.js';
+import { charLength as length, ruleError } from '../common/text-rules.js';
 
 /** Limites de PN12. */
 export const NAME_MIN = 3;
 export const NAME_MAX = 100;
 export const DESCRIPTION_MAX = 1000;
-
-/** Comprimento em caracteres (pontos de código), como conta o PostgreSQL. */
-function length(text: string): number {
-  // Pontos de código de propósito: é o que conta o VARCHAR(n) do PostgreSQL.
-  // oxlint-disable-next-line typescript/no-misused-spread
-  return [...text].length;
-}
-
-function ruleError(code: string, field: string, message: string) {
-  return new ProblemException(400, code, 'Dados inválidos', message, {
-    errors: [{ field, message }],
-  });
-}
 
 /**
  * Nome do projeto (PN12): sem os espaços das pontas, com 3 a 100 caracteres.
