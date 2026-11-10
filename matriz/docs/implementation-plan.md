@@ -58,7 +58,7 @@ Nada disto está decidido. Cada linha precisa de aprovação antes do incremento
 | 1 | Base, autenticação e primeiro percurso de projetos | US01, US03, US15; US05, US16 e US18 em parte | — | Em curso |
 | 2 | Contas e ativação | US02, US11, US16 | 1 | Por iniciar |
 | 3 | Projeto e equipa | US04, US10, US18 | 1 | Por iniciar |
-| 4 | Tarefas, responsáveis, prioridade e filtros | US06, US07, US08, US19 (sem comentários), US22, US23 | 2, 3 (ver a nota do incremento) | Por iniciar |
+| 4 | Tarefas, responsáveis, prioridade e filtros | US06, US07, US08, US19 (sem comentários), US22, US23 | 2, 3 (ver a nota do incremento) | Em curso |
 | 5 | Progresso e painel inicial | US05, US09 | 4 | Por iniciar |
 | 6 | Comentários | US13, US19 | 4 | Por iniciar |
 | 7 | Área de administração | US12, US14, US17 | 2, 3 | Por iniciar |
@@ -225,7 +225,15 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 ### Incremento 4 — Tarefas, responsáveis, prioridade e filtros
 
-**Estado:** Por iniciar
+**Estado:** Em curso
+
+| Parte | Estado |
+|---|---|
+| Migration `add_task_priority` (enum `task_priority`, coluna `priority` com `MEDIUM` por omissão, índice `(project_id, priority)`) | Feito (2026-11-10) |
+| Backend `tasks`: `createProjectTask`, `listProjectTasks` (filtros, paginação, `total`, `countsByStatus`), `getTask`, `updateTask`, `deleteTask`; testes `src/tasks/task-rules.spec.ts` e `test/tasks.e2e-spec.ts` | Feito (2026-11-10) |
+| Backend: `changeTaskStatus` (com a reabertura, PN10) e `listAssignableAccounts` | Por fazer |
+| Reação a "membro removido" e a "conta desativada" (PN07, PN08) | À espera dos incrementos 2 e 3 |
+| Frontend | Por fazer |
 
 **Objetivo:** gerir as tarefas de cada projeto, os seus responsáveis e a prioridade, e filtrar e paginar a lista.
 

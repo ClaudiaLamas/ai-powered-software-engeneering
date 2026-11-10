@@ -9,6 +9,8 @@ import type {
   AccountStatus,
   ProjectRole,
   ProjectStatus,
+  TaskPriority,
+  TaskStatus,
 } from '../src/generated/prisma/client.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
@@ -64,10 +66,20 @@ export async function createProject(
   });
 }
 
-/** Cria uma tarefa de teste num projeto. */
-export async function createTask(app: INestApplication, projectId: string) {
+/** Cria uma tarefa de teste num projeto (dados fictícios). */
+export async function createTask(
+  app: INestApplication,
+  projectId: string,
+  overrides: {
+    title?: string;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+    assigneeId?: string | null;
+    createdAt?: Date;
+  } = {},
+) {
   return app.get(PrismaService).task.create({
-    data: { projectId, title: 'Tarefa de teste' },
+    data: { projectId, title: 'Tarefa de teste', ...overrides },
   });
 }
 
