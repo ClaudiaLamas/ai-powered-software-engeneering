@@ -17,6 +17,8 @@ const props = defineProps<{
   submitLabel: string
   submittingLabel: string
   submitting: boolean
+  /** Impede submeter (por exemplo, com outro pedido em curso), sem bloquear os campos. */
+  disabled?: boolean
   /** Erro do último pedido (um `ApiError` ou outro). */
   error?: unknown
 }>()
@@ -64,7 +66,7 @@ watch(
 )
 
 function submit() {
-  if (props.submitting) return
+  if (props.submitting || props.disabled) return
   attempted.value = true
   if (Object.keys(validateTask(values)).length > 0) return
   emit('submit', { ...values })
@@ -97,7 +99,7 @@ defineExpose({ reset })
     />
     <p v-if="formError" role="alert" class="alert">{{ formError }}</p>
     <div class="actions">
-      <button type="submit" class="btn btn-primary" :disabled="submitting">
+      <button type="submit" class="btn btn-primary" :disabled="submitting || disabled">
         {{ submitting ? submittingLabel : submitLabel }}
       </button>
       <slot name="actions" />

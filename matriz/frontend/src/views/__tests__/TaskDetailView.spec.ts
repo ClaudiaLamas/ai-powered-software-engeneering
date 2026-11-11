@@ -165,6 +165,52 @@ describe('TaskDetailView (US19, US06, US07, US22)', () => {
     expect(wrapper.get('.badge-status-todo').text()).toBe('Por fazer')
   })
 
+  it('enquanto guarda a edição, não deixa mudar o estado', async () => {
+    let respond: (r: Response) => void = () => {}
+    const fetchMock = routes({
+      [`PATCH /tasks/${current.id}`]: () => new Promise<Response>((resolve) => (respond = resolve)),
+    })
+    const { wrapper } = await mountView(current)
+    await button(wrapper, 'Editar').trigger('click')
+    await wrapper.get('form input').setValue('Rever textos da página inicial')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(statusSelect(wrapper).attributes('disabled')).toBeDefined()
+    await statusSelect(wrapper).setValue('DONE')
+    await flushPromises()
+    expect(calls(fetchMock).some((c) => c.startsWith('PUT'))).toBe(false)
+
+    respond(json({ ...current, title: 'Rever textos da página inicial' }))
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('Rever textos da página inicial')
+    expect(statusSelect(wrapper).attributes('disabled')).toBeUndefined()
+  })
+
+  it('enquanto muda o estado, não deixa guardar a edição nem eliminar', async () => {
+    let respond: (r: Response) => void = () => {}
+    const fetchMock = routes({
+      [`PUT /tasks/${current.id}/status`]: () => new Promise<Response>((resolve) => (respond = resolve)),
+    })
+    const { wrapper } = await mountView(current)
+    await button(wrapper, 'Eliminar').trigger('click')
+    expect(button(wrapper, 'Sim, eliminar').attributes('disabled')).toBeUndefined()
+
+    await statusSelect(wrapper).setValue('DONE')
+    await flushPromises()
+    expect(button(wrapper, 'Sim, eliminar').attributes('disabled')).toBeDefined()
+    await button(wrapper, 'Cancelar').trigger('click')
+    await button(wrapper, 'Editar').trigger('click')
+    expect(button(wrapper, 'Guardar').attributes('disabled')).toBeDefined()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(calls(fetchMock).some((c) => c.startsWith('PATCH') || c.startsWith('DELETE'))).toBe(false)
+
+    respond(json({ ...current, status: 'DONE' }))
+    await flushPromises()
+    expect(button(wrapper, 'Guardar').attributes('disabled')).toBeUndefined()
+  })
+
   it('o Gestor elimina a tarefa só depois de confirmar e volta ao projeto', async () => {
     const fetchMock = routes({ [`DELETE /tasks/${current.id}`]: () => new Response(null, { status: 204 }) })
     const { wrapper, router } = await mountView(current)

@@ -48,6 +48,12 @@ const confirmingDelete = ref(false)
 const deleting = ref(false)
 const deleteError = ref<string | null>(null)
 
+/**
+ * Só uma alteração à tarefa de cada vez: cada resposta substitui a tarefa
+ * inteira, e uma resposta que chegasse fora de ordem repunha dados antigos.
+ */
+const busy = computed(() => changingStatus.value || saving.value || deleting.value)
+
 function isUnauthenticated(e: unknown) {
   // Um 401 já terminou a sessão e voltou ao ecrã de entrada (cliente HTTP).
   return e instanceof ApiError && e.status === 401
@@ -74,7 +80,11 @@ async function load() {
 }
 
 async function onStatusChange(next: TaskStatus) {
-  if (!task.value || next === task.value.status || changingStatus.value) return
+  if (!task.value || next === task.value.status || busy.value) {
+    // O seletor volta a mostrar o estado atual.
+    statusValue.value = task.value?.status ?? statusValue.value
+    return
+  }
   statusValue.value = next
   changingStatus.value = true
   statusError.value = null
@@ -99,7 +109,7 @@ function startEditing() {
 }
 
 async function save(values: TaskFormValues) {
-  if (!task.value) return
+  if (!task.value || busy.value) return
   saving.value = true
   saveError.value = null
   try {
@@ -122,7 +132,7 @@ function startDeleting() {
 }
 
 async function confirmDelete() {
-  if (!task.value) return
+  if (!task.value || busy.value) return
   deleting.value = true
   deleteError.value = null
   const { id, title, projectId } = task.value
@@ -168,6 +178,7 @@ watch(taskId, load, { immediate: true })
           submit-label="Guardar"
           submitting-label="A guardar…"
           :submitting="saving"
+          :disabled="busy"
           :error="saveError"
           @submit="save"
         >
@@ -214,7 +225,7 @@ watch(taskId, load, { immediate: true })
           </p>
           <p v-if="deleteError" role="alert" class="alert">{{ deleteError }}</p>
           <div class="actions">
-            <button type="button" class="btn btn-danger" :disabled="deleting" @click="confirmDelete">
+            <button type="button" class="btn btn-danger" :disabled="busy" @click="confirmDelete">
               {{ deleting ? 'A eliminar…' : 'Sim, eliminar' }}
             </button>
             <button type="button" class="btn" :disabled="deleting" @click="confirmingDelete = false">
@@ -229,7 +240,7 @@ watch(taskId, load, { immediate: true })
           :model-value="statusValue"
           label="Estado"
           :options="TASK_STATUS_OPTIONS"
-          :disabled="!canChangeStatus || changingStatus"
+          :disabled="!canChangeStatus || busy"
           :error="statusError"
           @update:model-value="onStatusChange"
         />
