@@ -232,6 +232,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 | Migration `add_task_priority` (enum `task_priority`, coluna `priority` com `MEDIUM` por omissão, índice `(project_id, priority)`) | Feito (2026-11-10) |
 | Backend `tasks`: `createProjectTask`, `listProjectTasks` (filtros, paginação, `total`, `countsByStatus`), `getTask`, `updateTask`, `deleteTask`; testes `src/tasks/task-rules.spec.ts` e `test/tasks.e2e-spec.ts` | Feito (2026-11-10) |
 | Backend: `changeTaskStatus` (com a reabertura, PN10), com testes unitários e de API | Feito (2026-11-11) |
+| Testes de API das tarefas completados: outra conta (Gestor de outro projeto, sem ser membro) recebe 404 ao criar, consultar, editar e eliminar, sem alterar dados; persistência (criar pela API, consultar, listar e voltar a consultar numa nova instância da aplicação) | Feito (2026-11-11); 158 testes de API a passar |
 | Backend: `listAssignableAccounts` | Por fazer |
 | Reação a "membro removido" e a "conta desativada" (PN07, PN08) | À espera dos incrementos 2 e 3 |
 | Frontend: `ProjectView` (`/projetos/:projectId`) com os três grupos por estado, um pedido cada, os totais de `countsByStatus`, "Ver mais", filtros de estado e prioridade e o formulário de criação para o Gestor; `TaskDetailView` (`/tarefas/:taskId`) com edição (título, descrição, prioridade), mudança de estado e eliminação com confirmação; etiquetas num só sítio (`src/tasks/task-labels.ts`); testes de componentes e vistas | Feito (2026-11-11); por verificar no navegador |
