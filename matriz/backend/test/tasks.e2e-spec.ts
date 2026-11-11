@@ -848,7 +848,10 @@ describe('Tarefas (API)', () => {
       // Simula o repetido a chegar à base de dados: depois da verificação
       // prévia, insere a mesma linha na transação, antes do create do serviço.
       type Assignable = {
-        requireAssignable: (tx: PrismaService, ...rest: unknown[]) => Promise<void>;
+        requireAssignable: (
+          tx: PrismaService,
+          ...rest: unknown[]
+        ) => Promise<void>;
       };
       const service = app.get(TasksService) as unknown as Assignable;
       const original = service.requireAssignable.bind(service);
