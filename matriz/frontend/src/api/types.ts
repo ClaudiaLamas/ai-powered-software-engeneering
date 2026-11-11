@@ -104,3 +104,14 @@ export interface TaskPage {
   pageSize: number
   countsByStatus: TaskCountsByStatus
 }
+
+/** Comentário de uma tarefa (`Comment`, PN15); o autor pode já ter saído (CL12). */
+export interface Comment {
+  id: string
+  taskId: string
+  author: AccountSummary
+  body: string
+  createdAt: string
+  /** Preenchido quando o autor edita o comentário. */
+  editedAt: string | null
+}

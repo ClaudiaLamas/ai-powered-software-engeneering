@@ -319,7 +319,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 |---|---|
 | Backend: `listTaskComments`, `createTaskComment`, `updateComment`, `deleteComment` (`CommentsController` e `CommentsService` no módulo `tasks`) | Feito (2026-11-11); `test/comments.e2e-spec.ts` (39 testes) e `comment-rules.spec.ts`; 225 testes de API e 106 unitários a passar |
 | CL12 com as operações reais de remover membro e desativar conta | Verificado só com dados alterados na base (os incrementos 2 e 3 ainda não existem) |
-| Frontend: lista e formulário de comentários no `TaskDetailView` | Por fazer |
+| Frontend: lista e formulário de comentários no `TaskDetailView` | Feito (2026-11-11): listar, comentar, editar e apagar (botões só nos comentários próprios, componente `CommentForm`), com autor, data e hora em pt-PT e contador de caracteres; 151 testes do frontend a passar; verificado à mão no browser |
 
 **Objetivo:** os membros comentam as tarefas.
 
