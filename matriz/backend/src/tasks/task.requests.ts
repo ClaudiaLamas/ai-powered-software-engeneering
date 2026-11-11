@@ -64,6 +64,12 @@ export class CreateTaskRequest extends TaskFields {}
 /** Corpo de `PATCH /tasks/{taskId}`: pelo menos um campo; sem `status` nem `projectId`. */
 export class UpdateTaskRequest extends TaskFields {}
 
+/** Corpo de `PUT /tasks/{taskId}/status` (US07): só o estado. */
+export class ChangeTaskStatusRequest {
+  @IsIn(TASK_STATUSES, { message: STATUS_MESSAGE })
+  status!: TaskStatus;
+}
+
 /** Query de `GET /projects/{projectId}/tasks` (PN20). */
 export class ListTasksQuery {
   @IsOptional()

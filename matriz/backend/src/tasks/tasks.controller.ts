@@ -6,6 +6,7 @@ import {
   HttpCode,
   Patch,
   Post,
+  Put,
   Query,
   Res,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ import { IdParam } from '../common/id-param.js';
 import { validationError } from '../common/problem.js';
 import type { TaskDto, TaskPageDto } from './task.dto.js';
 import {
+  ChangeTaskStatusRequest,
   CreateTaskRequest,
   ListTasksQuery,
   UpdateTaskRequest,
@@ -103,6 +105,18 @@ export class TasksController {
     this.authz.requireManager(access);
     this.authz.requireWritable(access);
     return this.tasks.update(access, body);
+  }
+
+  /** `PUT /tasks/{taskId}/status` — `changeTaskStatus` (US07): qualquer membro, projeto ativo. */
+  @Put('tasks/:taskId/status')
+  async changeStatus(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @IdParam('taskId') taskId: string,
+    @Body() body: ChangeTaskStatusRequest,
+  ): Promise<TaskDto> {
+    const access = await this.authz.requireTask(account.id, taskId);
+    this.authz.requireWritable(access);
+    return this.tasks.changeStatus(access, body);
   }
 
   /** `DELETE /tasks/{taskId}` — `deleteTask` (US06, CL2): só o Gestor, projeto ativo. */
