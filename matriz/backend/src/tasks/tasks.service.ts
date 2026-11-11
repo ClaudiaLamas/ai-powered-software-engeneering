@@ -5,8 +5,9 @@ import type {
 } from '../authorization/authorization.service.js';
 import { AuthorizationService } from '../authorization/authorization.service.js';
 import { ProblemException } from '../common/problem.js';
-import { Prisma, type ProjectStatus } from '../generated/prisma/client.js';
+import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { type Tx, writeInActiveProject } from './active-project-write.js';
 import {
   type AccountSummaryDto,
   type TaskDto,
@@ -43,9 +44,6 @@ import type {
  * As escritas correm em `writeInActiveProject`, que volta a ver o estado do
  * projeto com a linha bloqueada: um arquivo feito entretanto dá `409` (PN09).
  */
-
-/** Cliente Prisma dentro de uma transação interativa. */
-type Tx = Prisma.TransactionClient;
 
 const taskNotFound = () =>
   new ProblemException(
@@ -338,27 +336,10 @@ export class TasksService {
     if (membership.account.status !== 'ACTIVE') throw assigneeNotActive(field);
   }
 
-  /**
-   * Corre `write` numa transação com a linha do projeto bloqueada
-   * (`FOR SHARE`) e só depois de confirmar que o projeto continua ativo.
-   * Arquivar é um `UPDATE` dessa linha, por isso espera pelo fim da escrita,
-   * ou a escrita espera pelo arquivo e vê-o: nunca se escreve num projeto
-   * arquivado (PN09). O `409` vem antes dos `400` das regras, como no
-   * controlador.
-   */
   private writeInActiveProject<T>(
     access: ProjectAccess,
     write: (tx: Tx) => Promise<T>,
   ): Promise<T> {
-    return this.prisma.$transaction(async (tx) => {
-      const [project] = await tx.$queryRaw<{ status: ProjectStatus }[]>`
-        SELECT status FROM project WHERE id = ${access.projectId}::uuid FOR SHARE`;
-      // O projeto não é eliminado no MVP; sem linha, trata-se como só de leitura.
-      this.authz.requireWritable({
-        ...access,
-        projectStatus: project?.status ?? 'ARCHIVED',
-      });
-      return write(tx);
-    });
+    return writeInActiveProject(this.prisma, this.authz, access, write);
   }
 }
