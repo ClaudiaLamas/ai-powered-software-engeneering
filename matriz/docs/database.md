@@ -1,6 +1,6 @@
 # Modelo de dados — Matriz
 
-Este ficheiro descreve o modelo de dados lógico do MVP (FN01–FN09, FN12–FN14, FN27, FN28). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e da arquitetura em [architecture.md](architecture.md).
+Este ficheiro descreve o modelo de dados lógico do MVP (FN01–FN09, FN12–FN14, FN27–FN29). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e da arquitetura em [architecture.md](architecture.md).
 
 O modelo é **lógico**: não fixa os tipos físicos. A base de dados é PostgreSQL, gerida com Prisma (migrations e seed), e os identificadores são UUID (D04 e pontos complementares em [constraints.md](constraints.md#4-decisões-técnicas); decisões internas, por validar). Os tipos indicados (`id`, `string`, `boolean`, `enum`, `datetime`) são genéricos; `id` é um UUID. Tal como o resto da especificação, **nenhuma regra foi validada pelo cliente**.
 
@@ -14,6 +14,8 @@ O modelo é **lógico**: não fixa os tipos físicos. A base de dados é Postgre
 | PROJECT | Projeto | Um conjunto de tarefas com nome, descrição, membros e estado (R6). | Projetos e membros (`projects`) |
 | PROJECT_MEMBER | membro do projeto | A participação de uma conta num projeto e a sua função nesse projeto (Gestor ou Membro). Resolve a relação N:M entre ACCOUNT e PROJECT. | Projetos e membros (`projects`) |
 | TASK | Tarefa | Uma tarefa de um projeto (R7). | Tarefas e comentários (`tasks`) |
+| TASK_ASSIGNEE | Responsável | A atribuição de uma conta como responsável de uma tarefa. Resolve a relação N:M entre TASK e ACCOUNT (DE16). | Tarefas e comentários (`tasks`) |
+| ASSIGNEE_REQUEST | Pedido de responsável | O pedido de um responsável para que outra conta seja adicionada como responsável da tarefa (DE13, PN21). | Tarefas e comentários (`tasks`) |
 | COMMENT | Comentário | Um comentário de uma conta numa tarefa (FN14). | Tarefas e comentários (`tasks`) |
 | ACCOUNT_ACTIVATION_TOKEN | Token de ativação | Um token de uso único enviado por email para a pessoa definir a palavra-passe (DE15). | Autenticação e contas (`accounts`) |
 | ADMIN_AUDIT_LOG | Registo de ações administrativas | Uma entrada do registo (FN28, PN18). | Registo administrativo (`audit`) |
@@ -84,9 +86,35 @@ A chave primária composta (project_id, account_id) impede que a mesma conta apa
 | description | string | | Não | Descrição, até 2000 caracteres. Uma descrição vazia ou só com espaços fica vazia ("sem descrição"; decisão interna, 2026-11-10). | PN12 |
 | status | enum | | Sim | `TODO` ("Por fazer"), `IN_PROGRESS` ("Em curso") ou `DONE` ("Concluída"). Começa em `TODO`; qualquer transição é permitida. | R8, PN10 |
 | priority | enum | | Sim | `LOW` ("Baixa"), `MEDIUM` ("Média") ou `HIGH` ("Alta"). Por omissão `MEDIUM`; as tarefas que já existiam ficam `MEDIUM` (decisão interna, 2026-11-10). Só o Gestor a define e muda. | FN12, PN19 |
-| assignee_id | id | FK → ACCOUNT | Não | Responsável. Vazio = "Sem responsável". Referencia ACCOUNT (e não PROJECT_MEMBER) para uma tarefa "Concluída" manter o responsável quando este sai do projeto; nesse caso, mostra-se "já não é membro", calculado pela ausência de linha em PROJECT_MEMBER. Que o responsável é membro com conta ativa é verificado pela aplicação quando é escolhido. | DE09, DE14, PN06, PN07 |
 | created_at | datetime | | Sim | | — |
 | updated_at | datetime | | Sim | | — |
+
+Os responsáveis ficam em TASK_ASSIGNEE. Até 2026-11-11, uma tarefa tinha um só responsável, na coluna `assignee_id`; a migration `task_assignees` copia os valores dessa coluna para TASK_ASSIGNEE e remove-a (DE16).
+
+### TASK_ASSIGNEE (Responsável)
+
+| Atributo | Tipo | Chave | Obr. | Notas | Origem |
+|---|---|---|---|---|---|
+| task_id | id | PK, FK → TASK | Sim | Eliminada com a tarefa. | DE16 |
+| account_id | id | PK, FK → ACCOUNT | Sim | Referencia ACCOUNT (e não PROJECT_MEMBER) para uma tarefa "Concluída" manter o responsável quando este sai do projeto; nesse caso, mostra-se "já não é membro", calculado pela ausência de linha em PROJECT_MEMBER. Que o responsável é membro com conta ativa é verificado pela aplicação quando é atribuído. | DE14, PN06, PN07 |
+| assigned_at | datetime | | Sim | Quando foi atribuído (diretamente pelo Gestor ou ao aceitar um pedido). Não é mostrado; os responsáveis são mostrados por ordem do nome. | DE16 |
+
+A chave primária composta (task_id, account_id) impede que a mesma conta seja responsável duas vezes pela mesma tarefa. Uma tarefa sem linhas em TASK_ASSIGNEE está "Sem responsável".
+
+### ASSIGNEE_REQUEST (Pedido de responsável)
+
+| Atributo | Tipo | Chave | Obr. | Notas | Origem |
+|---|---|---|---|---|---|
+| id | id | PK | Sim | Identificador interno. | — |
+| task_id | id | FK → TASK | Sim | Eliminado com a tarefa. | DE13 |
+| requested_by_id | id | FK → ACCOUNT | Sim | Quem fez o pedido; era responsável da tarefa nesse momento. | PN21 |
+| account_id | id | FK → ACCOUNT | Sim | A pessoa que se pede para adicionar como responsável. | PN21 |
+| status | enum | | Sim | `PENDING` ("Pendente"), `ACCEPTED` ("Aceite"), `REJECTED` ("Recusado") ou `CANCELLED` ("Cancelado"). Começa em `PENDING`; só sai de `PENDING`, e não volta. | PN21 |
+| created_at | datetime | | Sim | | PN21 |
+| decided_at | datetime | | Não | Quando foi aceite, recusado ou cancelado. Vazio só em `PENDING`. | PN21 |
+| decided_by_id | id | FK → ACCOUNT | Não | Quem o aceitou ou recusou (o Gestor) ou cancelou (quem o fez). Vazio só em `PENDING`. | PN21 |
+
+No máximo um pedido `PENDING` por (task_id, account_id): índice único parcial. Os pedidos decididos ou cancelados ficam guardados.
 
 ### COMMENT (Comentário)
 
@@ -121,7 +149,11 @@ Pelo menos um dos alvos tem de estar preenchido. As entradas nunca são alterada
 | PROJECT — PROJECT_MEMBER | 1 : 1..N | Um projeto tem pelo menos um membro (o Gestor); cada participação é de um só projeto. | DE06, PN03 |
 | ACCOUNT — PROJECT (via PROJECT_MEMBER) | N : M | Uma conta pode estar em vários projetos e um projeto tem várias contas. | DE01, R6 |
 | PROJECT — TASK | 1 : 0..N | Um projeto tem zero ou mais tarefas; uma tarefa pertence a exatamente um projeto. | R6, P3 |
-| ACCOUNT — TASK (responsável) | 0..1 : 0..N | Uma tarefa tem zero ou um responsável; uma conta pode ser responsável por várias tarefas. Ao ser escolhido, o responsável é membro do projeto; numa tarefa "Concluída" pode já não o ser. | DE09, DE14, PN06, PN07 |
+| TASK — TASK_ASSIGNEE | 1 : 0..N | Uma tarefa tem zero ou mais responsáveis; cada atribuição é de uma só tarefa. | DE16 |
+| ACCOUNT — TASK_ASSIGNEE | 1 : 0..N | Uma conta pode ser responsável por várias tarefas. Ao ser atribuído, o responsável é membro do projeto; numa tarefa "Concluída" pode já não o ser. | DE14, PN06, PN07 |
+| ACCOUNT — TASK (via TASK_ASSIGNEE) | N : M | Uma tarefa tem vários responsáveis e uma conta é responsável por várias tarefas. | DE16 |
+| TASK — ASSIGNEE_REQUEST | 1 : 0..N | Uma tarefa tem zero ou mais pedidos de responsável; cada pedido é de uma só tarefa. | DE13 |
+| ACCOUNT — ASSIGNEE_REQUEST (quem pede, pessoa pedida, quem decide) | 1 : 0..N (quem decide: 0..1 : 0..N) | Uma conta faz, é alvo de e decide zero ou mais pedidos. | PN21 |
 | TASK — COMMENT | 1 : 0..N | Uma tarefa tem zero ou mais comentários; um comentário é de uma só tarefa. | FN14 |
 | ACCOUNT — COMMENT (autor) | 1 : 0..N | Uma conta escreve zero ou mais comentários; um comentário tem exatamente um autor. | PN15 |
 | ACCOUNT — ADMIN_AUDIT_LOG (autor) | 1 : 0..N | Um Administrador executa zero ou mais ações registadas. | PN18 |
@@ -139,19 +171,22 @@ Regras que o modelo tem de garantir. A coluna "Onde" indica se a regra pode ser 
 | No máximo um Gestor por projeto. | Base de dados (unicidade de `project_id` quando `role = MANAGER`, se a base de dados o permitir) | DE06 |
 | Pelo menos um Gestor por projeto: o projeto e o seu Gestor são criados na mesma transação; a troca de Gestor muda as duas linhas na mesma transação. | Aplicação (`projects`) | DE06, US03, US12 |
 | O Gestor não pode ser removido do projeto. | Aplicação (`projects`) | PN04 |
-| Ao ser escolhido, o responsável de uma tarefa é membro do projeto com conta ativa. Um responsável igual ao atual não é verificado outra vez ao editar a tarefa (decisão interna, 2026-11-10). | Aplicação (`tasks`, consultando `projects` e `accounts`) | PN06, PN08 |
-| Ao remover um membro, as suas tarefas nesse projeto que não estão `DONE` ficam sem responsável e mantêm o estado; as `DONE` mantêm o responsável. | Aplicação (`tasks`, ao receber o evento "membro removido" de `projects`; architecture.md §4.2) | PN07, CL1 |
-| Ao desativar uma conta, as suas tarefas que não estão `DONE`, em todos os projetos, ficam sem responsável e mantêm o estado; as `DONE` mantêm o responsável. | Aplicação (`tasks`, ao receber o evento "conta desativada" de `accounts`; architecture.md §4.2) | PN08, CL4 |
-| Ao reabrir uma tarefa `DONE` cujo responsável tem a conta desativada ou já não é membro do projeto, a tarefa fica sem responsável. | Aplicação (`tasks`) | PN07, PN08, PN10 |
-| Contas desativadas não podem ser escolhidas como Gestor nem como responsável, nem adicionadas a projetos; continuam como autor dos comentários e como responsável das tarefas `DONE`. | Aplicação | PN08, PN14, CL4, CL12 |
-| Projeto arquivado: nenhuma alteração em PROJECT, PROJECT_MEMBER, TASK e COMMENT desse projeto. | Aplicação (`authorization`) | PN09 |
+| A mesma conta é responsável no máximo uma vez por tarefa. | Base de dados (PK composta de TASK_ASSIGNEE) | DE16 |
+| Ao ser atribuído, diretamente ou ao aceitar um pedido, o responsável de uma tarefa é membro do projeto com conta ativa. | Aplicação (`tasks`, consultando `projects` e `accounts`) | PN06, PN08, PN21 |
+| Só um responsável da tarefa cria pedidos; a pessoa pedida é membro com conta ativa e ainda não é responsável; no máximo um pedido `PENDING` por tarefa e pessoa; só pedidos `PENDING` são aceites, recusados ou cancelados. | Aplicação (`tasks`); o pedido pendente único também na base de dados (índice único parcial) | PN21 |
+| Aceitar um pedido cria a linha em TASK_ASSIGNEE e muda o pedido para `ACCEPTED` na mesma transação. | Aplicação (`tasks`) | PN21 |
+| Ao remover um membro, a conta deixa de ser responsável (linha apagada em TASK_ASSIGNEE) pelas suas tarefas nesse projeto que não estão `DONE`; o estado e os outros responsáveis mantêm-se; nas `DONE` a linha mantém-se. | Aplicação (`tasks`, ao receber o evento "membro removido" de `projects`; architecture.md §4.2) | PN07, CL1 |
+| Ao desativar uma conta, a conta deixa de ser responsável pelas suas tarefas que não estão `DONE`, em todos os projetos; o estado e os outros responsáveis mantêm-se; nas `DONE` a linha mantém-se. | Aplicação (`tasks`, ao receber o evento "conta desativada" de `accounts`; architecture.md §4.2) | PN08, CL4 |
+| Ao reabrir uma tarefa `DONE`, saem de TASK_ASSIGNEE os responsáveis com a conta desativada ou que já não são membros do projeto; os outros mantêm-se. | Aplicação (`tasks`) | PN07, PN08, PN10 |
+| Contas desativadas não podem ser escolhidas como Gestor nem atribuídas como responsável, nem adicionadas a projetos; continuam como autor dos comentários, como responsável das tarefas `DONE` e nos pedidos já feitos. | Aplicação | PN08, PN14, CL4, CL12 |
+| Projeto arquivado: nenhuma alteração em PROJECT, PROJECT_MEMBER, TASK, TASK_ASSIGNEE, ASSIGNEE_REQUEST e COMMENT desse projeto. | Aplicação (`authorization`) | PN09 |
 | A conta de sistema não pode ser desativada nem perder a permissão; o último Administrador ativo também não. | Aplicação (`accounts`) | PN16, DE05 |
 | Uma conta desativada não volta a ficar ativa. | Aplicação (`accounts`) | PN17 |
 | `password_hash` só está vazio em contas `PENDING`. | Aplicação (`accounts`) | DE15 |
 | Cada conta tem no máximo um token de ativação válido: reenviar o convite invalida os anteriores; ativar a conta marca o token como usado; desativar a conta invalida o token válido. | Aplicação (`accounts`) | DE15 |
-| Contas `PENDING` podem ser adicionadas a projetos e nomeadas Gestor, mas não podem ser escolhidas como responsável. | Aplicação (`projects`, `tasks`) | DE15, PN06 |
+| Contas `PENDING` podem ser adicionadas a projetos e nomeadas Gestor, mas não podem ser atribuídas como responsável. | Aplicação (`projects`, `tasks`) | DE15, PN06 |
 | O registo administrativo só aceita inserções. | Aplicação (`audit`); idealmente também permissões na base de dados | PN18 |
-| Eliminar uma tarefa elimina os seus comentários. | Base de dados (eliminação em cascata) | US06 (pressuposto, ver §6) |
+| Eliminar uma tarefa elimina os seus comentários, responsáveis (TASK_ASSIGNEE) e pedidos de responsável. | Base de dados (eliminação em cascata) | US06 (pressuposto, ver §6), PN21 |
 | Contas e projetos nunca são eliminados (só desativados ou arquivados). | Aplicação | US02, US10 (pressuposto, ver §6) |
 
 ## 5. Diagrama ER
@@ -188,9 +223,23 @@ erDiagram
         string description "optional"
         enum status "TODO | IN_PROGRESS | DONE"
         enum priority "LOW | MEDIUM | HIGH"
-        id assignee_id FK "optional"
         datetime created_at
         datetime updated_at
+    }
+    TASK_ASSIGNEE {
+        id task_id PK, FK
+        id account_id PK, FK
+        datetime assigned_at
+    }
+    ASSIGNEE_REQUEST {
+        id id PK
+        id task_id FK
+        id requested_by_id FK
+        id account_id FK
+        enum status "PENDING | ACCEPTED | REJECTED | CANCELLED"
+        datetime created_at
+        datetime decided_at "optional"
+        id decided_by_id FK "optional"
     }
     COMMENT {
         id id PK
@@ -222,7 +271,10 @@ erDiagram
     ACCOUNT ||--o{ ACCOUNT_ACTIVATION_TOKEN : "recebe"
     PROJECT ||--|{ PROJECT_MEMBER : "tem"
     PROJECT ||--o{ TASK : "contém"
-    ACCOUNT |o--o{ TASK : "é responsável por"
+    TASK ||--o{ TASK_ASSIGNEE : "tem"
+    ACCOUNT ||--o{ TASK_ASSIGNEE : "é responsável como"
+    TASK ||--o{ ASSIGNEE_REQUEST : "tem"
+    ACCOUNT ||--o{ ASSIGNEE_REQUEST : "pede ou é pedida em"
     TASK ||--o{ COMMENT : "tem"
     ACCOUNT ||--o{ COMMENT : "escreve"
     ACCOUNT ||--o{ ADMIN_AUDIT_LOG : "executa"
@@ -239,13 +291,14 @@ erDiagram
 | Contas e projetos nunca são eliminados | Só se desativam (contas) ou arquivam (projetos). | Questão em aberto: um projeto pode ser eliminado? (constraints.md §5) |
 | Membros desativados | A conta desativada continua em PROJECT_MEMBER dos projetos onde estava, até o Gestor a remover. | É o que PN08 indica; confirmar com o cliente. |
 | Nome do projeto | Não tem de ser único. | Nenhuma regra o exige. |
-| Histórico de membros | Ao remover um membro, a linha de PROJECT_MEMBER é apagada; não se guarda histórico. As tarefas `DONE` mantêm `assignee_id`, e "já não é membro" deduz-se da falta da linha. | O histórico de alterações (FN18) está fora do MVP; só as adições pelo Administrador vão para o registo (PN18). |
+| Histórico de membros | Ao remover um membro, a linha de PROJECT_MEMBER é apagada; não se guarda histórico. As tarefas `DONE` mantêm a linha em TASK_ASSIGNEE, e "já não é membro" deduz-se da falta da linha em PROJECT_MEMBER. | O histórico de alterações (FN18) está fora do MVP; só as adições pelo Administrador vão para o registo (PN18). |
 | Registo de remoções de membros pelo Gestor | Não são registadas. | PN18 só inclui "adicionar membros pelo Administrador". |
+| Histórico dos responsáveis | Remover um responsável apaga a linha de TASK_ASSIGNEE; não se guarda histórico. Os pedidos de responsável decididos ficam guardados em ASSIGNEE_REQUEST, mas não substituem o histórico (FN18, fora do MVP). | Decisão interna (2026-11-11); confirmar com o cliente. |
 | CL10 e CL11 | O modelo não muda com nenhuma das respostas possíveis. | CL11 pode exigir mudar a regra de email único (PN11) ou permitir reativar contas (PN17). |
 | Autenticação | `password_hash` em ACCOUNT, vazio enquanto a conta está pendente; ativação por token em ACCOUNT_ACTIVATION_TOKEN (DE15). | A recuperação do acesso (palavra-passe esquecida) está em aberto (constraints.md §5); pode vir a usar a mesma tabela. |
 
 ## 7. Coerência com a arquitetura
 
 - Cada tabela pertence a um só módulo (§1), como pede architecture.md §4.2. Os módulos `authorization` e `progress` não têm tabelas próprias: o primeiro lê `ACCOUNT.is_admin` e `PROJECT_MEMBER.role`; o segundo conta TASK por `status`.
-- A base de dados é única (architecture.md §3), por isso as chaves estrangeiras entre tabelas de módulos diferentes são possíveis e garantem a integridade das referências (por exemplo, `TASK.assignee_id` → ACCOUNT) sem coordenação entre serviços. PN06 é verificada pela aplicação, mas na mesma transação.
+- A base de dados é única (architecture.md §3), por isso as chaves estrangeiras entre tabelas de módulos diferentes são possíveis e garantem a integridade das referências (por exemplo, `TASK_ASSIGNEE.account_id` → ACCOUNT) sem coordenação entre serviços. PN06 e PN21 são verificadas pela aplicação, mas na mesma transação.
 - As chaves estrangeiras entre módulos correspondem às dependências de architecture.md §4.2. As de ADMIN_AUDIT_LOG para ACCOUNT e PROJECT são só referências de dados: o módulo `audit` não chama `accounts` nem `projects`.

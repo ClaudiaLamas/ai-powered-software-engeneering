@@ -46,13 +46,21 @@ export const COUNT_KEY: Record<TaskStatus, keyof TaskCountsByStatus> = {
   DONE: 'done',
 }
 
+/** Texto quando a tarefa não tem responsáveis (PN06). */
+export const NO_ASSIGNEE_LABEL = 'Sem responsável'
+
 /**
- * Texto do responsável (DE14): "Sem responsável"; senão o nome, com
- * "conta desativada" (que tem precedência) ou "já não é membro".
+ * Texto de um responsável (DE14): o nome, com "conta desativada" (que tem
+ * precedência) ou "já não é membro".
  */
-export function assigneeLabel(assignee: Assignee | null): string {
-  if (!assignee) return 'Sem responsável'
+export function assigneeLabel(assignee: Assignee): string {
   if (assignee.status === 'DEACTIVATED') return `${assignee.name} (conta desativada)`
   if (!assignee.isProjectMember) return `${assignee.name} (já não é membro)`
   return assignee.name
+}
+
+/** Texto dos responsáveis de uma tarefa (DE16), pela ordem da API (do nome). */
+export function assigneesLabel(assignees: readonly Assignee[]): string {
+  if (assignees.length === 0) return NO_ASSIGNEE_LABEL
+  return assignees.map(assigneeLabel).join(', ')
 }

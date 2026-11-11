@@ -1,6 +1,6 @@
 # User stories — Matriz
 
-Backlog inicial: 21 user stories do MVP, que cobrem as funcionalidades Must (FN01–FN09, FN12–FN14, FN27, FN28), e 16 user stories **fora do MVP** (secção 5), com critérios de aceitação, casos-limite e regras de negócio. As regras PN são **decisões internas (DE) ou pressupostos**, todas por validar com o cliente. Os termos "conta", "função", "Gestor", "Membro" e "Administrador" seguem o [glossário do README](../README.md#glossário).
+Backlog inicial: 22 user stories do MVP, que cobrem as funcionalidades Must (FN01–FN09, FN12–FN14, FN27–FN29), e 15 user stories **fora do MVP** (secção 5), com critérios de aceitação, casos-limite e regras de negócio. As regras PN são **decisões internas (DE) ou pressupostos**, todas por validar com o cliente. Os termos "conta", "função", "Gestor", "Membro" e "Administrador" seguem o [glossário do README](../README.md#glossário).
 
 ## 1. User stories
 
@@ -11,7 +11,7 @@ Backlog inicial: 21 user stories do MVP, que cobrem as funcionalidades Must (FN0
 | US03 | Como **Administrador**, quero criar projetos e atribuir-lhes um Gestor, para que cada projeto tenha um responsável pela sua organização. | FN03 | Must |
 | US04 | Como **Gestor** de um projeto, quero adicionar e remover membros, para formar a equipa que nele trabalha e o vê. | FN04 | Must |
 | US05 | Como **utilizador**, quero ver a lista dos projetos onde participo, para encontrar o meu trabalho. | FN05 | Must |
-| US06 | Como **Gestor** de um projeto, quero criar, editar e eliminar tarefas e atribuir-lhes um responsável, para que se saiba o que há a fazer e quem o faz. | FN06 | Must |
+| US06 | Como **Gestor** de um projeto, quero criar, editar e eliminar tarefas e atribuir-lhes e remover-lhes responsáveis, para que se saiba o que há a fazer e quem o faz. | FN06 | Must |
 | US07 | Como **membro** de um projeto (Gestor ou Membro), quero mudar o estado de uma tarefa, para mostrar em que ponto está o trabalho. | FN07 | Must |
 | US08 | Como **membro** de um projeto, quero ver as tarefas agrupadas por estado, para perceber o que está por fazer, em curso e concluído. | FN08 | Must |
 | US09 | Como **membro** de um projeto, quero ver um indicador de progresso, para saber quanto do trabalho está concluído. | FN09 | Must |
@@ -24,9 +24,10 @@ Backlog inicial: 21 user stories do MVP, que cobrem as funcionalidades Must (FN0
 | US16 | Como **Administrador**, quero ver a lista de contas, para saber quem tem acesso e com que permissão. | FN02 | Must |
 | US17 | Como **Administrador**, quero ver todos os projetos na área de administração, para saber quem é o Gestor de cada um e poder trocá-lo. | FN27 | Must |
 | US18 | Como **membro** de um projeto, quero ver a descrição, o Gestor e a equipa do projeto, para saber com quem trabalho. | FN03, FN04 | Must |
-| US19 | Como **membro** de um projeto, quero abrir uma tarefa, para ver a descrição, o responsável, o estado e os comentários. | FN06, FN14 | Must |
+| US19 | Como **membro** de um projeto, quero abrir uma tarefa, para ver a descrição, os responsáveis, o estado e os comentários. | FN06, FN14 | Must |
 | US22 | Como **Gestor** de um projeto, quero dar uma prioridade a uma tarefa, para que a equipa saiba o que fazer primeiro. | FN12 | Must |
 | US23 | Como **membro** de um projeto, quero filtrar as tarefas por estado e prioridade e vê-las por páginas, para encontrar uma tarefa rapidamente. | FN13 | Must |
+| US31 | Como **responsável** de uma tarefa, quero pedir ao Gestor que adicione outro membro como responsável, para ter ajuda no trabalho. | FN29 | Must |
 
 ### Rastreabilidade FN → US
 
@@ -157,7 +158,7 @@ As 21 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 
 - **Dado** que o Rui é responsável pela tarefa "Rever textos" ("Em curso") e pela tarefa "Criar logótipo" ("Concluída"),
 - **Quando** desativo a conta do Rui,
-- **Então** "Rever textos" passa a "Sem responsável" e continua "Em curso", e "Criar logótipo" continua a mostrar "Rui (conta desativada)" (PN08).
+- **Então** o Rui deixa de ser responsável por "Rever textos", que continua "Em curso" (e fica "Sem responsável" se ele era o único), e "Criar logótipo" continua a mostrar "Rui (conta desativada)" entre os responsáveis (PN08).
 
 **Erro: desativar a conta de sistema**
 
@@ -227,7 +228,7 @@ As 21 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 
 - **Dado** que sou Gestor do projeto ativo "Site" e o Rui, com a conta ativa ou desativada, é responsável por "Rever textos" ("Em curso") e por "Criar logótipo" ("Concluída"),
 - **Quando** removo o Rui do projeto,
-- **Então** "Rever textos" passa a "Sem responsável", "Criar logótipo" continua a mostrar o Rui como responsável, com a indicação "já não é membro" (ou "conta desativada", se for o caso), e o progresso não muda (PN07).
+- **Então** o Rui deixa de ser responsável por "Rever textos" (que fica "Sem responsável" se ele era o único), "Criar logótipo" continua a mostrar o Rui entre os responsáveis, com a indicação "já não é membro" (ou "conta desativada", se for o caso), e o progresso não muda (PN07).
 
 **Erro: conta desativada**
 
@@ -278,20 +279,38 @@ As 21 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 **Caminho normal: criar**
 
 - **Dado** que sou Gestor de um projeto ativo,
-- **Quando** crio uma tarefa com título "Rever textos" e escolho a Ana, que é membro do projeto, como responsável,
-- **Então** a tarefa aparece no projeto com esse título, a Ana como responsável e o estado "Por fazer".
+- **Quando** crio uma tarefa com título "Rever textos" e escolho a Ana e o Bruno, membros do projeto, como responsáveis,
+- **Então** a tarefa aparece no projeto com esse título, a Ana e o Bruno como responsáveis e o estado "Por fazer".
 
 **Caminho normal: sem responsável**
 
 - **Dado** que sou Gestor de um projeto ativo,
-- **Quando** crio uma tarefa sem escolher responsável,
+- **Quando** crio uma tarefa sem escolher responsáveis,
 - **Então** a tarefa é criada e mostra "Sem responsável".
+
+**Caminho normal: atribuir mais um responsável**
+
+- **Dado** que a tarefa "Rever textos" tem a Ana como responsável e o Bruno é membro do projeto com a conta ativa,
+- **Quando** atribuo o Bruno à tarefa,
+- **Então** a tarefa mostra a Ana e o Bruno como responsáveis (DE16).
+
+**Caminho normal: remover um responsável**
+
+- **Dado** que a tarefa "Rever textos" tem a Ana e o Bruno como responsáveis,
+- **Quando** removo o Bruno,
+- **Então** a tarefa mostra só a Ana; se remover também a Ana, mostra "Sem responsável".
+
+**Caminho normal: remover de uma tarefa concluída quem já não é membro**
+
+- **Dado** que a tarefa "Criar logótipo" está "Concluída" e mostra "Rui (já não é membro)",
+- **Quando** removo o Rui dos responsáveis,
+- **Então** a tarefa deixa de o mostrar e continua "Concluída" (DE14).
 
 **Caminho normal: editar**
 
 - **Dado** que sou Gestor de um projeto ativo e existe a tarefa "Rever textos",
 - **Quando** altero o título para "Rever textos da página inicial",
-- **Então** a tarefa mostra o novo título e mantém o responsável e o estado.
+- **Então** a tarefa mostra o novo título e mantém os responsáveis e o estado.
 
 **Caminho normal: eliminar**
 
@@ -305,34 +324,40 @@ As 21 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 - **Quando** deixo o título vazio e confirmo,
 - **Então** a tarefa não é criada e vejo uma mensagem a indicar que o título é obrigatório.
 
+**Erro: responsável repetido**
+
+- **Dado** que a tarefa "Rever textos" tem a Ana como responsável,
+- **Quando** tento atribuir outra vez a Ana,
+- **Então** a ação é recusada e a tarefa continua a mostrar a Ana uma só vez (DE16).
+
 **Erro: responsável fora do projeto (criar)**
 
 - **Dado** que sou Gestor e o Rui não é membro do projeto,
 - **Quando** crio uma tarefa,
-- **Então** o Rui não aparece entre as pessoas que posso escolher como responsável.
+- **Então** o Rui não aparece entre as pessoas que posso escolher como responsáveis.
 
-**Erro: responsável fora do projeto (editar)**
+**Erro: responsável fora do projeto (atribuir)**
 
 - **Dado** que a tarefa "Rever textos" tem a Ana como responsável e o Rui não é membro do projeto,
-- **Quando** tento mudar o responsável para o Rui,
-- **Então** a alteração é recusada e a Ana continua a ser a responsável.
+- **Quando** tento atribuir o Rui à tarefa,
+- **Então** a ação é recusada e a Ana continua a ser a única responsável.
 
 **Erro: responsável com conta desativada (criar)**
 
 - **Dado** que sou Gestor e o Rui é membro do projeto, mas a conta dele foi desativada,
 - **Quando** crio uma tarefa,
-- **Então** o Rui não aparece entre as pessoas que posso escolher como responsável (PN08).
+- **Então** o Rui não aparece entre as pessoas que posso escolher como responsáveis (PN08).
 
-**Erro: responsável com conta desativada (editar)**
+**Erro: responsável com conta desativada (atribuir)**
 
 - **Dado** que a tarefa "Rever textos" tem a Ana como responsável e a conta do Rui, membro do projeto, está desativada,
-- **Quando** tento mudar o responsável para o Rui,
-- **Então** a alteração é recusada e a Ana continua a ser a responsável.
+- **Quando** tento atribuir o Rui à tarefa,
+- **Então** a ação é recusada e a Ana continua a ser a única responsável.
 
-**Erro: Membro tenta criar, editar ou eliminar**
+**Erro: Membro tenta criar, editar, eliminar ou mudar os responsáveis**
 
 - **Dado** que sou Membro, mas não Gestor, de um projeto ativo,
-- **Quando** tento criar uma tarefa, alterar o título, a descrição ou o responsável de uma tarefa, ou eliminá-la,
+- **Quando** tento criar uma tarefa, alterar o título ou a descrição de uma tarefa, atribuir ou remover responsáveis, ou eliminá-la,
 - **Então** a ação é recusada e a tarefa (ou a lista de tarefas) não muda.
 
 ### US07: Mudar o estado de uma tarefa (FN07)
@@ -351,13 +376,13 @@ As 21 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 
 **Caminho normal: reabrir uma tarefa de conta desativada**
 
-- **Dado** que a tarefa "Criar logótipo" está "Concluída" e mostra "Rui (conta desativada)",
+- **Dado** que a tarefa "Criar logótipo" está "Concluída" e mostra a Ana e "Rui (conta desativada)" como responsáveis,
 - **Quando** a mudo para "Em curso",
-- **Então** a tarefa passa a "Em curso" e a "Sem responsável" (PN08, PN10).
+- **Então** a tarefa passa a "Em curso", o Rui deixa de ser responsável e a Ana continua (PN08, PN10).
 
 **Caminho normal: reabrir uma tarefa de quem já não é membro**
 
-- **Dado** que o Rui foi removido do projeto e a tarefa "Criar logótipo" está "Concluída" e mostra "Rui (já não é membro)",
+- **Dado** que o Rui foi removido do projeto e a tarefa "Criar logótipo" está "Concluída" e mostra só "Rui (já não é membro)",
 - **Quando** a mudo para "Em curso",
 - **Então** a tarefa passa a "Em curso" e a "Sem responsável" (PN07, PN10).
 
@@ -621,13 +646,19 @@ As 21 stories do MVP têm critérios em Dado / Quando / Então, cada uma com o c
 
 **Caminho normal**
 
-- **Dado** que sou Membro do projeto "Site" e a tarefa "Rever textos" tem descrição, a Ana como responsável e 2 comentários,
+- **Dado** que sou Membro do projeto "Site" e a tarefa "Rever textos" tem descrição, o Bruno e a Ana como responsáveis e 2 comentários,
 - **Quando** abro a tarefa,
-- **Então** vejo o título, a descrição, o responsável, o estado e os 2 comentários, cada um com o autor, a data e a hora.
+- **Então** vejo o título, a descrição, os responsáveis por ordem do nome (Ana, Bruno), o estado e os 2 comentários, do mais antigo para o mais recente, cada um com o autor, a data e a hora.
+
+**Caso: pedidos pendentes**
+
+- **Dado** que há um pedido pendente para adicionar o Rui como responsável da tarefa (US31),
+- **Quando** abro a tarefa,
+- **Então** vejo o pedido, com quem o fez e a data.
 
 **Caso: sem responsável**
 
-- **Dado** que a tarefa não tem responsável,
+- **Dado** que a tarefa não tem responsáveis,
 - **Quando** a abro,
 - **Então** vejo "Sem responsável".
 
@@ -705,16 +736,84 @@ Passou para o MVP em 2026-11-10 (decisão interna), só com o filtro por estado 
 - **Quando** tento ver ou filtrar as tarefas,
 - **Então** o acesso é recusado.
 
+### US31: Pedir ao Gestor que adicione um responsável (FN29, DE13)
+
+**Caminho normal: pedir**
+
+- **Dado** que sou responsável pela tarefa "Rever textos" do projeto ativo "Site" e o Rui é membro do projeto com a conta ativa,
+- **Quando** peço que o Rui seja adicionado como responsável,
+- **Então** o pedido fica pendente e aparece na tarefa e na lista de pedidos do Gestor; o Rui ainda não é responsável (PN21).
+
+**Caminho normal: o Gestor aceita**
+
+- **Dado** que sou Gestor do "Site" e há um pedido pendente para adicionar o Rui à tarefa "Rever textos",
+- **Quando** aceito o pedido,
+- **Então** o Rui passa a responsável pela tarefa e o pedido fica "Aceite".
+
+**Caminho normal: o Gestor recusa**
+
+- **Dado** que sou Gestor e há um pedido pendente para adicionar o Rui,
+- **Quando** recuso o pedido,
+- **Então** o pedido fica "Recusado" e os responsáveis não mudam.
+
+**Caminho normal: cancelar o meu pedido**
+
+- **Dado** que fiz um pedido que ainda está pendente,
+- **Quando** o cancelo,
+- **Então** o pedido fica "Cancelado" e deixa de aparecer como pendente.
+
+**Erro: não sou responsável**
+
+- **Dado** que sou membro do projeto, mas não sou responsável pela tarefa "Rever textos",
+- **Quando** tento pedir que o Rui seja adicionado,
+- **Então** a ação é recusada e não é criado nenhum pedido.
+
+**Erro: pessoa não elegível**
+
+- **Dado** que sou responsável pela tarefa e o Rui não é membro do projeto, tem a conta pendente ou desativada, ou já é responsável pela tarefa,
+- **Quando** tento pedir que o Rui seja adicionado,
+- **Então** a ação é recusada e não é criado nenhum pedido.
+
+**Erro: pedido repetido**
+
+- **Dado** que já há um pedido pendente para adicionar o Rui à tarefa,
+- **Quando** eu ou outro responsável tentamos pedir outra vez o Rui,
+- **Então** a ação é recusada e continua a haver um só pedido pendente.
+
+**Erro: a pessoa deixou de ser elegível**
+
+- **Dado** que há um pedido pendente para adicionar o Rui e, entretanto, o Rui foi removido do projeto ou a conta dele foi desativada,
+- **Quando** o Gestor tenta aceitar o pedido,
+- **Então** a ação é recusada, o Rui não passa a responsável e o pedido continua pendente; o Gestor pode recusá-lo (CL13).
+
+**Erro: só o Gestor decide e só quem pediu cancela**
+
+- **Dado** que há um pedido pendente,
+- **Quando** um Membro tenta aceitá-lo ou recusá-lo, ou alguém que não o fez tenta cancelá-lo,
+- **Então** a ação é recusada e o pedido não muda.
+
+**Erro: pedido já decidido**
+
+- **Dado** que um pedido já foi aceite, recusado ou cancelado,
+- **Quando** alguém tenta aceitá-lo, recusá-lo ou cancelá-lo,
+- **Então** a ação é recusada e o pedido não muda.
+
+**Erro: projeto arquivado**
+
+- **Dado** que o projeto está arquivado,
+- **Quando** tento fazer, aceitar, recusar ou cancelar um pedido,
+- **Então** a ação é recusada e os pedidos não mudam (PN09).
+
 ## 3. Casos-limite
 
-Dez dos doze casos têm comportamento definido; CL10 e CL11 ficam em aberto.
+Onze dos treze casos têm comportamento definido; CL10 e CL11 ficam em aberto.
 
 | ID | Situação | Comportamento esperado | Regra |
 |---|---|---|---|
-| CL1 | O Gestor remove um membro que é responsável por tarefas, com a conta ativa ou desativada. | A remoção acontece. As tarefas dessa pessoa nesse projeto que não estão "Concluída" passam a "Sem responsável" e mantêm o estado. As tarefas "Concluída" mantêm o nome dela como responsável, com a indicação "já não é membro" (ou "conta desativada", se a conta estiver desativada); se uma delas for reaberta, passa a "Sem responsável". Os números do progresso não mudam. | PN07 |
+| CL1 | O Gestor remove um membro que é responsável por tarefas, com a conta ativa ou desativada. | A remoção acontece. A pessoa deixa de ser responsável pelas suas tarefas nesse projeto que não estão "Concluída"; os outros responsáveis mantêm-se e o estado não muda (se era a única, a tarefa fica "Sem responsável"). Nas tarefas "Concluída", continua entre os responsáveis, com a indicação "já não é membro" (ou "conta desativada", se a conta estiver desativada); se uma delas for reaberta, a pessoa sai dos responsáveis. Os números do progresso não mudam. | PN07 |
 | CL2 | Um Membro tenta eliminar uma tarefa. | A ação é recusada e a tarefa continua no projeto (ver US06). | PN05 |
-| CL3 | Alguém tenta criar, editar, mudar o estado, eliminar ou comentar uma tarefa, editar ou apagar um comentário, ou mudar os membros, num projeto arquivado. | A ação é recusada. O projeto, as tarefas e os comentários continuam visíveis para os membros, e o progresso continua a ser mostrado. | PN09 |
-| CL4 | É desativada a conta de alguém que é responsável por tarefas. | A pessoa deixa de conseguir entrar. As suas tarefas que não estão "Concluída", em todos os projetos, passam a "Sem responsável". As tarefas "Concluída" mantêm o nome dela, com a indicação "conta desativada"; se uma delas for reaberta, passa a "Sem responsável". Os números do progresso não mudam. Essa conta deixa de poder ser adicionada a projetos ou escolhida como responsável. | PN08 |
+| CL3 | Alguém tenta criar, editar, mudar o estado ou os responsáveis, eliminar ou comentar uma tarefa, editar ou apagar um comentário, fazer, decidir ou cancelar um pedido de responsável, ou mudar os membros, num projeto arquivado. | A ação é recusada. O projeto, as tarefas e os comentários continuam visíveis para os membros, e o progresso continua a ser mostrado. | PN09 |
+| CL4 | É desativada a conta de alguém que é responsável por tarefas. | A pessoa deixa de conseguir entrar. Deixa de ser responsável pelas suas tarefas que não estão "Concluída", em todos os projetos; os outros responsáveis mantêm-se (se era a única, a tarefa fica "Sem responsável"). Nas tarefas "Concluída", continua entre os responsáveis, com a indicação "conta desativada"; se uma delas for reaberta, a pessoa sai dos responsáveis. Os números do progresso não mudam. Essa conta deixa de poder ser adicionada a projetos ou atribuída como responsável. | PN08 |
 | CL5 | O Gestor tenta remover-se a si próprio do projeto. | A ação é recusada. O Gestor só deixa de o ser quando o Administrador o troca (US12). | PN04 |
 | CL6 | Uma conta com permissão de Administrador tenta abrir um projeto onde não participa. | O acesso às tarefas, aos comentários e ao progresso é recusado. Na área de administração vê só o nome, o estado, o Gestor e os membros do projeto. | PN02 |
 | CL7 | Um projeto teve tarefas e todas foram eliminadas. | O indicador passa a "Sem tarefas", como em US09. | PN13 |
@@ -723,8 +822,9 @@ Dez dos doze casos têm comportamento definido; CL10 e CL11 ficam em aberto.
 | CL10 | O Administrador nomeia-se a si próprio Gestor de um projeto onde não participa (US12). | **Não resolvido.** Se for permitido, passa a ver o conteúdo do projeto, o que contorna R10. | PN14 |
 | CL11 | Uma pessoa cuja conta foi desativada volta à empresa. | **Não resolvido.** A conta não pode ser reativada (PN17) e o email único (PN11) impede criar outra conta com o mesmo email. | PN11, PN17 |
 | CL12 | O autor de comentários é removido do projeto ou a sua conta é desativada. | Os comentários mantêm-se, com o nome do autor e, se for o caso, a indicação "conta desativada". | PN15 |
+| CL13 | Há um pedido pendente para adicionar um responsável e, entretanto, a pessoa pedida sai do projeto, fica com a conta desativada ou já foi atribuída pelo Gestor, ou quem fez o pedido deixa de ser responsável. | O pedido não é cancelado automaticamente. Ao aceitar, as condições sobre a pessoa pedida são verificadas outra vez: se já não se cumprem, a aceitação é recusada e o pedido continua pendente, para o Gestor o recusar. Que quem fez o pedido continue responsável não é verificado outra vez. | PN21 |
 
-## 4. Regras de negócio (PN01–PN20)
+## 4. Regras de negócio (PN01–PN21)
 
 Nenhuma regra foi validada pelo cliente. A coluna "Origem" indica se a regra concretiza uma decisão interna (DE) ou é um pressuposto nosso.
 
@@ -734,12 +834,12 @@ Nenhuma regra foi validada pelo cliente. A coluna "Origem" indica se a regra con
 | PN02 | A permissão de Administrador pertence à conta e acumula com funções em projetos. Não dá acesso a tarefas, comentários ou progresso de projetos onde a conta não participa. Na área de administração, o Administrador vê de cada projeto só o nome, o estado, o Gestor e os membros, para poder trocar o Gestor. | DE02; a área de administração é pressuposto | US01, US09, CL6 |
 | PN03 | Cada projeto tem exatamente um Gestor, que é também membro do projeto. É atribuído pelo Administrador quando cria o projeto. | DE06 | US03, US04 |
 | PN04 | O Gestor não pode ser removido do projeto nem remover-se. Só deixa de ser Gestor quando o Administrador o troca; passa então a Membro. | DE08; "passa a Membro" é pressuposto | US12, CL5 |
-| PN05 | Só o Gestor cria tarefas, edita o título, a descrição e a prioridade, escolhe ou muda o responsável e elimina tarefas. Qualquer membro, incluindo o Gestor, pode mudar o estado e comentar. | DE09, DE10 | US06, US07, US13, US22, CL2 |
-| PN06 | Cada tarefa tem no máximo um responsável, que tem de ser membro do projeto com conta ativa (nem pendente nem desativada) no momento em que é escolhido. A tarefa pode ficar "Sem responsável". Uma tarefa "Concluída" pode manter como responsável quem já não é membro (PN07). | DE09, DE14, DE15 | US06 |
-| PN07 | Quando o Gestor remove um membro, com a conta ativa ou desativada, as suas tarefas nesse projeto que não estão "Concluída" passam a "Sem responsável". As tarefas "Concluída" mantêm-no como responsável, com a indicação "já não é membro"; se a conta estiver desativada, mostra-se só "conta desativada" (PN08). A indicação desaparece se a pessoa voltar a ser adicionada ao projeto. | DE14 | US04, US07, CL1 |
-| PN08 | Quando uma conta é desativada, as suas tarefas que não estão "Concluída", em todos os projetos, passam a "Sem responsável". As tarefas "Concluída" mantêm o nome da pessoa como responsável, com a indicação "conta desativada"; se uma delas for reaberta, passa a "Sem responsável". A conta continua na equipa dos projetos, com a indicação "conta desativada", até o Gestor a remover. Uma conta desativada não pode ser adicionada a um projeto nem escolhida como responsável. | DE14 | US02, US04, US06, US07, US18, CL4 |
-| PN09 | Um projeto arquivado fica só de leitura: tarefas, estados, membros e comentários não podem ser alterados. | DE11; resto é pressuposto | US04, US07, US13, CL3 |
-| PN10 | Uma tarefa nova começa sempre em "Por fazer". Qualquer estado pode passar a qualquer outro, incluindo reabrir uma tarefa concluída. Ao reabrir uma tarefa cujo responsável tem a conta desativada ou já não é membro do projeto, a tarefa passa a "Sem responsável" (PN07, PN08). | Pressuposto; reabertura com conta desativada ou de quem já não é membro: DE14 | US06, US07 |
+| PN05 | Só o Gestor cria tarefas, edita o título, a descrição e a prioridade, atribui e remove responsáveis e elimina tarefas. Qualquer membro, incluindo o Gestor, pode mudar o estado e comentar. Um responsável pode pedir ao Gestor que adicione outro responsável (PN21). | DE09, DE10, DE13 | US06, US07, US13, US22, US31, CL2 |
+| PN06 | Cada tarefa tem zero ou mais responsáveis, sem limite; sem nenhum, mostra "Sem responsável". A mesma pessoa não pode ser responsável duas vezes pela mesma tarefa. Cada responsável tem de ser membro do projeto com conta ativa (nem pendente nem desativada) no momento em que é atribuído. Uma tarefa "Concluída" pode manter entre os responsáveis quem já não é membro ou tem a conta desativada (PN07, PN08). O Gestor pode remover qualquer responsável, também numa tarefa "Concluída". Os responsáveis são mostrados por ordem do nome. | DE09, DE14, DE15, DE16 | US06, US19 |
+| PN07 | Quando o Gestor remove um membro, com a conta ativa ou desativada, essa pessoa deixa de ser responsável pelas suas tarefas nesse projeto que não estão "Concluída"; os outros responsáveis mantêm-se. As tarefas "Concluída" mantêm-na entre os responsáveis, com a indicação "já não é membro"; se a conta estiver desativada, mostra-se só "conta desativada" (PN08). A indicação desaparece se a pessoa voltar a ser adicionada ao projeto. | DE14 | US04, US07, CL1 |
+| PN08 | Quando uma conta é desativada, essa pessoa deixa de ser responsável pelas suas tarefas que não estão "Concluída", em todos os projetos; os outros responsáveis mantêm-se. As tarefas "Concluída" mantêm-na entre os responsáveis, com a indicação "conta desativada"; se uma delas for reaberta, a pessoa sai dos responsáveis. A conta continua na equipa dos projetos, com a indicação "conta desativada", até o Gestor a remover. Uma conta desativada não pode ser adicionada a um projeto nem atribuída como responsável. | DE14 | US02, US04, US06, US07, US18, CL4 |
+| PN09 | Um projeto arquivado fica só de leitura: tarefas, estados, responsáveis, membros, comentários e pedidos de responsável não podem ser alterados. | DE11; resto é pressuposto | US04, US07, US13, US31, CL3 |
+| PN10 | Uma tarefa nova começa sempre em "Por fazer". Qualquer estado pode passar a qualquer outro, incluindo reabrir uma tarefa concluída. Ao reabrir uma tarefa "Concluída", saem dos responsáveis as pessoas com a conta desativada ou que já não são membros do projeto; os outros mantêm-se (PN07, PN08). | Pressuposto; reabertura com conta desativada ou de quem já não é membro: DE14 | US06, US07 |
 | PN11 | Cada conta é identificada por um endereço de email único, incluindo as contas desativadas. | Pressuposto | US02, CL11 |
 | PN12 | O nome do projeto é obrigatório, com 3 a 100 caracteres, e a sua descrição é opcional, até 1000. O título da tarefa é obrigatório, com 3 a 150 caracteres, e a sua descrição é opcional, até 2000. Nomes e títulos só com espaços são recusados. O nome do projeto e o título da tarefa contam e ficam guardados sem os espaços das pontas; uma descrição vazia ou só com espaços fica "sem descrição". | Pressuposto; limites do exemplo da Aula 02 (decisão interna, 2026-11-08); espaços e descrição vazia do projeto (decisão interna, 2026-11-09) e da tarefa (decisão interna, 2026-11-10) | US03, US06, US10 |
 | PN13 | A percentagem de conclusão é tarefas concluídas ÷ total de tarefas × 100, arredondada à unidade. Sem tarefas, mostra "Sem tarefas". | Pressuposto | US09, CL7 |
@@ -750,6 +850,7 @@ Nenhuma regra foi validada pelo cliente. A coluna "Origem" indica se a regra con
 | PN19 | Cada tarefa tem uma prioridade: Baixa, Média ou Alta. Uma tarefa nova fica "Média" se o Gestor não escolher outra. Só o Gestor a define e muda. | decisão interna, 2026-11-10 | US22 |
 | PN20 | A lista de tarefas de um projeto pode ser filtrada por estado e por prioridade, em conjunto ou não, e é paginada (20 tarefas por página por omissão, no máximo 100), ordenada da mais antiga para a mais recente. Com ela vêm o total de tarefas que correspondem aos filtros e o número de tarefas em cada estado com o filtro de prioridade aplicado, para cada grupo mostrar o total real. | decisão interna, 2026-11-10 | US08, US23 |
 | PN18 | O registo de ações administrativas guarda: criar e desativar contas, reenviar convites, dar e retirar a permissão de Administrador, criar projetos, atribuir e trocar o Gestor e adicionar membros pelo Administrador. Cada entrada tem autor, ação, alvo, data e hora. Só os Administradores o consultam e ninguém o pode alterar ou apagar. | DE12, DE15; conteúdo e acesso são pressupostos | US14 |
+| PN21 | Um responsável de uma tarefa pode pedir que outro membro do projeto seja adicionado como responsável. A pessoa pedida tem de ser membro do projeto com conta ativa e ainda não ser responsável, quando o pedido é feito e quando é aceite. Só pode haver um pedido pendente por tarefa e por pessoa. Um pedido está "Pendente", "Aceite", "Recusado" ou "Cancelado". Só o Gestor aceita ou recusa; ao aceitar, a pessoa passa a responsável. Só quem fez o pedido o pode cancelar, enquanto estiver pendente. Qualquer membro do projeto vê os pedidos pendentes de uma tarefa; o Gestor vê também todos os pedidos pendentes do projeto. O pedido não tem mensagem nem gera notificações. Os pedidos não são cancelados automaticamente; são eliminados com a tarefa. Os pedidos decididos ou cancelados ficam guardados e não entram no registo administrativo (PN18). Num projeto arquivado, não se criam, decidem nem cancelam pedidos (PN09). | DE13; decisão interna, 2026-11-11 | US19, US31, CL13 |
 
 ## 5. Fora do MVP
 
@@ -766,7 +867,6 @@ Estas user stories correspondem a funcionalidades **fora do MVP** (Should, Could
 | US28 | Como **Gestor**, quero exportar um relatório de progresso, para o partilhar fora da aplicação. | FN19 | Could | Fora do MVP |
 | US29 | Como **Gestor**, quero configurar os estados do projeto, para seguir o fluxo da minha equipa. | FN20 | Could | Fora do MVP |
 | US30 | Como **membro**, quero ver as tarefas num calendário, para planear pelos prazos. | FN21 | Could | Fora do MVP |
-| US31 | Como **responsável** de uma tarefa, quero pedir ajuda a outro membro, para colaborar sem mudar de responsável. | FN29 | Should | Fora do MVP |
 | US32 | Como **Gestor**, quero convidar pessoas de fora da empresa, para colaborar com parceiros. | FN22 | Won't | Fora do MVP |
 | US33 | Como **membro**, quero registar o tempo gasto numa tarefa, para medir o esforço. | FN23 | Won't | Fora do MVP |
 | US34 | Como **Gestor**, quero organizar as tarefas em sprints e backlog, para trabalhar de forma ágil. | FN24 | Won't | Fora do MVP |
@@ -832,9 +932,3 @@ As stories Won't (US32–US36) não têm critérios: dependem de perguntas ao cl
 
 - **Caminho normal:** **Dado** que há tarefas com prazo, **Quando** abro o calendário, **Então** cada tarefa aparece no dia do seu prazo.
 - **Caso sem prazo:** as tarefas sem prazo não aparecem no calendário.
-
-#### US31: Pedir ajuda (FN29, DE13)
-
-- **Caminho normal:** **Dado** que sou responsável pela tarefa "Rever textos", **Quando** adiciono o Rui, membro do projeto, como colaborador, **Então** o Rui aparece na tarefa como colaborador e eu continuo a ser o único responsável.
-- **Erro: colaborador inválido:** não é possível adicionar quem não é membro do projeto ou tem a conta desativada, e quem não é o responsável não pode adicionar colaboradores *(pressuposto)*.
-- **Em aberto:** o que o colaborador pode fazer além do que um Membro já faz.

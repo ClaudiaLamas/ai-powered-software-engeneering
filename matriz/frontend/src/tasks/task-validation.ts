@@ -16,6 +16,8 @@ export interface TaskFormValues {
   title: string
   description: string
   priority: TaskPriority
+  /** Só ao criar (DE16); ao editar, os responsáveis mudam-se à parte. */
+  assigneeIds?: string[]
 }
 
 export interface TaskFormErrors {
@@ -38,7 +40,7 @@ export function validateTask(values: Pick<TaskFormValues, 'title' | 'description
   return errors
 }
 
-/** Corpo do pedido: título aparado e descrição vazia como `null` (PN12). */
+/** Corpo do pedido: título aparado e descrição vazia como `null` (PN12); sem responsáveis. */
 export function toTaskPayload(values: TaskFormValues) {
   return {
     title: values.title.trim(),

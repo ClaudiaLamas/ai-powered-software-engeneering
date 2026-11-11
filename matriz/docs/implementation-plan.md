@@ -1,6 +1,6 @@
 # Plano de implementação — Matriz
 
-Este ficheiro define a sequência de incrementos para implementar o MVP (US01–US19, US22, US23) com o contrato de [openapi.yaml](../openapi.yaml). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md), [architecture.md](architecture.md) e [database.md](database.md).
+Este ficheiro define a sequência de incrementos para implementar o MVP (US01–US19, US22, US23, US31) com o contrato de [openapi.yaml](../openapi.yaml). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md), [architecture.md](architecture.md) e [database.md](database.md).
 
 O incremento 1 está "Em curso" (ver o seu estado abaixo); os restantes estão "Por iniciar". A ordem dos incrementos e tudo o que está marcado como **proposta** são sugestões deste plano, por aprovar; o que está marcado como **confirmado** vem dos documentos.
 
@@ -32,13 +32,14 @@ Registadas nos documentos (decisões internas, por validar com o cliente).
 | Ligação do frontend à API | Em desenvolvimento, o Vite encaminha `/api` para o backend (`VITE_API_TARGET`, por omissão `http://localhost:3000`); o backend não tem CORS | Decidido em 2026-11-09 |
 | Autorização no backend | Guard JWT global (todas as rotas exigem sessão, exceto `@Public()`); a conta é lida na base de dados em cada pedido; `AdminGuard` e `AuthorizationService` (`requireMember`, `requireManager`, `requireWritable`). Ordem das verificações em architecture.md §4.2 | Decidido em 2026-11-09 |
 | Seed | `backend/prisma/seed.ts`, corrido só a pedido (`npm run db:seed`), nunca no arranque. Idempotente: identificadores fixos (contas pelo email); só cria o que falta e nunca altera nem apaga dados. Cria a conta de sistema, a Ana e o Bruno (ativos), uma conta pendente (sem palavra-passe nem token) e uma desativada; três projetos com acessos distintos (a conta de sistema não é membro de nenhum, DE02), tarefas, responsáveis e comentários. Dados fictícios; a palavra-passe comum vem de `SEED_DEMO_PASSWORD` (`.env`, ignorado pelo Git), guardada como hash bcrypt; sem entradas no registo administrativo | Decidido em 2026-11-08 |
-| Contrato da API | 32 operações das user stories em [openapi.yaml](../openapi.yaml), mais `GET /health` (infraestrutura, sem autenticação) | openapi.yaml 0.4.0 (prioridade, filtros e paginação das tarefas em 2026-11-10); `GET /health` decidido em 2026-11-08 |
-| Âmbito | Só as funcionalidades Must (FN01–FN09, FN12–FN14, FN27, FN28); pesquisa por texto, filtro por responsável (FN30) e prazos ficam fora | requirements.md §5; FN12 e FN13 entraram em 2026-11-10 |
+| Contrato da API | 40 operações das user stories em [openapi.yaml](../openapi.yaml), mais `GET /health` (infraestrutura, sem autenticação) | openapi.yaml 0.5.0 (vários responsáveis e pedidos de responsável em 2026-11-11; prioridade, filtros e paginação das tarefas em 2026-11-10); `GET /health` decidido em 2026-11-08 |
+| Âmbito | Só as funcionalidades Must (FN01–FN09, FN12–FN14, FN27–FN29); pesquisa por texto, filtro por responsável (FN30) e prazos ficam fora | requirements.md §5; FN12 e FN13 entraram em 2026-11-10; FN29 em 2026-11-11 |
 | Eliminação de projetos | Não é implementada: os projetos retiram-se de uso arquivando-os (`archiveProject`). A questão "um projeto pode ser eliminado?" continua em aberto (constraints.md §5) | Decidido em 2026-11-09 |
 | Nome e descrição do projeto | O nome conta e fica guardado sem os espaços das pontas; uma descrição vazia ou só com espaços fica `null` (PN12) | Decidido em 2026-11-09 |
 | Título e descrição da tarefa | Mesma regra que no projeto: o título conta e fica guardado sem os espaços das pontas; uma descrição vazia ou só com espaços fica `null` (PN12) | Decidido em 2026-11-10 |
 | Lista de tarefas | Filtros `status` e `priority`; paginação `page` e `pageSize` (20 por omissão, máximo 100); resposta com `total` e `countsByStatus`; o frontend faz um pedido por coluna da vista por estado (PN20, openapi.yaml 0.4.0) | Decidido em 2026-11-10 |
-| Responsável igual ao atual | Ao editar uma tarefa, um `assigneeId` igual ao responsável atual não é validado outra vez (por exemplo, numa tarefa `DONE` de quem já não é membro) | Decidido em 2026-11-10 |
+| Vários responsáveis | Uma tarefa tem zero ou mais responsáveis, sem limite, mostrados por ordem do nome (DE16). Tabela `task_assignee`; a migration copia `task.assignee_id` e remove a coluna. `Task.assignees` na API; `assigneeIds` ao criar; `addTaskAssignee` (`409 ASSIGNEE_ALREADY_ASSIGNED` se repetido) e `removeTaskAssignee` (`404 ASSIGNEE_NOT_FOUND`); `assigneeId` sai de `updateTask`. Substitui a decisão "responsável igual ao atual" de 2026-11-10, que deixa de se aplicar | Decidido em 2026-11-11; openapi.yaml 0.5.0 |
+| Pedidos de responsável | Um responsável pede, o Gestor aceita ou recusa, quem pediu cancela (DE13, PN21). Tabela `assignee_request`, com índice único parcial para um pedido pendente por tarefa e pessoa; sem cancelamento automático, condições verificadas outra vez ao aceitar (CL13) | Decidido em 2026-11-11 |
 
 ### 1.2 Propostas deste plano
 
@@ -61,10 +62,11 @@ Nada disto está decidido. Cada linha precisa de aprovação antes do incremento
 | 4 | Tarefas, responsáveis, prioridade e filtros | US06, US07, US08, US19 (sem comentários), US22, US23 | 2, 3 (ver a nota do incremento) | Em curso |
 | 5 | Progresso e painel inicial | US05, US09 | 4 | Por iniciar |
 | 6 | Comentários | US13, US19 | 4 | Por iniciar |
-| 7 | Área de administração | US12, US14, US17 | 2, 3 | Por iniciar |
-| 8 | Verificação final do MVP | Todas (US01–US19, US22, US23) | 1–7 | Por iniciar |
+| 7 | Pedidos de responsável | US31, US19 (pedidos pendentes) | 4 | Por iniciar |
+| 8 | Área de administração | US12, US14, US17 | 2, 3 | Por iniciar |
+| 9 | Verificação final do MVP | Todas (US01–US19, US22, US23, US31) | 1–8 | Por iniciar |
 
-Os incrementos 2 e 3 podem ser feitos em qualquer ordem, tal como 5, 6 e 7 depois do 4.
+Os incrementos 2 e 3 podem ser feitos em qualquer ordem, tal como 5, 6 e 7 depois do 4 (o 7 depois de terminada a parte dos vários responsáveis do 4) e o 8 depois do 2 e do 3.
 
 **Comandos dos testes** (D08; também no `AGENTS.md`):
 
@@ -130,7 +132,7 @@ quando é chamado por um agente de IA.
 | `authorization` | Guards: conta autenticada, permissão de Administrador, membro do projeto (com `404` para quem não é membro) |
 | `projects` | Criar projeto com o Gestor na mesma transação; listar os projetos da conta; consultar um projeto |
 | `progress` | Contagem das tarefas por estado e percentagem (PN13); no fim deste incremento os projetos ainda não têm tarefas |
-| `audit` | Escrita das entradas `CREATE_PROJECT` e `ASSIGN_MANAGER` (a consulta fica para o incremento 7) |
+| `audit` | Escrita das entradas `CREATE_PROJECT` e `ASSIGN_MANAGER` (a consulta fica para o incremento 8) |
 | Frontend | Cliente HTTP com o cabeçalho `Authorization`; guarda de rotas que manda para o ecrã de entrada; vistas `LoginView`, `DashboardView` (ecrã 1 do wireframe), `ProjectView` (cabeçalho do ecrã 2) e formulário de criação de projeto para o Administrador |
 
 **Dependências:** nenhuma.
@@ -233,23 +235,28 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 | Backend `tasks`: `createProjectTask`, `listProjectTasks` (filtros, paginação, `total`, `countsByStatus`), `getTask`, `updateTask`, `deleteTask`; testes `src/tasks/task-rules.spec.ts` e `test/tasks.e2e-spec.ts` | Feito (2026-11-10) |
 | Backend: `changeTaskStatus` (com a reabertura, PN10), com testes unitários e de API | Feito (2026-11-11) |
 | Testes de API das tarefas completados: outra conta (Gestor de outro projeto, sem ser membro) recebe 404 ao criar, consultar, editar e eliminar, sem alterar dados; persistência (criar pela API, consultar, listar e voltar a consultar numa nova instância da aplicação) | Feito (2026-11-11); 158 testes de API a passar |
-| Backend: `listAssignableAccounts` | Por fazer |
+| Backend: `listAssignableAccounts` (membros com conta ativa, por ordem do nome; só o Gestor) | Feito (2026-11-11) |
+| Migration `task_assignees`: tabela `task_assignee`, cópia de `task.assignee_id` e remoção da coluna (DE16). Alteração à estrutura de dados aprovada em 2026-11-11 | Feito (2026-11-11); cópia dos dados verificada numa base de dados temporária; esquema igual às migrations (`prisma migrate diff` vazio) |
+| Backend: vários responsáveis (openapi.yaml 0.5.0): `Task.assignees`, `assigneeIds` em `createProjectTask`, `assigneeId` fora de `updateTask`, `addTaskAssignee`, `removeTaskAssignee`, reabertura por pessoa (PN10); adaptar o código e os testes já feitos com um só responsável, o seed e as fixtures | Feito (2026-11-11); `test/tasks.e2e-spec.ts` com atribuir, remover, repetido (também em simultâneo), conta fora do projeto ou não ativa, reabertura por pessoa e projeto arquivado a meio do pedido; 186 testes de API e 95 unitários a passar |
 | Reação a "membro removido" e a "conta desativada" (PN07, PN08) | À espera dos incrementos 2 e 3 |
 | Frontend: `ProjectView` (`/projetos/:projectId`) com os três grupos por estado, um pedido cada, os totais de `countsByStatus`, "Ver mais", filtros de estado e prioridade e o formulário de criação para o Gestor; `TaskDetailView` (`/tarefas/:taskId`) com edição (título, descrição, prioridade), mudança de estado e eliminação com confirmação; etiquetas num só sítio (`src/tasks/task-labels.ts`); testes de componentes e vistas | Feito (2026-11-11); por verificar no navegador |
-| Frontend: escolha do responsável, seletor de estado nos cartões do wireframe, ligação a partir do ecrã inicial | Por fazer (precisam de `listAssignableAccounts` e do `DashboardView`) |
+| Frontend: tipos e vistas com `assignees` (lista por ordem do nome, cada um com a sua indicação); atribuir e remover responsáveis no `TaskDetailView` e escolher responsáveis ao criar | Feito (2026-11-11); 111 testes de componentes e vistas a passar; verificado no navegador (criar com dois responsáveis, remover, atribuir, largura de telemóvel) |
+| Frontend: seletor de estado nos cartões do wireframe, ligação a partir do ecrã inicial | Por fazer (precisa do `DashboardView`) |
 
 **Objetivo:** gerir as tarefas de cada projeto, os seus responsáveis e a prioridade, e filtrar e paginar a lista.
 
 **User stories:** US06, US07, US08, US19 (sem comentários), US22, US23; CL1, CL2, CL4.
 
-**Operações da API:** `listProjectTasks`, `createProjectTask`, `listAssignableAccounts`, `getTask`, `updateTask`, `deleteTask`, `changeTaskStatus`.
+**Operações da API:** `listProjectTasks`, `createProjectTask`, `listAssignableAccounts`, `getTask`, `updateTask`, `deleteTask`, `changeTaskStatus`, `addTaskAssignee`, `removeTaskAssignee`.
+
+**Nota (decisão interna, 2026-11-11):** a tarefa passa a ter vários responsáveis (DE16, openapi.yaml 0.5.0). As partes marcadas "Feito" foram feitas com um só responsável (`assigneeId`) e têm de ser adaptadas.
 
 **Ficheiros e componentes previstos (proposta):**
 
 | Camada | Ficheiros ou componentes |
 |---|---|
-| Base de dados | Migration com o enum `TaskPriority` e a coluna `task.priority` (`NOT NULL`, por omissão `MEDIUM`, database.md); índice para o filtro por prioridade. É uma alteração à estrutura de dados: pede confirmação antes de a criar (AGENTS.md) |
-| `tasks` | Criar, editar, eliminar; prioridade (PN19); lista filtrada e paginada com `total` e `countsByStatus` (PN20); escolher o responsável (membro com conta ativa, PN06); mudar o estado e reabrir (PN10); reação a "membro removido" (PN07) e a "conta desativada" (PN08), na mesma transação (architecture.md §4.2) |
+| Base de dados | Migration com o enum `TaskPriority` e a coluna `task.priority` (`NOT NULL`, por omissão `MEDIUM`, database.md); índice para o filtro por prioridade. Migration `task_assignees` (database.md, TASK_ASSIGNEE). São alterações à estrutura de dados: pedem confirmação antes de serem criadas (AGENTS.md) |
+| `tasks` | Criar, editar, eliminar; prioridade (PN19); lista filtrada e paginada com `total` e `countsByStatus` (PN20); atribuir e remover responsáveis (membro com conta ativa, sem repetidos, PN06, DE16); mudar o estado e reabrir, tirando só os responsáveis desativados ou que já não são membros (PN10); reação a "membro removido" (PN07) e a "conta desativada" (PN08), por pessoa e na mesma transação (architecture.md §4.2) |
 | `projects`, `accounts` | Emitir os eventos "membro removido" e "conta desativada" |
 | Frontend | Colunas por estado no `ProjectView` (wireframe, ecrã 2), cada uma com o seu pedido, o total real e "ver mais"; filtro por prioridade (e por estado); prioridade no cartão e no detalhe; formulário de tarefa para o Gestor, com a prioridade; seletor de estado; `TaskDetailView` com título, descrição, responsável e estado; indicações "Sem responsável", "conta desativada" e "já não é membro" |
 
@@ -260,14 +267,16 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 **Critérios de aceitação:**
 
 1. Todos os critérios da US06, US07, US08, US22, US23 e da US19 sem comentários.
-2. CL1 (US04) e CL4 (US02): as tarefas que não estão "Concluída" ficam "Sem responsável"; as "Concluída" mantêm o nome com a indicação correta.
+2. CL1 (US04) e CL4 (US02): a pessoa sai dos responsáveis das tarefas que não estão "Concluída" e os outros mantêm-se; nas "Concluída" continua, com a indicação correta.
+5. Vários responsáveis (DE16): atribuir, remover, responsável repetido (`409`), conta fora do projeto ou não ativa (`400`), remover quem não é responsável (`404`).
 3. Título com 3–150 caracteres sem contar os espaços das pontas e descrição até 2000 (PN12).
 4. Lista de tarefas com filtros e paginação, `total` e `countsByStatus` como no contrato (PN20).
 
 **Verificação:**
 
 - [API] cada critério, incluindo remover um membro e desativar uma conta com tarefas nos dois estados (quando existirem os incrementos 2 e 3); filtros, paginação, `total` e `countsByStatus`, incluindo uma página para além da última e parâmetros inválidos.
-- [Unidade] regra de reabertura (PN10) e escolha da indicação ao lado do nome (DE14).
+- [Unidade] regra de reabertura por pessoa (PN10) e escolha da indicação ao lado do nome (DE14).
+- [API] migration: as tarefas com `assignee_id` ficam com esse responsável em `task_assignee`.
 - [UI] agrupamento por estado e grupo vazio; indicações ao lado do responsável.
 - [Manual] criar, editar, mudar o estado e eliminar uma tarefa sem recarregar a página.
 
@@ -315,7 +324,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 | Camada | Ficheiros ou componentes |
 |---|---|
-| Base de dados | Migration com COMMENT, eliminado em cascata com a tarefa (database.md §4) |
+| Base de dados | Nenhuma migration: a tabela `comment` (com a eliminação em cascata e o índice `(task_id, created_at)`) já foi criada pela migration `init` (2026-11-08) |
 | `tasks` | Criar, listar, editar e apagar os próprios comentários (PN15) |
 | Frontend | Lista e formulário de comentários no `TaskDetailView`, com autor, data e hora |
 
@@ -333,7 +342,41 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 - [UI] botões de editar e apagar só nos comentários próprios.
 - [Manual] comentar, editar e apagar numa tarefa.
 
-### Incremento 7 — Área de administração
+### Incremento 7 — Pedidos de responsável
+
+**Estado:** Por iniciar
+
+**Objetivo:** um responsável pede que outro membro seja adicionado como responsável, e o Gestor aceita ou recusa.
+
+**User stories:** US31, US19 (pedidos pendentes no detalhe da tarefa); CL3, CL13.
+
+**Operações da API:** `listTaskAssigneeRequests`, `createAssigneeRequest`, `listProjectAssigneeRequests`, `acceptAssigneeRequest`, `rejectAssigneeRequest`, `cancelAssigneeRequest`.
+
+**Ficheiros e componentes previstos (proposta):**
+
+| Camada | Ficheiros ou componentes |
+|---|---|
+| Base de dados | Migration `assignee_requests`: enum `assignee_request_status`, tabela `assignee_request`, eliminada em cascata com a tarefa, e índice único parcial em `(task_id, account_id)` para `PENDING` (database.md). Alteração à estrutura de dados aprovada em 2026-11-11 |
+| `authorization` | `requireAssigneeRequest` (404 pelo projeto da tarefa), "é responsável da tarefa" (`NOT_TASK_ASSIGNEE`), "fez o pedido" (`NOT_REQUEST_AUTHOR`) |
+| `tasks` | Criar, listar (por tarefa e por projeto), aceitar (com nova verificação e a atribuição na mesma transação), recusar e cancelar (PN21) |
+| Frontend | No `TaskDetailView`: pedidos pendentes; "Pedir responsável" para quem é responsável, com os membros ativos que ainda não são responsáveis; aceitar e recusar para o Gestor; cancelar para quem pediu. Lista de pedidos pendentes do projeto para o Gestor no `ProjectView` |
+
+**Dependências:** incremento 4 (vários responsáveis).
+
+**Critérios de aceitação:**
+
+1. Todos os critérios da US31 e o caso "pedidos pendentes" da US19.
+2. CL13: os pedidos não são cancelados automaticamente; ao aceitar, as condições sobre a pessoa pedida voltam a ser verificadas e, se falharem, o pedido continua pendente.
+3. CL3: num projeto arquivado, criar, aceitar, recusar e cancelar dão `409 PROJECT_ARCHIVED`; as listas continuam legíveis.
+
+**Verificação:**
+
+- [API] cada critério, incluindo pedido repetido, pessoa já responsável, pedido já decidido, Membro a aceitar, outra pessoa a cancelar, conta que não é membro (`404`) e a eliminação dos pedidos com a tarefa.
+- [Unidade] transições de estado do pedido (só a partir de `PENDING`).
+- [UI] botões só para quem pode usar cada ação.
+- [Manual] pedir, aceitar, recusar e cancelar numa tarefa.
+
+### Incremento 8 — Área de administração
 
 **Estado:** Por iniciar
 
@@ -365,21 +408,21 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 - [UI] lista de projetos sem progresso.
 - [Manual] trocar o Gestor de um projeto e confirmar as entradas no registo.
 
-### Incremento 8 — Verificação final do MVP
+### Incremento 9 — Verificação final do MVP
 
 **Estado:** Por iniciar
 
 **Objetivo:** confirmar que o MVP cumpre todos os critérios de aceitação e as regras gerais, sem funcionalidades novas.
 
-**User stories:** todas (US01–US19, US22, US23).
+**User stories:** todas (US01–US19, US22, US23, US31).
 
 **Ficheiros e componentes previstos (proposta):** testes de API transversais; instruções para correr a aplicação localmente (no `README.md` de `matriz/`).
 
-**Dependências:** incrementos 1 a 7.
+**Dependências:** incrementos 1 a 8.
 
 **Critérios de aceitação:**
 
-1. Todos os critérios de aceitação das US01–US19, US22 e US23 têm um teste automático ou uma verificação manual registada.
+1. Todos os critérios de aceitação das US01–US19, US22, US23 e US31 têm um teste automático ou uma verificação manual registada.
 2. RNF02: para cada operação de um projeto, uma conta que não é membro (incluindo um Administrador) recebe `404`.
 3. Projeto arquivado: todas as escritas são recusadas com `409` (CL3).
 4. A interface funciona em largura de telemóvel (D01).
@@ -396,9 +439,10 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 | 1 | Os limites de comprimento do nome e do email de uma conta não estão definidos (constraints.md §5). | 1, 2 |
 | 2 | A sugestão de segurança para o link de ativação (retirar o token do endereço visível e não carregar recursos externos na página) não está decidida. | 2 |
 | 3 | Uma conta pendente pode receber a permissão de Administrador? (constraints.md §5) | 2 |
-| 4 | O Administrador pode nomear-se a si próprio Gestor (CL10)? | 7 |
+| 4 | O Administrador pode nomear-se a si próprio Gestor (CL10)? | 8 |
 | 5 | As propostas da secção 1.2 precisam de aprovação, em particular o cliente SMTP (AGENTS.md). | 2 |
 | 6 | O email no login é comparado tal como foi escrito (só sem espaços nas pontas). Não está decidido se deve ignorar maiúsculas. | 1, 2 |
+| 7 | Comentários: o texto é guardado sem os espaços das pontas, como o título da tarefa? A lista desempata por `id` quando dois comentários têm o mesmo `createdAt`? O `201` de `createTaskComment` leva o cabeçalho `Location`? | 6 |
 
 ## 5. Como manter este plano
 

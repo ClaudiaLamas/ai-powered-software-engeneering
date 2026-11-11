@@ -2,14 +2,14 @@ openapi: 3.1.0
 
 info:
   title: Matriz API
-  version: 0.4.0
+  version: 0.5.0
   summary: Contrato da API do MVP da Matriz.
   description: |
     Contrato da API do backend da Matriz (monólito modular, ver
     `docs/architecture.md`). Cobre as operações das user stories do MVP
-    (US01–US19, US22, US23): autenticação e ativação de contas, contas, projetos e painel
-    inicial, membros e Gestor, tarefas e responsáveis, comentários e registo
-    administrativo. Inclui também `GET /health`, uma operação de
+    (US01–US19, US22, US23, US31): autenticação e ativação de contas, contas,
+    projetos e painel inicial, membros e Gestor, tarefas, responsáveis e
+    pedidos de responsável, comentários e registo administrativo. Inclui também `GET /health`, uma operação de
     infraestrutura fora das user stories.
 
     Convenções:
@@ -17,19 +17,22 @@ info:
     - Nomes de campos, valores de enumerações e caminhos em inglês; mensagens
       para o utilizador em português (ver `AGENTS.md`).
     - Campos JSON em camelCase; correspondem às colunas em snake_case de
-      `docs/database.md` (por exemplo, `assigneeId` ↔ `assignee_id`).
+      `docs/database.md` (por exemplo, `createdAt` ↔ `created_at`).
     - Erros no formato Problem Details (RFC 9457), com um campo `code` estável.
     - Erros comuns, não repetidos em cada operação: `400 VALIDATION_ERROR`
       (JSON mal formado, campo desconhecido ou UUID inválido) e
       `401 UNAUTHENTICATED`.
     - Um projeto onde a conta não participa responde `404`, como um projeto
       que não existe, para não revelar que existe (DE02, PN02, RNF02). O mesmo
-      vale para as suas tarefas e comentários (`TASK_NOT_FOUND`,
-      `COMMENT_NOT_FOUND`), também para um Administrador que não é membro.
+      vale para as suas tarefas, comentários e pedidos de responsável
+      (`TASK_NOT_FOUND`, `COMMENT_NOT_FOUND`, `ASSIGNEE_REQUEST_NOT_FOUND`),
+      também para um Administrador que não é membro.
     - `403` só quando a conta já pode saber que o recurso existe: um membro
       sem a função necessária (`NOT_PROJECT_MANAGER`), quem não é o autor do
-      comentário (`NOT_COMMENT_AUTHOR`) ou uma conta sem a permissão de
-      Administrador numa operação de administração (`NOT_ADMIN`).
+      comentário (`NOT_COMMENT_AUTHOR`), quem não é responsável da tarefa
+      (`NOT_TASK_ASSIGNEE`), quem não fez o pedido de responsável
+      (`NOT_REQUEST_AUTHOR`) ou uma conta sem a permissão de Administrador
+      numa operação de administração (`NOT_ADMIN`).
     - A conta que faz o pedido vem sempre do token. O corpo nunca traz
       `authorId`, `ownerId` ou `accountId` da própria conta: um campo que não
       está no esquema dá `400 VALIDATION_ERROR`.
@@ -39,15 +42,25 @@ info:
       `403 NOT_ADMIN` (operações só para o Administrador) →
       `400 VALIDATION_ERROR` (formato do pedido) → `404` (não existe ou a
       conta não é membro) → `403` (função no projeto ou autoria do
-      comentário) → `409` (projeto arquivado) → `400` com os códigos das
-      regras (por exemplo, `TITLE_INVALID`).
+      comentário, responsável da tarefa, autor do pedido) → `409` (projeto
+      arquivado) → códigos das regras: `400` (por exemplo, `TITLE_INVALID`,
+      `ASSIGNEE_NOT_MEMBER`), `404 ASSIGNEE_NOT_FOUND` e `409`
+      (`ASSIGNEE_ALREADY_ASSIGNED`, `REQUEST_ALREADY_PENDING`,
+      `REQUEST_NOT_PENDING`).
     - Listas sem paginação (escala de RNF01), exceto as tarefas de um
       projeto (`listProjectTasks`), paginadas e filtráveis por estado e
       prioridade (decisão interna, 2026-11-10).
 
     Fora do MVP e fora deste contrato: pesquisa por texto e filtro por
-    responsável (resto da FN13), prazo (FN10), vários responsáveis por tarefa
-    (DE09) e eliminação de projetos (questão em aberto).
+    responsável (FN30), prazo (FN10), notificações (FN15) e eliminação de
+    projetos (questão em aberto).
+
+    Alterações na 0.5.0 (decisão interna, 2026-11-11; quebra a
+    compatibilidade): uma tarefa tem zero ou mais responsáveis (DE16).
+    `Task.assignee` passa a `Task.assignees`; `assigneeId` sai de
+    `createProjectTask` (passa a `assigneeIds`) e de `updateTask`; os
+    responsáveis atribuem-se e removem-se com `addTaskAssignee` e
+    `removeTaskAssignee`. Entram os pedidos de responsável (FN29, DE13, PN21).
 
     Autenticação com JWT (D06) e identificadores UUID (ver
     `docs/constraints.md` §4); decisões internas, por validar. Nenhuma regra
@@ -61,7 +74,9 @@ tags:
   - name: projects
     description: Projetos, painel inicial, membros e Gestor (módulos `projects` e `progress`).
   - name: tasks
-    description: Tarefas de um projeto e responsáveis (módulo `tasks`).
+    description: Tarefas de um projeto, responsáveis e pedidos de responsável (módulo `tasks`).
+  - name: assignee-requests
+    description: Pedidos para adicionar responsáveis a uma tarefa (módulo `tasks`).
   - name: comments
     description: Comentários em tarefas (módulo `tasks`).
   - name: admin
@@ -805,11 +820,15 @@ paths:
                         description: null
                         status: IN_PROGRESS
                         priority: HIGH
-                        assignee:
-                          id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
-                          name: Ana Silva
-                          status: ACTIVE
-                          isProjectMember: true
+                        assignees:
+                          - id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
+                            name: Ana Silva
+                            status: ACTIVE
+                            isProjectMember: true
+                          - id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d604"
+                            name: Bruno Matos
+                            status: ACTIVE
+                            isProjectMember: true
                         createdAt: "2026-10-29T09:00:00Z"
                         updatedAt: "2026-10-29T10:30:00Z"
                       - id: "9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c02"
@@ -818,7 +837,7 @@ paths:
                         description: Depois da revisão dos textos.
                         status: TODO
                         priority: MEDIUM
-                        assignee: null
+                        assignees: []
                         createdAt: "2026-10-29T09:05:00Z"
                         updatedAt: "2026-10-29T09:05:00Z"
                       - id: "9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c03"
@@ -827,11 +846,11 @@ paths:
                         description: null
                         status: DONE
                         priority: LOW
-                        assignee:
-                          id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d603"
-                          name: Rui Costa
-                          status: ACTIVE
-                          isProjectMember: false
+                        assignees:
+                          - id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d603"
+                            name: Rui Costa
+                            status: ACTIVE
+                            isProjectMember: false
                         createdAt: "2026-10-29T09:10:00Z"
                         updatedAt: "2026-10-30T16:00:00Z"
                     total: 3
@@ -851,7 +870,7 @@ paths:
                         description: Depois da revisão dos textos.
                         status: TODO
                         priority: MEDIUM
-                        assignee: null
+                        assignees: []
                         createdAt: "2026-10-29T09:05:00Z"
                         updatedAt: "2026-10-29T09:05:00Z"
                     total: 1
@@ -899,9 +918,11 @@ paths:
 
         Regras: título obrigatório, com 3–150 caracteres e não só espaços,
         contados sem os espaços das pontas; descrição até 2000 caracteres
-        (PN12); prioridade opcional, por omissão `MEDIUM` (FN12, US22); o
-        responsável é opcional e, se indicado, tem de ser membro do projeto
-        com conta ativa (PN06, PN08, DE15).
+        (PN12); prioridade opcional, por omissão `MEDIUM` (FN12, US22);
+        `assigneeIds` é opcional (por omissão, "Sem responsável"), sem
+        repetidos, e cada responsável tem de ser membro do projeto com conta
+        ativa (PN06, PN08, DE15, DE16). Uma conta que não existe dá
+        `ASSIGNEE_NOT_MEMBER` (pressuposto).
       requestBody:
         required: true
         content:
@@ -910,12 +931,14 @@ paths:
               $ref: "#/components/schemas/CreateTaskRequest"
             examples:
               withAssignee:
-                summary: Com responsável
+                summary: Com dois responsáveis
                 value:
                   title: Rever textos
                   description: Rever os textos da página inicial.
                   priority: HIGH
-                  assigneeId: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
+                  assigneeIds:
+                    - "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
+                    - "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d604"
               withoutAssignee:
                 summary: Sem responsável nem prioridade (fica `MEDIUM`)
                 value:
@@ -937,11 +960,15 @@ paths:
                 description: Rever os textos da página inicial.
                 status: TODO
                 priority: HIGH
-                assignee:
-                  id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
-                  name: Ana Silva
-                  status: ACTIVE
-                  isProjectMember: true
+                assignees:
+                  - id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
+                    name: Ana Silva
+                    status: ACTIVE
+                    isProjectMember: true
+                  - id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d604"
+                    name: Bruno Matos
+                    status: ACTIVE
+                    isProjectMember: true
                 createdAt: "2026-10-29T09:00:00Z"
                 updatedAt: "2026-10-29T09:00:00Z"
         "400":
@@ -988,9 +1015,10 @@ paths:
       operationId: getTask
       summary: Consultar uma tarefa
       description: |
-        Título, descrição, responsável e estado (US19). Qualquer membro do
+        Título, descrição, responsáveis e estado (US19). Qualquer membro do
         projeto da tarefa. Os comentários estão em
-        `GET /tasks/{taskId}/comments`.
+        `GET /tasks/{taskId}/comments` e os pedidos de responsável pendentes
+        em `GET /tasks/{taskId}/assignee-requests`.
       responses:
         "200":
           description: Tarefa.
@@ -1005,17 +1033,12 @@ paths:
     patch:
       tags: [tasks]
       operationId: updateTask
-      summary: Editar uma tarefa e escolher o responsável e a prioridade
+      summary: Editar o título, a descrição e a prioridade de uma tarefa
       description: |
-        Só o Gestor (US06, US22, DE09, PN05). Os campos omitidos não mudam;
-        `assigneeId: null` deixa a tarefa "Sem responsável". O estado muda-se
-        com `PUT /tasks/{taskId}/status`.
-
-        Um `assigneeId` igual ao responsável atual não é validado outra vez:
-        numa tarefa `DONE` cujo responsável já não é membro ou tem a conta
-        desativada, o cliente pode reenviá-lo sem erro (decisão interna,
-        2026-11-10). Um `assigneeId` de uma conta que não existe dá
-        `ASSIGNEE_NOT_MEMBER` (pressuposto).
+        Só o Gestor (US06, US22, DE09, PN05). Os campos omitidos não mudam.
+        Os responsáveis mudam-se com `addTaskAssignee` e `removeTaskAssignee`
+        (`assigneeId` dá `400 VALIDATION_ERROR` desde a 0.5.0); o estado
+        muda-se com `PUT /tasks/{taskId}/status`.
       requestBody:
         required: true
         content:
@@ -1043,7 +1066,9 @@ paths:
       tags: [tasks]
       operationId: deleteTask
       summary: Eliminar uma tarefa
-      description: Só o Gestor (US06, DE09). Os comentários da tarefa são eliminados com ela.
+      description: |
+        Só o Gestor (US06, DE09). Os comentários, os responsáveis e os
+        pedidos de responsável da tarefa são eliminados com ela.
       responses:
         "204":
           description: Tarefa eliminada.
@@ -1065,9 +1090,9 @@ paths:
       summary: Mudar o estado de uma tarefa
       description: |
         Qualquer membro do projeto (US07, DE10). Qualquer estado pode passar a
-        qualquer outro (PN10). Ao reabrir uma tarefa `DONE` cujo responsável
-        já não é membro do projeto ou tem a conta desativada, a tarefa fica
-        "Sem responsável" (PN07, PN08, PN10).
+        qualquer outro (PN10). Ao reabrir uma tarefa `DONE`, saem dos
+        responsáveis as contas desativadas e as que já não são membros do
+        projeto; os outros mantêm-se (PN07, PN08, PN10).
       requestBody:
         required: true
         content:
@@ -1089,6 +1114,288 @@ paths:
           $ref: "#/components/responses/TaskNotFound"
         "409":
           $ref: "#/components/responses/ProjectArchived"
+
+  # ----------------------------------------------------------- assignees
+  /tasks/{taskId}/assignees:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      tags: [tasks]
+      operationId: addTaskAssignee
+      summary: Atribuir um responsável a uma tarefa
+      description: |
+        Só o Gestor (US06, DE09, DE16, PN05). A conta tem de ser membro do
+        projeto com conta ativa (PN06, PN08, DE15) e ainda não ser
+        responsável pela tarefa. Uma conta que não existe dá
+        `ASSIGNEE_NOT_MEMBER` (pressuposto). A tarefa pode estar em qualquer
+        estado, também `DONE`. Os pedidos pendentes para a mesma pessoa não
+        mudam; aceitá-los depois dá `ASSIGNEE_ALREADY_ASSIGNED` (PN21).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountIdRequest"
+      responses:
+        "201":
+          description: Responsável atribuído; devolve a tarefa com os responsáveis.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/AssigneeValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          $ref: "#/components/responses/TaskNotFound"
+        "409":
+          description: |
+            `PROJECT_ARCHIVED` (PN09) ou `ASSIGNEE_ALREADY_ASSIGNED` — a conta
+            já é responsável pela tarefa (DE16).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                projectArchived:
+                  $ref: "#/components/examples/ProjectArchived"
+                alreadyAssigned:
+                  $ref: "#/components/examples/AssigneeAlreadyAssigned"
+
+  /tasks/{taskId}/assignees/{accountId}:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+      - $ref: "#/components/parameters/AccountId"
+    delete:
+      tags: [tasks]
+      operationId: removeTaskAssignee
+      summary: Remover um responsável de uma tarefa
+      description: |
+        Só o Gestor (US06, DE09, PN05). Pode remover qualquer responsável,
+        também numa tarefa `DONE` e quem já não é membro ou tem a conta
+        desativada (DE14). Sem responsáveis, a tarefa fica "Sem responsável".
+        Os pedidos de responsável pendentes não mudam (PN21).
+      responses:
+        "204":
+          description: Responsável removido.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          description: |
+            `TASK_NOT_FOUND` (a tarefa não existe ou a conta não é membro do
+            projeto) ou `ASSIGNEE_NOT_FOUND` — a conta indicada não é
+            responsável pela tarefa (verificado depois de `403` e `409`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                taskNotFound:
+                  $ref: "#/components/examples/TaskNotFound"
+                assigneeNotFound:
+                  $ref: "#/components/examples/AssigneeNotFound"
+        "409":
+          $ref: "#/components/responses/ProjectArchived"
+
+  # ---------------------------------------------------- assignee requests
+  /tasks/{taskId}/assignee-requests:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      tags: [assignee-requests]
+      operationId: listTaskAssigneeRequests
+      summary: Listar os pedidos de responsável pendentes de uma tarefa
+      description: |
+        Qualquer membro do projeto (US19, PN21). Só os pedidos `PENDING`,
+        ordenados por `createdAt`, mais antigos primeiro, e por `id` em caso
+        de empate (pressuposto).
+      responses:
+        "200":
+          description: Pedidos pendentes (a lista pode ser vazia).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssigneeRequestList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/TaskNotFound"
+    post:
+      tags: [assignee-requests]
+      operationId: createAssigneeRequest
+      summary: Pedir que outro membro seja adicionado como responsável
+      description: |
+        Só um responsável da tarefa, seja Gestor ou Membro (US31, DE13,
+        PN21). A pessoa pedida tem de ser membro do projeto com conta ativa e
+        ainda não ser responsável; uma conta que não existe dá
+        `ASSIGNEE_NOT_MEMBER` (pressuposto). O cliente escolhe a pessoa a
+        partir da equipa do projeto (`getProject`, `members`). Quem pede e a
+        data são definidos pelo backend; o pedido não tem mensagem nem gera
+        notificações.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountIdRequest"
+      responses:
+        "201":
+          description: Pedido criado, `PENDING`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssigneeRequest"
+        "400":
+          $ref: "#/components/responses/AssigneeValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotTaskAssignee"
+        "404":
+          $ref: "#/components/responses/TaskNotFound"
+        "409":
+          description: |
+            `PROJECT_ARCHIVED` (PN09), `ASSIGNEE_ALREADY_ASSIGNED` — a pessoa
+            já é responsável — ou `REQUEST_ALREADY_PENDING` — já há um pedido
+            pendente para essa pessoa nessa tarefa (PN21).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                projectArchived:
+                  $ref: "#/components/examples/ProjectArchived"
+                alreadyAssigned:
+                  $ref: "#/components/examples/AssigneeAlreadyAssigned"
+                alreadyPending:
+                  $ref: "#/components/examples/RequestAlreadyPending"
+
+  /projects/{projectId}/assignee-requests:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [assignee-requests]
+      operationId: listProjectAssigneeRequests
+      summary: Listar os pedidos de responsável pendentes de um projeto
+      description: |
+        Só o Gestor (US31, PN21). Só os pedidos `PENDING` de todas as tarefas
+        do projeto, ordenados por `createdAt`, mais antigos primeiro, e por
+        `id` em caso de empate (pressuposto). Projetos arquivados continuam
+        legíveis (PN09).
+      responses:
+        "200":
+          description: Pedidos pendentes (a lista pode ser vazia).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssigneeRequestList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          $ref: "#/components/responses/ProjectNotFound"
+
+  /assignee-requests/{requestId}/accept:
+    parameters:
+      - $ref: "#/components/parameters/AssigneeRequestId"
+    post:
+      tags: [assignee-requests]
+      operationId: acceptAssigneeRequest
+      summary: Aceitar um pedido de responsável
+      description: |
+        Só o Gestor (US31, DE13, PN21). As condições sobre a pessoa pedida
+        são verificadas outra vez: tem de ser membro do projeto com conta
+        ativa e ainda não ser responsável. Se não se cumprirem, o pedido
+        continua `PENDING` (CL13). Não se verifica outra vez se quem fez o
+        pedido ainda é responsável. A pessoa passa a responsável e o pedido a
+        `ACCEPTED` na mesma transação.
+      responses:
+        "200":
+          description: Pedido aceite; devolve a tarefa com os responsáveis.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/AssigneeValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          $ref: "#/components/responses/AssigneeRequestNotFound"
+        "409":
+          description: |
+            `PROJECT_ARCHIVED` (PN09), `REQUEST_NOT_PENDING` — o pedido já foi
+            aceite, recusado ou cancelado — ou `ASSIGNEE_ALREADY_ASSIGNED` — a
+            pessoa já foi atribuída entretanto (CL13).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                projectArchived:
+                  $ref: "#/components/examples/ProjectArchived"
+                notPending:
+                  $ref: "#/components/examples/RequestNotPending"
+                alreadyAssigned:
+                  $ref: "#/components/examples/AssigneeAlreadyAssigned"
+
+  /assignee-requests/{requestId}/reject:
+    parameters:
+      - $ref: "#/components/parameters/AssigneeRequestId"
+    post:
+      tags: [assignee-requests]
+      operationId: rejectAssigneeRequest
+      summary: Recusar um pedido de responsável
+      description: Só o Gestor (US31, DE13, PN21). Os responsáveis não mudam.
+      responses:
+        "200":
+          description: Pedido recusado (`REJECTED`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssigneeRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotProjectManager"
+        "404":
+          $ref: "#/components/responses/AssigneeRequestNotFound"
+        "409":
+          $ref: "#/components/responses/RequestNotPendingOrArchived"
+
+  /assignee-requests/{requestId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/AssigneeRequestId"
+    post:
+      tags: [assignee-requests]
+      operationId: cancelAssigneeRequest
+      summary: Cancelar o próprio pedido de responsável
+      description: |
+        Só quem fez o pedido, mesmo que outra pessoa seja Gestor e mesmo que
+        já não seja responsável da tarefa (US31, PN21).
+      responses:
+        "200":
+          description: Pedido cancelado (`CANCELLED`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssigneeRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/NotRequestAuthor"
+        "404":
+          $ref: "#/components/responses/AssigneeRequestNotFound"
+        "409":
+          $ref: "#/components/responses/RequestNotPendingOrArchived"
 
   # ------------------------------------------------------------ comments
   /tasks/{taskId}/comments:
@@ -1293,6 +1600,13 @@ components:
         minimum: 1
         maximum: 100
         default: 20
+    AssigneeRequestId:
+      name: requestId
+      in: path
+      required: true
+      description: Identificador do pedido de responsável.
+      schema:
+        $ref: "#/components/schemas/Id"
     CommentId:
       name: commentId
       in: path
@@ -1706,7 +2020,7 @@ components:
           description,
           status,
           priority,
-          assignee,
+          assignees,
           createdAt,
           updatedAt,
         ]
@@ -1723,13 +2037,14 @@ components:
           $ref: "#/components/schemas/TaskStatus"
         priority:
           $ref: "#/components/schemas/TaskPriority"
-        assignee:
+        assignees:
           description: |
-            Responsável; `null` = "Sem responsável" (PN06). Numa tarefa `DONE`
-            pode ser quem já não é membro do projeto (PN07).
-          oneOf:
-            - $ref: "#/components/schemas/Assignee"
-            - type: "null"
+            Responsáveis, por ordem do nome (DE16); lista vazia = "Sem
+            responsável" (PN06). Numa tarefa `DONE` pode incluir quem já não é
+            membro do projeto ou tem a conta desativada (PN07, PN08).
+          type: array
+          items:
+            $ref: "#/components/schemas/Assignee"
         createdAt:
           type: string
           format: date-time
@@ -1795,13 +2110,15 @@ components:
         Opcional, até 2000 caracteres (PN12). Vazia ou só com espaços fica
         `null`, "sem descrição" (decisão interna, 2026-11-10).
 
-    AssigneeId:
+    AssigneeIds:
       description: |
-        Responsável. `null` = "Sem responsável". Tem de ser membro do projeto
-        com conta ativa (PN06, PN08, DE15).
-      oneOf:
-        - $ref: "#/components/schemas/Id"
-        - type: "null"
+        Responsáveis, sem repetidos (um repetido dá `400 VALIDATION_ERROR`).
+        Lista vazia ou omitida = "Sem responsável". Cada um tem de ser membro
+        do projeto com conta ativa (PN06, PN08, DE15, DE16).
+      type: array
+      uniqueItems: true
+      items:
+        $ref: "#/components/schemas/Id"
 
     CreateTaskRequest:
       type: object
@@ -1814,8 +2131,8 @@ components:
           $ref: "#/components/schemas/TaskDescription"
         priority:
           $ref: "#/components/schemas/TaskPriority"
-        assigneeId:
-          $ref: "#/components/schemas/AssigneeId"
+        assigneeIds:
+          $ref: "#/components/schemas/AssigneeIds"
 
     UpdateTaskRequest:
       type: object
@@ -1828,8 +2145,6 @@ components:
           $ref: "#/components/schemas/TaskDescription"
         priority:
           $ref: "#/components/schemas/TaskPriority"
-        assigneeId:
-          $ref: "#/components/schemas/AssigneeId"
 
     ChangeTaskStatusRequest:
       type: object
@@ -1838,6 +2153,79 @@ components:
       properties:
         status:
           $ref: "#/components/schemas/TaskStatus"
+
+    # ---- pedidos de responsável
+    AssigneeRequestStatus:
+      type: string
+      enum: [PENDING, ACCEPTED, REJECTED, CANCELLED]
+      description: |
+        `PENDING` ("Pendente"), `ACCEPTED` ("Aceite"), `REJECTED`
+        ("Recusado") ou `CANCELLED` ("Cancelado"). Só sai de `PENDING` (PN21).
+
+    AssigneeRequest:
+      type: object
+      description: Pedido de responsável (`ASSIGNEE_REQUEST` em `docs/database.md`).
+      required: [id, task, requestedBy, account, status, createdAt, decidedAt, decidedBy]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        task:
+          type: object
+          description: A tarefa do pedido (o título serve a lista do projeto).
+          required: [id, title]
+          properties:
+            id:
+              $ref: "#/components/schemas/Id"
+            title:
+              type: string
+        requestedBy:
+          $ref: "#/components/schemas/AccountSummary"
+        account:
+          description: A pessoa que se pede para adicionar como responsável.
+          allOf:
+            - $ref: "#/components/schemas/AccountSummary"
+        status:
+          $ref: "#/components/schemas/AssigneeRequestStatus"
+        createdAt:
+          type: string
+          format: date-time
+        decidedAt:
+          type: [string, "null"]
+          format: date-time
+          description: Quando foi aceite, recusado ou cancelado; `null` em `PENDING`.
+        decidedBy:
+          description: |
+            Quem o aceitou ou recusou (o Gestor) ou cancelou (quem o fez);
+            `null` em `PENDING`.
+          oneOf:
+            - $ref: "#/components/schemas/AccountSummary"
+            - type: "null"
+      example:
+        id: "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c01"
+        task:
+          id: "9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c01"
+          title: Rever textos
+        requestedBy:
+          id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d602"
+          name: Ana Silva
+          status: ACTIVE
+        account:
+          id: "3c4d5e6f-7a8b-4c9d-a0e1-f2a3b4c5d603"
+          name: Rui Costa
+          status: ACTIVE
+        status: PENDING
+        createdAt: "2026-11-11T10:00:00Z"
+        decidedAt: null
+        decidedBy: null
+
+    AssigneeRequestList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssigneeRequest"
 
     # ---- comentários
     Comment:
@@ -1952,6 +2340,50 @@ components:
               message:
                 type: string
 
+  examples:
+    ProjectArchived:
+      value:
+        type: about:blank
+        title: Projeto arquivado
+        status: 409
+        code: PROJECT_ARCHIVED
+        detail: O projeto está arquivado e não pode ser alterado.
+    TaskNotFound:
+      value:
+        type: about:blank
+        title: Não encontrado
+        status: 404
+        code: TASK_NOT_FOUND
+        detail: A tarefa não existe.
+    AssigneeNotFound:
+      value:
+        type: about:blank
+        title: Não encontrado
+        status: 404
+        code: ASSIGNEE_NOT_FOUND
+        detail: Esta pessoa não é responsável pela tarefa.
+    AssigneeAlreadyAssigned:
+      value:
+        type: about:blank
+        title: Conflito
+        status: 409
+        code: ASSIGNEE_ALREADY_ASSIGNED
+        detail: Esta pessoa já é responsável pela tarefa.
+    RequestAlreadyPending:
+      value:
+        type: about:blank
+        title: Conflito
+        status: 409
+        code: REQUEST_ALREADY_PENDING
+        detail: Já existe um pedido pendente para esta pessoa nesta tarefa.
+    RequestNotPending:
+      value:
+        type: about:blank
+        title: Conflito
+        status: 409
+        code: REQUEST_NOT_PENDING
+        detail: Este pedido já foi aceite, recusado ou cancelado.
+
   responses:
     BadRequest:
       description: |
@@ -1977,9 +2409,10 @@ components:
         - `TITLE_INVALID` — título em falta, só com espaços ou fora de 3–150
           caracteres (PN12).
         - `DESCRIPTION_TOO_LONG` — descrição com mais de 2000 caracteres.
-        - `ASSIGNEE_NOT_MEMBER` — o responsável não é membro do projeto (PN06).
-        - `ASSIGNEE_NOT_ACTIVE` — o responsável tem a conta pendente ou
-          desativada (PN08, DE15).
+        - `ASSIGNEE_NOT_MEMBER` — um dos `assigneeIds` não é membro do
+          projeto ou não existe (PN06).
+        - `ASSIGNEE_NOT_ACTIVE` — um dos `assigneeIds` tem a conta pendente
+          ou desativada (PN08, DE15).
       content:
         application/problem+json:
           schema:
@@ -2003,8 +2436,28 @@ components:
                 code: ASSIGNEE_NOT_MEMBER
                 detail: O responsável tem de ser membro do projeto.
                 errors:
-                  - field: assigneeId
+                  - field: assigneeIds
                     message: O responsável tem de ser membro do projeto.
+
+    AssigneeValidationError:
+      description: |
+        A conta indicada em `accountId` não pode ser responsável. Valores de
+        `code`: `VALIDATION_ERROR`; `ASSIGNEE_NOT_MEMBER` — não é membro do
+        projeto ou não existe (PN06); `ASSIGNEE_NOT_ACTIVE` — tem a conta
+        pendente ou desativada (PN08, DE15).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Dados inválidos
+            status: 400
+            code: ASSIGNEE_NOT_MEMBER
+            detail: O responsável tem de ser membro do projeto.
+            errors:
+              - field: accountId
+                message: O responsável tem de ser membro do projeto.
 
     CommentValidationError:
       description: |
@@ -2079,6 +2532,61 @@ components:
             status: 403
             code: NOT_COMMENT_AUTHOR
             detail: Só o autor pode alterar este comentário.
+
+    NotTaskAssignee:
+      description: 'A conta não é responsável da tarefa (PN21). `code`: `NOT_TASK_ASSIGNEE`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Sem permissão
+            status: 403
+            code: NOT_TASK_ASSIGNEE
+            detail: Só um responsável da tarefa pode pedir outro responsável.
+
+    NotRequestAuthor:
+      description: 'A conta não fez o pedido (PN21). `code`: `NOT_REQUEST_AUTHOR`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Sem permissão
+            status: 403
+            code: NOT_REQUEST_AUTHOR
+            detail: Só quem fez o pedido o pode cancelar.
+
+    AssigneeRequestNotFound:
+      description: |
+        O pedido não existe ou pertence a um projeto onde a conta não é
+        membro. `code`: `ASSIGNEE_REQUEST_NOT_FOUND`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Não encontrado
+            status: 404
+            code: ASSIGNEE_REQUEST_NOT_FOUND
+            detail: O pedido não existe.
+
+    RequestNotPendingOrArchived:
+      description: |
+        `PROJECT_ARCHIVED` (PN09) ou `REQUEST_NOT_PENDING` — o pedido já foi
+        aceite, recusado ou cancelado (PN21).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            projectArchived:
+              $ref: "#/components/examples/ProjectArchived"
+            notPending:
+              $ref: "#/components/examples/RequestNotPending"
 
     ProjectNotFound:
       description: |

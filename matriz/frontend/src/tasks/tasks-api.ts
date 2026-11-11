@@ -1,5 +1,5 @@
 import { apiFetch } from '@/api/http'
-import type { Task, TaskPage, TaskPriority, TaskStatus } from '@/api/types'
+import type { AccountSummary, Task, TaskPage, TaskPriority, TaskStatus } from '@/api/types'
 import type { TaskFormValues } from './task-validation'
 import { toTaskPayload } from './task-validation'
 
@@ -20,11 +20,12 @@ export function listProjectTasks(projectId: string, query: TaskListQuery = {}): 
   return apiFetch<TaskPage>(`/projects/${encodeURIComponent(projectId)}/tasks${qs ? `?${qs}` : ''}`)
 }
 
-/** `createProjectTask` (US06, US22): só o Gestor. */
+/** `createProjectTask` (US06, US22): só o Gestor; com os responsáveis escolhidos (DE16). */
 export function createTask(projectId: string, values: TaskFormValues): Promise<Task> {
+  const assigneeIds = values.assigneeIds ?? []
   return apiFetch<Task>(`/projects/${encodeURIComponent(projectId)}/tasks`, {
     method: 'POST',
-    body: toTaskPayload(values),
+    body: { ...toTaskPayload(values), ...(assigneeIds.length > 0 && { assigneeIds }) },
   })
 }
 
@@ -33,7 +34,7 @@ export function getTask(taskId: string): Promise<Task> {
   return apiFetch<Task>(`/tasks/${encodeURIComponent(taskId)}`)
 }
 
-/** `updateTask` (US06, US22): título, descrição e prioridade; o responsável não muda. */
+/** `updateTask` (US06, US22): título, descrição e prioridade; os responsáveis não mudam. */
 export function updateTask(taskId: string, values: TaskFormValues): Promise<Task> {
   return apiFetch<Task>(`/tasks/${encodeURIComponent(taskId)}`, {
     method: 'PATCH',
@@ -47,6 +48,30 @@ export function changeTaskStatus(taskId: string, status: TaskStatus): Promise<Ta
     method: 'PUT',
     body: { status },
   })
+}
+
+/** `listAssignableAccounts` (US06): só o Gestor; membros com conta ativa, por ordem do nome. */
+export async function listAssignableAccounts(projectId: string): Promise<AccountSummary[]> {
+  const res = await apiFetch<{ items: AccountSummary[] }>(
+    `/projects/${encodeURIComponent(projectId)}/assignable-accounts`,
+  )
+  return res.items
+}
+
+/** `addTaskAssignee` (US06, DE16): só o Gestor; devolve a tarefa com os responsáveis. */
+export function addTaskAssignee(taskId: string, accountId: string): Promise<Task> {
+  return apiFetch<Task>(`/tasks/${encodeURIComponent(taskId)}/assignees`, {
+    method: 'POST',
+    body: { accountId },
+  })
+}
+
+/** `removeTaskAssignee` (US06): só o Gestor. */
+export function removeTaskAssignee(taskId: string, accountId: string): Promise<void> {
+  return apiFetch<void>(
+    `/tasks/${encodeURIComponent(taskId)}/assignees/${encodeURIComponent(accountId)}`,
+    { method: 'DELETE' },
+  )
 }
 
 /** `deleteTask` (US06): só o Gestor. */

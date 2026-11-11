@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayUnique,
+  IsArray,
   IsIn,
   IsInt,
   IsOptional,
@@ -12,7 +14,7 @@ import {
 import type { TaskPriority, TaskStatus } from '../generated/prisma/client.js';
 
 /**
- * Pedidos de tarefas (openapi.yaml 0.4.0). Aqui só se valida o formato
+ * Pedidos de tarefas (openapi.yaml 0.5.0). Aqui só se valida o formato
  * (`400 VALIDATION_ERROR`): tipos, enums, UUID e campos desconhecidos, como
  * `projectId` ou `status` no corpo. As regras (título aparado com 3–150
  * caracteres, descrição até 2000, responsável) são verificadas no serviço,
@@ -36,6 +38,14 @@ export const PAGE_SIZE_MAX = 100;
 const PRIORITY_MESSAGE = 'A prioridade tem de ser LOW, MEDIUM ou HIGH.';
 const STATUS_MESSAGE = 'O estado tem de ser TODO, IN_PROGRESS ou DONE.';
 
+/**
+ * Chave de comparação de `@ArrayUnique` para UUID: em minúsculas. Um
+ * elemento que não é texto fica como está (dá erro em `@IsUUID`).
+ */
+function sameUuid(id: unknown): unknown {
+  return typeof id === 'string' ? id.toLowerCase() : id;
+}
+
 /** Campos comuns a `CreateTaskRequest` e `UpdateTaskRequest`. */
 class TaskFields {
   /** Em falta dá `TITLE_INVALID` no serviço (ao criar); `null` ou outro tipo é erro de formato. */
@@ -51,18 +61,32 @@ class TaskFields {
   @ValidateIf((body: TaskFields) => body.priority !== undefined)
   @IsIn(TASK_PRIORITIES, { message: PRIORITY_MESSAGE })
   priority?: TaskPriority;
-
-  /** `null` = "Sem responsável". */
-  @IsOptional()
-  @IsUUID('all', { message: 'O responsável não é válido.' })
-  assigneeId?: string | null;
 }
 
 /** Corpo de `POST /projects/{projectId}/tasks`. Sem `status` (PN10) nem `projectId`. */
-export class CreateTaskRequest extends TaskFields {}
+export class CreateTaskRequest extends TaskFields {
+  /** Responsáveis (DE16), sem repetidos; omitido ou vazio = "Sem responsável". */
+  @IsOptional()
+  @IsArray({ message: 'Os responsáveis têm de ser uma lista.' })
+  // O PostgreSQL compara UUID sem distinguir maiúsculas: aqui também.
+  @ArrayUnique(sameUuid, {
+    message: 'Os responsáveis não podem ter repetidos.',
+  })
+  @IsUUID('all', { each: true, message: 'Um dos responsáveis não é válido.' })
+  assigneeIds?: string[];
+}
 
-/** Corpo de `PATCH /tasks/{taskId}`: pelo menos um campo; sem `status` nem `projectId`. */
+/**
+ * Corpo de `PATCH /tasks/{taskId}`: pelo menos um campo; sem `status`,
+ * `projectId` nem responsáveis (mudam-se com `/tasks/{taskId}/assignees`).
+ */
 export class UpdateTaskRequest extends TaskFields {}
+
+/** Corpo de `POST /tasks/{taskId}/assignees` (`AccountIdRequest`, DE16). */
+export class AddAssigneeRequest {
+  @IsUUID('all', { message: 'A conta não é válida.' })
+  accountId!: string;
+}
 
 /** Corpo de `PUT /tasks/{taskId}/status` (US07): só o estado. */
 export class ChangeTaskStatusRequest {

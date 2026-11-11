@@ -74,12 +74,19 @@ export async function createTask(
     title?: string;
     status?: TaskStatus;
     priority?: TaskPriority;
-    assigneeId?: string | null;
+    /** Responsáveis (DE16); a fixture não verifica se são membros. */
+    assigneeIds?: string[];
     createdAt?: Date;
   } = {},
 ) {
+  const { assigneeIds = [], ...fields } = overrides;
   return app.get(PrismaService).task.create({
-    data: { projectId, title: 'Tarefa de teste', ...overrides },
+    data: {
+      projectId,
+      title: 'Tarefa de teste',
+      ...fields,
+      assignees: { create: assigneeIds.map((accountId) => ({ accountId })) },
+    },
   });
 }
 

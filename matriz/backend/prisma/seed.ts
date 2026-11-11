@@ -122,7 +122,8 @@ type TaskKey =
   | 'portalDesign'
   | 'portalTests';
 
-// Responsáveis: só membros ativos do projeto, ou nenhum ("Sem responsável", DE09).
+// Responsáveis: zero ou mais membros ativos do projeto ("Sem responsável" se
+// nenhum; DE09, DE16).
 const TASKS: Record<
   TaskKey,
   {
@@ -131,7 +132,7 @@ const TASKS: Record<
     title: string;
     description?: string;
     status: TaskStatus;
-    assignee?: AccountKey;
+    assignees?: AccountKey[];
   }
 > = {
   springBrief: {
@@ -140,7 +141,7 @@ const TASKS: Record<
     title: 'Escrever o briefing da campanha',
     description: 'Objetivos, público-alvo e mensagens principais.',
     status: TaskStatus.DONE,
-    assignee: 'ana',
+    assignees: ['ana'],
   },
   springVisuals: {
     id: '5eed0000-0000-4000-8000-000000000202',
@@ -153,14 +154,14 @@ const TASKS: Record<
     project: 'spring',
     title: 'Aprovar o orçamento',
     status: TaskStatus.IN_PROGRESS,
-    assignee: 'ana',
+    assignees: ['ana'],
   },
   officeQuotes: {
     id: '5eed0000-0000-4000-8000-000000000204',
     project: 'office',
     title: 'Pedir três orçamentos de obras',
     status: TaskStatus.IN_PROGRESS,
-    assignee: 'bruno',
+    assignees: ['bruno'],
   },
   officeMove: {
     id: '5eed0000-0000-4000-8000-000000000205',
@@ -175,21 +176,21 @@ const TASKS: Record<
     description:
       'Entrada com email e palavra-passe; recuperação de acesso fica para depois.',
     status: TaskStatus.DONE,
-    assignee: 'ana',
+    assignees: ['ana'],
   },
   portalOrders: {
     id: '5eed0000-0000-4000-8000-000000000207',
     project: 'portal',
     title: 'Listar as encomendas do cliente',
     status: TaskStatus.IN_PROGRESS,
-    assignee: 'bruno',
+    assignees: ['ana', 'bruno'],
   },
   portalDesign: {
     id: '5eed0000-0000-4000-8000-000000000208',
     project: 'portal',
     title: 'Rever o design da página inicial',
     status: TaskStatus.TODO,
-    assignee: 'bruno',
+    assignees: ['bruno'],
   },
   portalTests: {
     id: '5eed0000-0000-4000-8000-000000000209',
@@ -384,21 +385,21 @@ async function main(): Promise<void> {
       }
     }
 
-    // Tarefas. Se o responsável previsto já não puder ser escolhido, a tarefa
-    // é criada "Sem responsável" (DE09).
+    // Tarefas. Um responsável previsto que já não possa ser escolhido fica de
+    // fora; os outros mantêm-se (DE16).
     for (const task of Object.values(TASKS)) {
       const projectId = PROJECTS[task.project].id;
       await ensure(
         () => prisma.task.findUnique({ where: { id: task.id } }),
         async () => {
-          let assigneeId: string | null = null;
-          if (task.assignee) {
-            if (await isActiveMember(task.assignee, projectId)) {
-              assigneeId = accounts[task.assignee].id;
+          const assigneeIds: string[] = [];
+          for (const key of task.assignees ?? []) {
+            if (await isActiveMember(key, projectId)) {
+              assigneeIds.push(accounts[key].id);
             } else {
               console.warn(
-                `${accounts[task.assignee].name} não é membro ativo do projeto; ` +
-                  `"${task.title}" fica sem responsável.`,
+                `${accounts[key].name} não é membro ativo do projeto; ` +
+                  `fica fora dos responsáveis de "${task.title}".`,
               );
             }
           }
@@ -409,7 +410,9 @@ async function main(): Promise<void> {
               title: task.title,
               description: task.description,
               status: task.status,
-              assigneeId,
+              assignees: {
+                create: assigneeIds.map((accountId) => ({ accountId })),
+              },
             },
           });
         },

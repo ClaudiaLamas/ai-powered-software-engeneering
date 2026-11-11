@@ -5,7 +5,7 @@ import type {
   TaskStatus,
 } from '../generated/prisma/client.js';
 
-/** `Assignee` (openapi.yaml): o responsável, com a indicação "já não é membro" (PN07). */
+/** `Assignee` (openapi.yaml): um responsável, com a indicação "já não é membro" (PN07). */
 export interface AssigneeDto {
   id: string;
   name: string;
@@ -21,7 +21,8 @@ export interface TaskDto {
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
-  assignee: AssigneeDto | null;
+  /** Por ordem do nome (DE16); vazia = "Sem responsável". */
+  assignees: AssigneeDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -42,9 +43,17 @@ export interface TaskPageDto {
   countsByStatus: TaskCountsByStatusDto;
 }
 
+/** `AccountSummary` (openapi.yaml), em `listAssignableAccounts`. */
+export interface AccountSummaryDto {
+  id: string;
+  name: string;
+  status: AccountStatus;
+}
+
 /**
- * Seleção da tarefa com o responsável e a sua participação no projeto da
- * tarefa: `memberships` tem um elemento se ainda for membro, nenhum se não for.
+ * Seleção da tarefa com os responsáveis, por ordem do nome (e do id, em caso
+ * de empate), e a participação de cada um no projeto da tarefa:
+ * `memberships` tem um elemento se ainda for membro, nenhum se não for.
  */
 export function taskSelect(projectId: string) {
   return {
@@ -56,12 +65,17 @@ export function taskSelect(projectId: string) {
     priority: true,
     createdAt: true,
     updatedAt: true,
-    assignee: {
+    assignees: {
+      orderBy: [{ account: { name: 'asc' } }, { accountId: 'asc' }],
       select: {
-        id: true,
-        name: true,
-        status: true,
-        memberships: { where: { projectId }, select: { accountId: true } },
+        account: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            memberships: { where: { projectId }, select: { accountId: true } },
+          },
+        },
       },
     },
   } satisfies Prisma.TaskSelect;
@@ -72,7 +86,6 @@ export type TaskRow = Prisma.TaskGetPayload<{
 }>;
 
 export function toTaskDto(task: TaskRow): TaskDto {
-  const { assignee } = task;
   return {
     id: task.id,
     projectId: task.projectId,
@@ -80,12 +93,12 @@ export function toTaskDto(task: TaskRow): TaskDto {
     description: task.description,
     status: task.status,
     priority: task.priority,
-    assignee: assignee && {
-      id: assignee.id,
-      name: assignee.name,
-      status: assignee.status,
-      isProjectMember: assignee.memberships.length > 0,
-    },
+    assignees: task.assignees.map(({ account }) => ({
+      id: account.id,
+      name: account.name,
+      status: account.status,
+      isProjectMember: account.memberships.length > 0,
+    })),
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
   };

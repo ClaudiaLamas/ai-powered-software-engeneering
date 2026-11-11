@@ -3,7 +3,14 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { apiErrorMessage } from '@/api/errors'
 import { ApiError } from '@/api/http'
-import type { Project, Task, TaskCountsByStatus, TaskPriority, TaskStatus } from '@/api/types'
+import type {
+  AccountSummary,
+  Project,
+  Task,
+  TaskCountsByStatus,
+  TaskPriority,
+  TaskStatus,
+} from '@/api/types'
 import { ensureAccount } from '@/auth/auth-api'
 import SelectField from '@/components/SelectField.vue'
 import TaskForm from '@/components/TaskForm.vue'
@@ -17,12 +24,12 @@ import {
   TASK_STATUS_OPTIONS,
 } from '@/tasks/task-labels'
 import type { TaskFormValues } from '@/tasks/task-validation'
-import { createTask, listProjectTasks } from '@/tasks/tasks-api'
+import { createTask, listAssignableAccounts, listProjectTasks } from '@/tasks/tasks-api'
 
 /**
  * Projeto (wireframe, ecrã 2): dados do projeto e tarefas em três grupos por
  * estado, cada um com o seu pedido, o total real e "Ver mais" (US08, US23).
- * O Gestor cria tarefas aqui (US06, US22).
+ * O Gestor cria tarefas aqui (US06, US22), já com os responsáveis (DE16).
  */
 const PAGE_SIZE = 20
 
@@ -65,6 +72,9 @@ const createdMessage = ref<string | null>(null)
 const creating = ref(false)
 const createError = ref<unknown>(null)
 const taskForm = ref<InstanceType<typeof TaskForm> | null>(null)
+/** Quem o Gestor pode escolher como responsável; `undefined` até carregar (ou se falhar). */
+const assignable = ref<AccountSummary[] | undefined>()
+const assignableError = ref<string | null>(null)
 
 // Aviso deixado pelo detalhe da tarefa depois de a eliminar.
 const notice = ref<string | null>(
@@ -170,16 +180,30 @@ async function loadProject() {
   project.value = null
   projectError.value = null
   counts.value = null
+  assignable.value = undefined
+  assignableError.value = null
   invalidateGroups(true)
   try {
     const [p, account] = await Promise.all([getProject(projectId.value), ensureAccount()])
     if (load !== projectLoad) return
     project.value = p
     accountId.value = account.id
+    if (canManage.value) void loadAssignable(load)
     await loadGroups()
   } catch (e) {
     if (load !== projectLoad || isUnauthenticated(e)) return
     projectError.value = apiErrorMessage(e, 'Não foi possível carregar o projeto.')
+  }
+}
+
+/** Só para o Gestor: sem esta lista, o formulário cria a tarefa sem responsáveis. */
+async function loadAssignable(load: number) {
+  try {
+    const accounts = await listAssignableAccounts(projectId.value)
+    if (load === projectLoad) assignable.value = accounts
+  } catch (e) {
+    if (load !== projectLoad || isUnauthenticated(e)) return
+    assignableError.value = apiErrorMessage(e, 'Não foi possível carregar quem pode ser responsável.')
   }
 }
 
@@ -232,12 +256,14 @@ watch(projectId, loadProject, { immediate: true })
       <section v-if="canManage" class="card stack" aria-labelledby="new-task-title">
         <h2 id="new-task-title">Nova tarefa</h2>
         <p v-if="createdMessage" role="status" class="notice">{{ createdMessage }}</p>
+        <p v-if="assignableError" role="alert" class="alert">{{ assignableError }}</p>
         <TaskForm
           ref="taskForm"
           submit-label="Criar tarefa"
           submitting-label="A criar…"
           :submitting="creating"
           :error="createError"
+          :assignable-accounts="assignable"
           @submit="submitTask"
         />
       </section>

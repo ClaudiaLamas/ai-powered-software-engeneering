@@ -63,9 +63,9 @@ Respostas às 10 perguntas de clarificação prioritárias. Como não foi possí
 | R9 | O que significa "acompanhar o progresso"? (18) | Ver, por projeto, quantas tarefas há em cada estado e a percentagem de tarefas concluídas. | É a interpretação mais direta de F5. |
 | R10 | Quem pode ver cada projeto? (22) | Só os membros desse projeto (incluindo o Gestor). A permissão de Administrador não dá acesso ao conteúdo de projetos onde a conta não participa (ver DE02). | É mais seguro começar fechado e abrir depois. |
 
-### 2.3 Decisões internas (DE01–DE15)
+### 2.3 Decisões internas (DE01–DE16)
 
-Decisões tomadas pela equipa do projeto em 2026-10-29 (DE14 em 2026-11-04 e DE15 em 2026-11-08), depois da revisão do Specification Pack. **Não foram validadas pelo cliente**: são decisões nossas, não factos, e prevalecem sobre os pressupostos R e PN que contradizem.
+Decisões tomadas pela equipa do projeto em 2026-10-29 (DE14 em 2026-11-04, DE15 em 2026-11-08 e DE16 em 2026-11-11; DE09, DE13 e DE14 alteradas em 2026-11-11), depois da revisão do Specification Pack. **Não foram validadas pelo cliente**: são decisões nossas, não factos, e prevalecem sobre os pressupostos R e PN que contradizem.
 
 | ID | Decisão | Substitui |
 |---|---|---|
@@ -77,25 +77,26 @@ Decisões tomadas pela equipa do projeto em 2026-10-29 (DE14 em 2026-11-04 e DE1
 | DE06 | O Administrador cria os projetos e atribui-lhes o Gestor. Cada projeto tem exatamente um Gestor. | PN01, PN03 |
 | DE07 | O Gestor edita e arquiva o projeto e adiciona e remove membros (forma a equipa do projeto). | — |
 | DE08 | O Administrador pode trocar o Gestor de um projeto. O novo Gestor tem de ser já membro do projeto. Se não houver nenhum membro adequado (por exemplo, quando o Gestor está a sair), o Administrador pode adicionar um novo membro à equipa para depois o nomear Gestor. | PN14 |
-| DE09 | Uma tarefa tem um só responsável. Só o Gestor cria tarefas, edita o título e a descrição, escolhe o responsável e elimina tarefas. A prioridade (FN12) também é só do Gestor (decisão interna, 2026-11-10). | PN05, PN19 |
+| DE09 | Uma tarefa tem zero ou mais responsáveis (DE16). Só o Gestor cria tarefas, edita o título e a descrição, atribui e remove responsáveis e elimina tarefas. A prioridade (FN12) também é só do Gestor (decisão interna, 2026-11-10). Um responsável pode pedir que outro membro seja adicionado; só o Gestor o aceita (DE13). Alterada em 2026-11-11: antes, uma tarefa tinha um só responsável. | PN05, PN19 |
 | DE10 | O Membro só pode mudar o estado das tarefas e comentá-las. | PN05 |
 | DE11 | Os comentários em tarefas entram no MVP. Os comentários podem ser editados e apagados. Num projeto arquivado, os comentários ficam só de leitura. | FN14 (Could → Must) |
 | DE12 | As ações administrativas ficam registadas no MVP. | — |
-| DE13 | No futuro, o responsável de uma tarefa poderá pedir ajuda a outro membro da equipa, adicionando-o à tarefa. Fica fora do MVP. | — |
-| DE14 | Quando uma conta é desativada, ou o Gestor remove um membro (com a conta ativa ou desativada), as tarefas dessa pessoa que não estão "Concluída" passam a "Sem responsável" e as tarefas "Concluída" mantêm o nome dela como responsável, com a indicação "conta desativada" ou "já não é membro" (se as duas se aplicarem, mostra-se "conta desativada"). A indicação "já não é membro" desaparece se a pessoa voltar a ser adicionada ao projeto. Uma tarefa "Concluída" de uma conta desativada ou de quem já não é membro que seja reaberta passa a "Sem responsável". O responsável tem de ser membro do projeto com conta ativa no momento em que é escolhido. Uma conta desativada não pode ser adicionada a um projeto nem escolhida como responsável. Decidida em 2026-11-04. | PN06, PN07, PN08, PN10 |
+| DE13 | Um responsável de uma tarefa pode pedir que outro membro do projeto seja adicionado como responsável. O pedido fica pendente até o Gestor o aceitar ou recusar; quem o fez pode cancelá-lo enquanto estiver pendente. Ao aceitar, a pessoa passa a responsável. A pessoa pedida tem de ser membro do projeto com conta ativa e ainda não ser responsável, quando o pedido é feito e quando é aceite. Só pode haver um pedido pendente por tarefa e por pessoa. O pedido não tem mensagem (para isso há comentários) nem gera notificações (FN15). Os pedidos não são cancelados automaticamente quando há mudanças na equipa ou nos responsáveis; são eliminados com a tarefa. Num projeto arquivado, não se criam, decidem nem cancelam pedidos. Alterada em 2026-11-11: entra no MVP (antes, o responsável adicionava a pessoa diretamente, fora do MVP). | FN29 (Should → Must) |
+| DE14 | Quando uma conta é desativada, ou o Gestor remove um membro (com a conta ativa ou desativada), essa pessoa deixa de ser responsável pelas suas tarefas que não estão "Concluída" (os outros responsáveis mantêm-se; se era a única, a tarefa fica "Sem responsável"). Nas tarefas "Concluída", continua entre os responsáveis, com a indicação "conta desativada" ou "já não é membro" (se as duas se aplicarem, mostra-se "conta desativada"). A indicação "já não é membro" desaparece se a pessoa voltar a ser adicionada ao projeto. Quando uma tarefa "Concluída" é reaberta, saem dos responsáveis só as pessoas com a conta desativada ou que já não são membros; as outras mantêm-se. Um responsável tem de ser membro do projeto com conta ativa no momento em que é atribuído. Uma conta desativada não pode ser adicionada a um projeto nem atribuída como responsável. O Gestor pode remover qualquer responsável, também numa tarefa "Concluída". Decidida em 2026-11-04; alterada em 2026-11-11 para vários responsáveis (DE16). | PN06, PN07, PN08, PN10 |
 | DE15 | Uma conta nova fica "Pendente", sem palavra-passe. Ao criá-la, o backend gera um token aleatório de uso único, válido 24 horas, guarda só o hash do token e envia à pessoa um email com um link de ativação. Ao abrir o link, a pessoa define a sua palavra-passe (pelo menos 12 caracteres); a conta passa a "Ativa" e o token é invalidado. O Administrador pode reenviar o convite: é gerado um token novo e o anterior é invalidado. Uma conta pendente não consegue entrar; pode ser adicionada a projetos e nomeada Gestor, mas não pode ser escolhida como responsável. Pode ser desativada, o que invalida o token. A recuperação do acesso (palavra-passe esquecida) fica em aberto. Decidida em 2026-11-08. | PN14 (em parte) |
+| DE16 | Uma tarefa pode ter vários responsáveis, sem limite, ou nenhum ("Sem responsável"). A mesma pessoa não pode ser responsável duas vezes pela mesma tarefa. Os responsáveis são mostrados por ordem do nome. Decidida em 2026-11-11. | DE09 (um só responsável), PN06 |
 
-As regras de negócio detalhadas (PN01–PN20) estão em [user-stories.md](user-stories.md#4-regras-de-negócio-pn01pn20). O vocabulário (conta, função, permissão) está no [glossário do README](../README.md#glossário).
+As regras de negócio detalhadas (PN01–PN21) estão em [user-stories.md](user-stories.md#4-regras-de-negócio-pn01pn21). O vocabulário (conta, função, permissão) está no [glossário do README](../README.md#glossário).
 
 ## 3. Funções e permissões
 
-Todas as funções e permissões são **decisões internas ou pressupostos** (R4, DE01–DE15, PN01–PN20). As permissões detalhadas estão em [constraints.md](constraints.md#2-permissões).
+Todas as funções e permissões são **decisões internas ou pressupostos** (R4, DE01–DE16, PN01–PN21). As permissões detalhadas estão em [constraints.md](constraints.md#2-permissões).
 
 | Quem | O que precisa | Origem |
 |---|---|---|
 | Administrador (permissão da conta) | Criar e desativar contas, dar e retirar a permissão de Administrador, criar projetos, atribuir e trocar o Gestor, consultar o registo de ações administrativas. | R4, DE02–DE06, DE08, DE12 |
-| Gestor (função num projeto) | Editar e arquivar o projeto, escolher os membros, criar tarefas, atribuir responsáveis e prioridades, mudar o estado, comentar e ver o progresso. | F3, F4, F5, DE07, DE09 |
-| Membro (função num projeto) | Ver os projetos onde participa, mudar o estado das tarefas, comentar e ver o progresso. | F2, F4, F5, DE10, DE11 |
+| Gestor (função num projeto) | Editar e arquivar o projeto, escolher os membros, criar tarefas, atribuir e remover responsáveis, aceitar ou recusar pedidos para adicionar responsáveis, definir prioridades, mudar o estado, comentar e ver o progresso. | F3, F4, F5, DE07, DE09, DE13, DE16 |
+| Membro (função num projeto) | Ver os projetos onde participa, mudar o estado das tarefas, comentar e ver o progresso. Nas tarefas de que é responsável, pedir que outro membro seja adicionado como responsável. | F2, F4, F5, DE10, DE11, DE13 |
 
 ## 4. Funcionalidades
 
@@ -110,7 +111,7 @@ Origem: F = facto do cliente; P, R = pressuposto; DE = decisão interna. A prior
 | FN03 | Administrador cria projetos e atribui o Gestor; Gestor edita e arquiva o projeto (nome, descrição) | É a base de "organizar projetos". | F3, R6, DE06, DE07 | Must | Sim |
 | FN04 | Gestor adiciona e remove membros de um projeto | Define quem trabalha em cada projeto e quem o pode ver. | F2, F3, R6, R10, DE07 | Must | Sim |
 | FN05 | Ver a lista dos projetos a que pertenço, com o progresso de cada um (FN09). É o ecrã inicial (dashboard). | Permite encontrar e organizar o trabalho por projeto. | F3, F5 | Must | Sim |
-| FN06 | Gestor cria, edita e elimina tarefas num projeto (título, descrição, responsável) | É a base de "gerir tarefas". | F4, R7, DE09 | Must | Sim |
+| FN06 | Gestor cria, edita e elimina tarefas num projeto (título, descrição, responsáveis) | É a base de "gerir tarefas". | F4, R7, DE09, DE16 | Must | Sim |
 | FN07 | Mudar o estado de uma tarefa (Por fazer, Em curso, Concluída) | Gerir uma tarefa inclui avançá-la; o estado é a base do progresso. | F4, F5, R8 | Must | Sim |
 | FN08 | Ver as tarefas de um projeto agrupadas por estado | Mostra de imediato em que ponto está o trabalho. | F5, R9 | Must | Sim |
 | FN09 | Indicador de progresso por projeto (nº de tarefas por estado e % concluídas) | É a forma mínima de "acompanhar o progresso". | F5, R9 | Must | Sim |
@@ -133,20 +134,20 @@ Origem: F = facto do cliente; P, R = pressuposto; DE = decisão interna. A prior
 | FN26 | Interface em várias línguas | Não há indicação de equipas noutras línguas. | P14 | Won't (nesta fase) | Não |
 | FN27 | Administrador troca o Gestor de um projeto | Com um só Gestor por projeto, é a única forma de um projeto não ficar sem gestão quando o Gestor sai (CL8). | DE06, DE08 | Must | Sim |
 | FN28 | Registo das ações administrativas | O Administrador acumula poderes sobre contas, permissões e projetos; o registo permite saber quem fez o quê e quando. | Pergunta 24, DE12 | Must | Sim |
-| FN29 | Pedir ajuda: o responsável adiciona outro membro da equipa a uma tarefa | Permite colaborar numa tarefa sem mudar o responsável (que continua a ser só um). | DE13 | Should | Não |
+| FN29 | Pedir ajuda: um responsável pede que outro membro do projeto seja adicionado como responsável, e o Gestor aceita ou recusa | Permite a quem faz a tarefa trazer ajuda sem tirar ao Gestor a decisão sobre os responsáveis. Passou de Should a Must (decisão interna, 2026-11-11). | DE13, DE16 | Must | Sim |
 | FN30 | Pesquisar tarefas por texto e filtrar por responsável | Resto da antiga FN13; o filtro por estado e prioridade já cobre o uso do MVP (decisão interna, 2026-11-10). | F4, R3 | Should | Não |
 
 ## 5. Âmbito do MVP
 
-**MVP = FN01–FN09, FN12–FN14, FN27 e FN28** (as 14 funcionalidades Must).
+**MVP = FN01–FN09, FN12–FN14 e FN27–FN29** (as 15 funcionalidades Must).
 
-As pessoas da empresa entram com a sua conta e trabalham nos projetos onde participam (FN01, FN05). O Administrador cria as contas e os projetos, atribui o Gestor de cada projeto e pode trocá-lo; as suas ações ficam registadas (FN02, FN03, FN27, FN28). Em cada projeto, o Gestor forma a equipa e cria tarefas com título, descrição, prioridade e um responsável; os membros avançam-nas por três estados fixos e comentam-nas (FN03, FN04, FN06, FN07, FN12, FN14). O progresso é acompanhado por projeto, com as tarefas agrupadas por estado, filtráveis por estado e prioridade, e a percentagem de tarefas concluídas (FN08, FN09, FN13).
+As pessoas da empresa entram com a sua conta e trabalham nos projetos onde participam (FN01, FN05). O Administrador cria as contas e os projetos, atribui o Gestor de cada projeto e pode trocá-lo; as suas ações ficam registadas (FN02, FN03, FN27, FN28). Em cada projeto, o Gestor forma a equipa e cria tarefas com título, descrição, prioridade e zero ou mais responsáveis; os membros avançam-nas por três estados fixos e comentam-nas, e um responsável pode pedir ao Gestor que adicione outro membro à tarefa (FN03, FN04, FN06, FN07, FN12, FN14, FN29). O progresso é acompanhado por projeto, com as tarefas agrupadas por estado, filtráveis por estado e prioridade, e a percentagem de tarefas concluídas (FN08, FN09, FN13).
 
 ### Fora do MVP
 
 | Grupo | Funcionalidades | Motivo |
 |---|---|---|
-| Primeiro incremento (Should) | FN10, FN11, FN29, FN30 | Tornam o uso diário mais eficiente, mas o MVP já cumpre F3–F5 sem elas. |
+| Primeiro incremento (Should) | FN10, FN11, FN30 | Tornam o uso diário mais eficiente, mas o MVP já cumpre F3–F5 sem elas. |
 | Incrementos seguintes (Could) | FN15–FN21 | Respondem a pressupostos (P4, P6, P9, P10) ou a perguntas sem resposta (14, 24); nenhuma deriva diretamente do cliente. |
 | Excluídas nesta fase (Won't) | FN22–FN26 | Dependem de respostas que não temos (perguntas 2, 7, 20, 28, 29). |
 

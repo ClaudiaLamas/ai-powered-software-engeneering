@@ -20,6 +20,7 @@ import ProjectView from '../ProjectView.vue'
 
 const TASKS = `GET /projects/${PROJECT_ID}/tasks`
 const CREATE = `POST /projects/${PROJECT_ID}/tasks`
+const ASSIGNABLE = `GET /projects/${PROJECT_ID}/assignable-accounts`
 
 async function mountView() {
   const router = createRouter({
@@ -229,6 +230,62 @@ describe('ProjectView (US08, US23, US06)', () => {
     expect(group(wrapper, 'Por fazer').get('h2').text()).toBe('Por fazer (1)')
     expect(group(wrapper, 'Por fazer').text()).toContain('Rever textos')
     expect((form.get('input').element as HTMLInputElement).value).toBe('')
+  })
+
+  it('o Gestor cria uma tarefa com responsáveis escolhidos entre os membros ativos (DE16)', async () => {
+    const newTask = task({ title: 'Rever textos' })
+    const fetchMock = mockApi({
+      [`GET /projects/${PROJECT_ID}`]: () => json(project()),
+      [TASKS]: () => json(page([], { todo: 0, inProgress: 0, done: 0 })),
+      [ASSIGNABLE]: () =>
+        json({
+          items: [
+            { id: ana.id, name: ana.name, status: 'ACTIVE' },
+            { id: bruno.id, name: bruno.name, status: 'ACTIVE' },
+          ],
+        }),
+      [CREATE]: () => json(newTask, 201),
+    })
+    const wrapper = await mountView()
+    const form = wrapper.get('form')
+    const boxes = form.findAll('input[type="checkbox"]')
+    expect(boxes).toHaveLength(2)
+    await form.get('input').setValue('Rever textos')
+    await boxes[0]!.setValue(true)
+    await boxes[1]!.setValue(true)
+    await form.trigger('submit')
+    await flushPromises()
+
+    expect(bodyOf(fetchMock, CREATE)).toEqual({
+      title: 'Rever textos',
+      description: null,
+      priority: 'MEDIUM',
+      assigneeIds: [ana.id, bruno.id],
+    })
+    // Depois de criar, nenhum responsável fica escolhido.
+    expect(form.findAll('input[type="checkbox"]').every((b) => !(b.element as HTMLInputElement).checked)).toBe(true)
+  })
+
+  it('se não conseguir carregar quem pode ser responsável, avisa e deixa criar sem responsáveis', async () => {
+    mockApi({
+      [`GET /projects/${PROJECT_ID}`]: () => json(project()),
+      [TASKS]: () => json(page([], { todo: 0, inProgress: 0, done: 0 })),
+      [ASSIGNABLE]: () => problem(500, 'INTERNAL', 'Erro.'),
+    })
+    const wrapper = await mountView()
+    expect(wrapper.text()).toContain('Nova tarefa')
+    expect(wrapper.find('form fieldset').exists()).toBe(false)
+    expect(wrapper.findAll('[role="alert"]').map((a) => a.text())).toHaveLength(1)
+  })
+
+  it('o Membro não pede a lista de quem pode ser responsável', async () => {
+    setSession('token-de-teste', bruno)
+    const fetchMock = mockApi({
+      [`GET /projects/${PROJECT_ID}`]: () => json(project()),
+      [TASKS]: () => json(page([], { todo: 0, inProgress: 0, done: 0 })),
+    })
+    await mountView()
+    expect(calls(fetchMock)).not.toContain(ASSIGNABLE)
   })
 
   it('com o título vazio, não chama a API', async () => {

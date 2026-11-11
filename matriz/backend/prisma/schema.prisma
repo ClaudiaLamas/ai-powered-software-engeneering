@@ -91,7 +91,7 @@ model Account {
 
   memberships      ProjectMember[]
   activationTokens AccountActivationToken[]
-  assignedTasks    Task[]                   @relation("TaskAssignee")
+  taskAssignments  TaskAssignee[]
   comments         Comment[]                @relation("CommentAuthor")
   auditActions     AdminAuditLog[]          @relation("AuditActor")
   auditTargets     AdminAuditLog[]          @relation("AuditTargetAccount")
@@ -179,21 +179,40 @@ model Task {
   status      TaskStatus   @default(TODO)
   /// Por omissão "Média" (PN19); só o Gestor a define e muda.
   priority    TaskPriority @default(MEDIUM)
-  /// Responsável (zero ou um). Vazio = "Sem responsável" (DE09, DE14, PN06, PN07).
-  assigneeId  String?      @map("assignee_id") @db.Uuid
   createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   /// Projetos nunca são eliminados (§4): Restrict.
-  project  Project   @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  /// Contas nunca são eliminadas (§4): Restrict.
-  assignee Account?  @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  comments Comment[]
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  /// Responsáveis (zero ou mais, DE16); sem nenhum = "Sem responsável".
+  assignees TaskAssignee[]
+  comments  Comment[]
 
   @@index([projectId, status])
   @@index([projectId, priority])
-  @@index([assigneeId])
   @@map("task")
+}
+
+// ---------------------------------------------------------------------------
+// TASK_ASSIGNEE (Responsável) — módulo tasks
+// ---------------------------------------------------------------------------
+
+/// Atribuição de uma conta como responsável de uma tarefa (DE16). A PK
+/// composta impede a mesma conta duas vezes na mesma tarefa. Que a conta é
+/// membro ativo do projeto é verificado pela aplicação ao atribuir (PN06).
+model TaskAssignee {
+  taskId     String   @map("task_id") @db.Uuid
+  accountId  String   @map("account_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(3)
+
+  /// Eliminar uma tarefa elimina os seus responsáveis (database.md §4).
+  task    Task    @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  /// Contas nunca são eliminadas (§4): Restrict.
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([taskId, accountId])
+  @@index([accountId])
+  @@map("task_assignee")
 }
 
 // ---------------------------------------------------------------------------

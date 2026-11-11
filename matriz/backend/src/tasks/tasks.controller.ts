@@ -18,8 +18,9 @@ import {
 import { AuthorizationService } from '../authorization/authorization.service.js';
 import { IdParam } from '../common/id-param.js';
 import { validationError } from '../common/problem.js';
-import type { TaskDto, TaskPageDto } from './task.dto.js';
+import type { AccountSummaryDto, TaskDto, TaskPageDto } from './task.dto.js';
 import {
+  AddAssigneeRequest,
   ChangeTaskStatusRequest,
   CreateTaskRequest,
   ListTasksQuery,
@@ -31,12 +32,14 @@ import { TasksService } from './tasks.service.js';
  * Operações de tarefas (openapi.yaml, tag `tasks`). A coleção está aninhada no
  * projeto (`/projects/{projectId}/tasks`, acesso pelo projeto com
  * `requireMember`); cada tarefa tem a sua rota direta (`/tasks/{taskId}`,
- * acesso pelo projeto da tarefa com `requireTask`).
+ * acesso pelo projeto da tarefa com `requireTask`). Os responsáveis são uma
+ * sub-coleção da tarefa (`/tasks/{taskId}/assignees`, DE16).
  *
  * Ordem das verificações: `401` (guard global) → `400 VALIDATION_ERROR`
  * (ValidationPipe e `minProperties`) → `404` → `403 NOT_PROJECT_MANAGER` →
- * `409 PROJECT_ARCHIVED` → `400` das regras (serviço). A conta vem sempre do
- * token.
+ * `409 PROJECT_ARCHIVED` → códigos das regras (serviço: `400`, `404
+ * ASSIGNEE_NOT_FOUND`, `409 ASSIGNEE_ALREADY_ASSIGNED`). A conta vem sempre
+ * do token.
  */
 @Controller()
 export class TasksController {
@@ -94,8 +97,7 @@ export class TasksController {
     if (
       body.title === undefined &&
       body.description === undefined &&
-      body.priority === undefined &&
-      body.assigneeId === undefined
+      body.priority === undefined
     ) {
       throw validationError([
         { field: 'body', message: 'Indique pelo menos um campo a alterar.' },
@@ -117,6 +119,45 @@ export class TasksController {
     const access = await this.authz.requireTask(account.id, taskId);
     this.authz.requireWritable(access);
     return this.tasks.changeStatus(access, body);
+  }
+
+  /** `GET /projects/{projectId}/assignable-accounts` — `listAssignableAccounts` (US06): só o Gestor. */
+  @Get('projects/:projectId/assignable-accounts')
+  async listAssignable(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @IdParam('projectId') projectId: string,
+  ): Promise<{ items: AccountSummaryDto[] }> {
+    const access = await this.authz.requireMember(account.id, projectId);
+    this.authz.requireManager(access);
+    return this.tasks.listAssignable(access);
+  }
+
+  /** `POST /tasks/{taskId}/assignees` — `addTaskAssignee` (US06, DE16): só o Gestor, projeto ativo. */
+  @Post('tasks/:taskId/assignees')
+  @HttpCode(201)
+  async addAssignee(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @IdParam('taskId') taskId: string,
+    @Body() body: AddAssigneeRequest,
+  ): Promise<TaskDto> {
+    const access = await this.authz.requireTask(account.id, taskId);
+    this.authz.requireManager(access);
+    this.authz.requireWritable(access);
+    return this.tasks.addAssignee(access, body.accountId);
+  }
+
+  /** `DELETE /tasks/{taskId}/assignees/{accountId}` — `removeTaskAssignee` (US06): só o Gestor, projeto ativo. */
+  @Delete('tasks/:taskId/assignees/:accountId')
+  @HttpCode(204)
+  async removeAssignee(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @IdParam('taskId') taskId: string,
+    @IdParam('accountId') accountId: string,
+  ): Promise<void> {
+    const access = await this.authz.requireTask(account.id, taskId);
+    this.authz.requireManager(access);
+    this.authz.requireWritable(access);
+    await this.tasks.removeAssignee(access, accountId);
   }
 
   /** `DELETE /tasks/{taskId}` — `deleteTask` (US06, CL2): só o Gestor, projeto ativo. */

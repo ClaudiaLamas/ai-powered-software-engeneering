@@ -1,3 +1,4 @@
+import { ProblemException } from '../common/problem.js';
 import { charLength, ruleError } from '../common/text-rules.js';
 import type { TaskStatus } from '../generated/prisma/client.js';
 
@@ -43,26 +44,50 @@ export function normalizeDescription(
   return description;
 }
 
-/** `ASSIGNEE_NOT_MEMBER` (PN06): o responsável não é membro do projeto. */
-export function assigneeNotMember() {
+/** Campo do pedido onde vem o responsável: `assigneeIds` ao criar, `accountId` ao atribuir. */
+export type AssigneeField = 'assigneeIds' | 'accountId';
+
+/** `ASSIGNEE_NOT_MEMBER` (PN06): o responsável não é membro do projeto (ou não existe). */
+export function assigneeNotMember(field: AssigneeField) {
   return ruleError(
     'ASSIGNEE_NOT_MEMBER',
-    'assigneeId',
+    field,
     'O responsável tem de ser membro do projeto.',
   );
 }
 
 /** `ASSIGNEE_NOT_ACTIVE` (PN08, DE15): o responsável tem a conta pendente ou desativada. */
-export function assigneeNotActive() {
+export function assigneeNotActive(field: AssigneeField) {
   return ruleError(
     'ASSIGNEE_NOT_ACTIVE',
-    'assigneeId',
+    field,
     'O responsável tem de ter a conta ativa.',
   );
 }
 
-/** Responsável visto pela regra de reabertura (PN07, PN08). */
+/** `409 ASSIGNEE_ALREADY_ASSIGNED` (DE16): a conta já é responsável pela tarefa. */
+export function assigneeAlreadyAssigned() {
+  return new ProblemException(
+    409,
+    'ASSIGNEE_ALREADY_ASSIGNED',
+    'Conflito',
+    'Esta pessoa já é responsável pela tarefa.',
+  );
+}
+
+/** `404 ASSIGNEE_NOT_FOUND`: a conta indicada não é responsável pela tarefa. */
+export function assigneeNotFound() {
+  return new ProblemException(
+    404,
+    'ASSIGNEE_NOT_FOUND',
+    'Não encontrado',
+    'Esta pessoa não é responsável pela tarefa.',
+  );
+}
+
+/** Um responsável visto pela regra de reabertura (PN07, PN08). */
 export interface AssigneeStanding {
+  accountId: string;
   /** A conta está ativa. */
   active: boolean;
   /** A conta é membro do projeto da tarefa. */
@@ -70,15 +95,18 @@ export interface AssigneeStanding {
 }
 
 /**
- * Reabrir (PN10, DE14): uma tarefa que sai de `DONE` fica "Sem responsável"
- * quando o responsável já não é membro do projeto (PN07) ou tem a conta
- * desativada (PN08). Nos outros casos o responsável mantém-se.
+ * Reabrir (PN10, DE14, DE16): quando uma tarefa sai de `DONE`, saem dos
+ * responsáveis as contas que já não são membros do projeto (PN07) ou estão
+ * desativadas (PN08); os outros mantêm-se. Devolve os ids a tirar, pela ordem
+ * em que vieram.
  */
-export function clearsAssigneeOnStatusChange(
+export function assigneesRemovedOnStatusChange(
   from: TaskStatus,
   to: TaskStatus,
-  assignee: AssigneeStanding | null,
-): boolean {
-  if (from !== 'DONE' || to === 'DONE' || !assignee) return false;
-  return !assignee.active || !assignee.isProjectMember;
+  assignees: readonly AssigneeStanding[],
+): string[] {
+  if (from !== 'DONE' || to === 'DONE') return [];
+  return assignees
+    .filter((a) => !a.active || !a.isProjectMember)
+    .map((a) => a.accountId);
 }

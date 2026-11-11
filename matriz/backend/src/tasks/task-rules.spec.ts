@@ -3,7 +3,7 @@ import {
   DESCRIPTION_MAX,
   TITLE_MAX,
   TITLE_MIN,
-  clearsAssigneeOnStatusChange,
+  assigneesRemovedOnStatusChange,
   normalizeDescription,
   normalizeTitle,
 } from './task-rules.js';
@@ -81,31 +81,42 @@ describe('Regras da tarefa (PN12)', () => {
   });
 });
 
-describe('Reabrir uma tarefa (PN10, DE14)', () => {
-  const member = { active: true, isProjectMember: true };
-  const formerMember = { active: true, isProjectMember: false };
-  const deactivated = { active: false, isProjectMember: true };
+describe('Reabrir uma tarefa (PN10, DE14, DE16)', () => {
+  const member = { accountId: 'ana', active: true, isProjectMember: true };
+  const formerMember = { accountId: 'rui', active: true, isProjectMember: false };
+  const deactivated = { accountId: 'eva', active: false, isProjectMember: true };
+  const both = { accountId: 'luis', active: false, isProjectMember: false };
 
   it.each([
     ['já não é membro', formerMember],
     ['tem a conta desativada', deactivated],
-    ['está nas duas situações', { active: false, isProjectMember: false }],
+    ['está nas duas situações', both],
   ])('ao sair de "Concluída", tira o responsável que %s', (_, assignee) => {
-    expect(clearsAssigneeOnStatusChange('DONE', 'IN_PROGRESS', assignee)).toBe(true);
-    expect(clearsAssigneeOnStatusChange('DONE', 'TODO', assignee)).toBe(true);
+    expect(assigneesRemovedOnStatusChange('DONE', 'IN_PROGRESS', [assignee])).toEqual([
+      assignee.accountId,
+    ]);
+    expect(assigneesRemovedOnStatusChange('DONE', 'TODO', [assignee])).toEqual([
+      assignee.accountId,
+    ]);
+  });
+
+  it('tira só quem já não pode ser responsável e mantém os outros', () => {
+    expect(
+      assigneesRemovedOnStatusChange('DONE', 'TODO', [member, formerMember, deactivated]),
+    ).toEqual(['rui', 'eva']);
   });
 
   it('mantém o responsável que continua membro com a conta ativa', () => {
-    expect(clearsAssigneeOnStatusChange('DONE', 'TODO', member)).toBe(false);
+    expect(assigneesRemovedOnStatusChange('DONE', 'TODO', [member])).toEqual([]);
   });
 
-  it('não mexe no responsável se a tarefa não sai de "Concluída"', () => {
-    expect(clearsAssigneeOnStatusChange('DONE', 'DONE', formerMember)).toBe(false);
-    expect(clearsAssigneeOnStatusChange('TODO', 'DONE', deactivated)).toBe(false);
-    expect(clearsAssigneeOnStatusChange('IN_PROGRESS', 'TODO', formerMember)).toBe(false);
+  it('não mexe nos responsáveis se a tarefa não sai de "Concluída"', () => {
+    expect(assigneesRemovedOnStatusChange('DONE', 'DONE', [formerMember])).toEqual([]);
+    expect(assigneesRemovedOnStatusChange('TODO', 'DONE', [deactivated])).toEqual([]);
+    expect(assigneesRemovedOnStatusChange('IN_PROGRESS', 'TODO', [both])).toEqual([]);
   });
 
-  it('sem responsável, não há nada a tirar', () => {
-    expect(clearsAssigneeOnStatusChange('DONE', 'TODO', null)).toBe(false);
+  it('sem responsáveis, não há nada a tirar', () => {
+    expect(assigneesRemovedOnStatusChange('DONE', 'TODO', [])).toEqual([]);
   });
 });
