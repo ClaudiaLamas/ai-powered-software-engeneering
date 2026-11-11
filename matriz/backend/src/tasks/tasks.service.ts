@@ -5,7 +5,7 @@ import type {
 } from '../authorization/authorization.service.js';
 import { AuthorizationService } from '../authorization/authorization.service.js';
 import { ProblemException } from '../common/problem.js';
-import type { Prisma, ProjectStatus } from '../generated/prisma/client.js';
+import { Prisma, type ProjectStatus } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   type AccountSummaryDto,
@@ -54,6 +54,12 @@ const taskNotFound = () =>
     'Não encontrado',
     'A tarefa não existe.',
   );
+
+/** `P2002`: o Prisma recusou a escrita por violar uma restrição única. */
+const isUniqueViolation = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === 'P2002';
+
 @Injectable()
 export class TasksService {
   constructor(
@@ -256,9 +262,16 @@ export class TasksService {
         accountId,
         'accountId',
       );
-      await tx.taskAssignee.create({
-        data: { taskId: access.taskId, accountId },
-      });
+      try {
+        await tx.taskAssignee.create({
+          data: { taskId: access.taskId, accountId },
+        });
+      } catch (error) {
+        // Rede de segurança: a chave primária (task_id, account_id) impede o
+        // duplicado na base de dados; responde com o código do contrato, não 500.
+        if (isUniqueViolation(error)) throw assigneeAlreadyAssigned();
+        throw error;
+      }
     });
     return this.get(access);
   }

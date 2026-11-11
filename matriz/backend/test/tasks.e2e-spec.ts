@@ -843,6 +843,38 @@ describe('Tarefas (API)', () => {
       ).toBe(1);
     });
 
+    it('um repetido que só a restrição única da base de dados apanha dá 409, não 500', async () => {
+      const task = await createTask(app, t.project.id);
+      // Simula o repetido a chegar à base de dados: depois da verificação
+      // prévia, insere a mesma linha na transação, antes do create do serviço.
+      type Assignable = {
+        requireAssignable: (tx: PrismaService, ...rest: unknown[]) => Promise<void>;
+      };
+      const service = app.get(TasksService) as unknown as Assignable;
+      const original = service.requireAssignable.bind(service);
+      const spy = vi
+        .spyOn(service, 'requireAssignable')
+        .mockImplementationOnce(async (tx, ...rest) => {
+          await original(tx, ...rest);
+          await tx.taskAssignee.create({
+            data: { taskId: task.id, accountId: t.member.account.id },
+          });
+        });
+      try {
+        const res = await api(t.manager.token)
+          .addAssignee(task.id, { accountId: t.member.account.id })
+          .expect(409);
+        expect(res.body.code).toBe('ASSIGNEE_ALREADY_ASSIGNED');
+        expect(spy).toHaveBeenCalledOnce();
+      } finally {
+        spy.mockRestore();
+      }
+      // A transação foi desfeita: nem a linha simulada ficou.
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: task.id } }),
+      ).toBe(0);
+    });
+
     it('dois pedidos iguais ao mesmo tempo: um atribui, o outro dá 409', async () => {
       const task = await createTask(app, t.project.id);
       const results = await Promise.all(
