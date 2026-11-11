@@ -17,6 +17,16 @@ const router = createRouter({
       // Provisório: o DashboardView (ecrã 1 do wireframe) chega com os projetos.
       component: HomeView,
     },
+    {
+      path: '/projetos/:projectId',
+      name: 'project',
+      component: () => import('../views/ProjectView.vue'),
+    },
+    {
+      path: '/tarefas/:taskId',
+      name: 'task',
+      component: () => import('../views/TaskDetailView.vue'),
+    },
   ],
 })
 

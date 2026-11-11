@@ -1,4 +1,5 @@
 import { charLength, ruleError } from '../common/text-rules.js';
+import type { TaskStatus } from '../generated/prisma/client.js';
 
 /** Limites de PN12 para as tarefas. */
 export const TITLE_MIN = 3;
@@ -58,4 +59,26 @@ export function assigneeNotActive() {
     'assigneeId',
     'O responsável tem de ter a conta ativa.',
   );
+}
+
+/** Responsável visto pela regra de reabertura (PN07, PN08). */
+export interface AssigneeStanding {
+  /** A conta está ativa. */
+  active: boolean;
+  /** A conta é membro do projeto da tarefa. */
+  isProjectMember: boolean;
+}
+
+/**
+ * Reabrir (PN10, DE14): uma tarefa que sai de `DONE` fica "Sem responsável"
+ * quando o responsável já não é membro do projeto (PN07) ou tem a conta
+ * desativada (PN08). Nos outros casos o responsável mantém-se.
+ */
+export function clearsAssigneeOnStatusChange(
+  from: TaskStatus,
+  to: TaskStatus,
+  assignee: AssigneeStanding | null,
+): boolean {
+  if (from !== 'DONE' || to === 'DONE' || !assignee) return false;
+  return !assignee.active || !assignee.isProjectMember;
 }

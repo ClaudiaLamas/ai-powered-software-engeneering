@@ -3,6 +3,7 @@ import {
   DESCRIPTION_MAX,
   TITLE_MAX,
   TITLE_MIN,
+  clearsAssigneeOnStatusChange,
   normalizeDescription,
   normalizeTitle,
 } from './task-rules.js';
@@ -77,5 +78,34 @@ describe('Regras da tarefa (PN12)', () => {
       expect(problem.status).toBe(400);
       expect(problem.code).toBe('DESCRIPTION_TOO_LONG');
     });
+  });
+});
+
+describe('Reabrir uma tarefa (PN10, DE14)', () => {
+  const member = { active: true, isProjectMember: true };
+  const formerMember = { active: true, isProjectMember: false };
+  const deactivated = { active: false, isProjectMember: true };
+
+  it.each([
+    ['já não é membro', formerMember],
+    ['tem a conta desativada', deactivated],
+    ['está nas duas situações', { active: false, isProjectMember: false }],
+  ])('ao sair de "Concluída", tira o responsável que %s', (_, assignee) => {
+    expect(clearsAssigneeOnStatusChange('DONE', 'IN_PROGRESS', assignee)).toBe(true);
+    expect(clearsAssigneeOnStatusChange('DONE', 'TODO', assignee)).toBe(true);
+  });
+
+  it('mantém o responsável que continua membro com a conta ativa', () => {
+    expect(clearsAssigneeOnStatusChange('DONE', 'TODO', member)).toBe(false);
+  });
+
+  it('não mexe no responsável se a tarefa não sai de "Concluída"', () => {
+    expect(clearsAssigneeOnStatusChange('DONE', 'DONE', formerMember)).toBe(false);
+    expect(clearsAssigneeOnStatusChange('TODO', 'DONE', deactivated)).toBe(false);
+    expect(clearsAssigneeOnStatusChange('IN_PROGRESS', 'TODO', formerMember)).toBe(false);
+  });
+
+  it('sem responsável, não há nada a tirar', () => {
+    expect(clearsAssigneeOnStatusChange('DONE', 'TODO', null)).toBe(false);
   });
 });

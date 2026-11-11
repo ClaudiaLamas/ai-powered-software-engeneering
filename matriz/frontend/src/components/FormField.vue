@@ -7,6 +7,9 @@ defineProps<{
   type?: string
   autocomplete?: string
   error?: string | null
+  /** Texto com várias linhas (`<textarea>`), por exemplo uma descrição. */
+  multiline?: boolean
+  disabled?: boolean
 }>()
 
 const model = defineModel<string>({ required: true })
@@ -16,11 +19,22 @@ const id = useId()
 <template>
   <div class="field">
     <label :for="id">{{ label }}</label>
+    <textarea
+      v-if="multiline"
+      :id="id"
+      v-model="model"
+      rows="4"
+      :disabled="disabled"
+      :aria-invalid="error ? 'true' : 'false'"
+      :aria-describedby="error ? `${id}-error` : undefined"
+    />
     <input
+      v-else
       :id="id"
       v-model="model"
       :type="type ?? 'text'"
       :autocomplete="autocomplete"
+      :disabled="disabled"
       :aria-invalid="error ? 'true' : 'false'"
       :aria-describedby="error ? `${id}-error` : undefined"
     />

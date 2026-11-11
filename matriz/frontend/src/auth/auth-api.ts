@@ -1,6 +1,6 @@
 import { apiFetch } from '@/api/http'
 import type { Account, LoginResponse } from '@/api/types'
-import { clearSession, getToken, setAccount, setSession } from './session'
+import { clearSession, getToken, session, setAccount, setSession } from './session'
 
 /** Entrar (US01): guarda o token e a conta. */
 export async function login(email: string, password: string): Promise<Account> {
@@ -18,6 +18,11 @@ export async function loadMe(): Promise<Account> {
   const account = await apiFetch<Account>('/me')
   setAccount(account)
   return account
+}
+
+/** A conta autenticada: a da sessão ou, depois de recarregar a página, `GET /me`. */
+export function ensureAccount(): Promise<Account> {
+  return session.account ? Promise.resolve(session.account) : loadMe()
 }
 
 /**

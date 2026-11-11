@@ -16,10 +16,12 @@ import {
 import {
   assigneeNotActive,
   assigneeNotMember,
+  clearsAssigneeOnStatusChange,
   normalizeDescription,
   normalizeTitle,
 } from './task-rules.js';
 import type {
+  ChangeTaskStatusRequest,
   CreateTaskRequest,
   ListTasksQuery,
   UpdateTaskRequest,
@@ -177,6 +179,42 @@ export class TasksService {
       });
       // Outro pedido eliminou a tarefa depois das verificações do controlador.
       if (count === 0) throw taskNotFound();
+    });
+    return this.get(access);
+  }
+
+  /**
+   * `changeTaskStatus` (US07): só depois de `requireTask` e `requireWritable`;
+   * qualquer membro. Qualquer estado passa a qualquer outro (PN10). Ao reabrir
+   * uma tarefa `DONE` de quem já não é membro ou tem a conta desativada, a
+   * tarefa fica "Sem responsável" (PN07, PN08).
+   */
+  async changeStatus(
+    access: TaskAccess,
+    body: ChangeTaskStatusRequest,
+  ): Promise<TaskDto> {
+    await this.writeInActiveProject(access, async (tx) => {
+      // Bloqueia a tarefa: dois pedidos ao mesmo tempo veem o estado um do outro.
+      const [locked] = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM task WHERE id = ${access.taskId}::uuid FOR UPDATE`;
+      if (!locked) throw taskNotFound();
+      const current = await tx.task.findUniqueOrThrow({
+        where: { id: access.taskId },
+        select: taskSelect(access.projectId),
+      });
+      const { assignee } = current;
+      const clear = clearsAssigneeOnStatusChange(
+        current.status,
+        body.status,
+        assignee && {
+          active: assignee.status === 'ACTIVE',
+          isProjectMember: assignee.memberships.length > 0,
+        },
+      );
+      await tx.task.update({
+        where: { id: access.taskId },
+        data: { status: body.status, ...(clear && { assigneeId: null }) },
+      });
     });
     return this.get(access);
   }
