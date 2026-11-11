@@ -1,5 +1,12 @@
 import { apiFetch } from '@/api/http'
-import type { AccountSummary, Task, TaskPage, TaskPriority, TaskStatus } from '@/api/types'
+import type {
+  AccountSummary,
+  Comment,
+  Task,
+  TaskPage,
+  TaskPriority,
+  TaskStatus,
+} from '@/api/types'
 import type { TaskFormValues } from './task-validation'
 import { toTaskPayload } from './task-validation'
 
@@ -77,4 +84,31 @@ export function removeTaskAssignee(taskId: string, accountId: string): Promise<v
 /** `deleteTask` (US06): só o Gestor. */
 export function deleteTask(taskId: string): Promise<void> {
   return apiFetch<void>(`/tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE' })
+}
+
+/** `listTaskComments` (US19): qualquer membro; do mais antigo para o mais recente. */
+export async function listTaskComments(taskId: string): Promise<Comment[]> {
+  const res = await apiFetch<{ items: Comment[] }>(`/tasks/${encodeURIComponent(taskId)}/comments`)
+  return res.items
+}
+
+/** `createTaskComment` (US13, PN15): qualquer membro; o autor e a data vêm do backend. */
+export function createTaskComment(taskId: string, body: string): Promise<Comment> {
+  return apiFetch<Comment>(`/tasks/${encodeURIComponent(taskId)}/comments`, {
+    method: 'POST',
+    body: { body: body.trim() },
+  })
+}
+
+/** `updateComment` (US13, PN15): só o autor; devolve o comentário com `editedAt`. */
+export function updateComment(commentId: string, body: string): Promise<Comment> {
+  return apiFetch<Comment>(`/comments/${encodeURIComponent(commentId)}`, {
+    method: 'PATCH',
+    body: { body: body.trim() },
+  })
+}
+
+/** `deleteComment` (US13, PN15): só o autor. */
+export function deleteComment(commentId: string): Promise<void> {
+  return apiFetch<void>(`/comments/${encodeURIComponent(commentId)}`, { method: 'DELETE' })
 }

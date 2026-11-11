@@ -8,6 +8,8 @@ const MESSAGES: Record<string, string> = {
   NOT_PROJECT_MANAGER: 'Só o Gestor do projeto pode fazer esta alteração.',
   TASK_NOT_FOUND: 'A tarefa não existe ou não tem acesso a ela.',
   PROJECT_NOT_FOUND: 'O projeto não existe ou não tem acesso a ele.',
+  NOT_COMMENT_AUTHOR: 'Só o autor pode alterar este comentário.',
+  COMMENT_NOT_FOUND: 'O comentário já não existe.',
 }
 
 /** Mensagem para mostrar a partir de um erro de um pedido à API. */

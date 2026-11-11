@@ -1,4 +1,4 @@
-import type { Assignee, TaskCountsByStatus, TaskPriority, TaskStatus } from '@/api/types'
+import type { AccountSummary, Assignee, TaskCountsByStatus, TaskPriority, TaskStatus } from '@/api/types'
 
 /*
  * Único sítio com o texto mostrado para os estados e as prioridades das
@@ -57,6 +57,11 @@ export function assigneeLabel(assignee: Assignee): string {
   if (assignee.status === 'DEACTIVATED') return `${assignee.name} (conta desativada)`
   if (!assignee.isProjectMember) return `${assignee.name} (já não é membro)`
   return assignee.name
+}
+
+/** Nome de uma conta, com "conta desativada" quando é o caso (por exemplo, o autor de um comentário, CL12). */
+export function accountLabel(account: AccountSummary): string {
+  return account.status === 'DEACTIVATED' ? `${account.name} (conta desativada)` : account.name
 }
 
 /** Texto dos responsáveis de uma tarefa (DE16), pela ordem da API (do nome). */

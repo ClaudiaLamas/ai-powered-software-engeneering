@@ -4,6 +4,7 @@ import {
   TASK_PRIORITY_OPTIONS,
   TASK_STATUS_LABELS,
   TASK_STATUS_OPTIONS,
+  accountLabel,
   assigneeLabel,
   assigneesLabel,
 } from '../task-labels'
@@ -47,5 +48,10 @@ describe('assigneesLabel (DE16)', () => {
 
   it('junta os responsáveis pela ordem da API, cada um com a sua indicação', () => {
     expect(assigneesLabel([ana, rui])).toBe('Ana, Rui (já não é membro)')
+  })
+
+  it('mostra o nome de uma conta, com "conta desativada" quando é o caso (CL12)', () => {
+    expect(accountLabel({ id: '1', name: 'Ana', status: 'ACTIVE' })).toBe('Ana')
+    expect(accountLabel({ id: '1', name: 'Ana', status: 'DEACTIVATED' })).toBe('Ana (conta desativada)')
   })
 })
