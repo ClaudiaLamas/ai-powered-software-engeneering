@@ -64,17 +64,26 @@ function showTask(t: Task) {
   statusValue.value = t.status
 }
 
+/**
+ * Identifica o carregamento mais recente. Uma resposta de antes de mudar de
+ * tarefa (carregamento, estado ou edição) não substitui a tarefa à vista.
+ */
+let taskLoad = 0
+
 async function load() {
+  const current = ++taskLoad
   task.value = null
   project.value = null
   loadError.value = null
   try {
     const [t, account] = await Promise.all([getTask(taskId.value), ensureAccount()])
-    project.value = await getProject(t.projectId)
+    const p = await getProject(t.projectId)
+    if (current !== taskLoad) return
+    project.value = p
     accountId.value = account.id
     showTask(t)
   } catch (e) {
-    if (isUnauthenticated(e)) return
+    if (current !== taskLoad || isUnauthenticated(e)) return
     loadError.value = apiErrorMessage(e, 'Não foi possível carregar a tarefa.')
   }
 }
@@ -89,10 +98,14 @@ async function onStatusChange(next: TaskStatus) {
   changingStatus.value = true
   statusError.value = null
   message.value = null
+  const load = taskLoad
   try {
-    showTask(await changeTaskStatus(task.value.id, next))
+    const changed = await changeTaskStatus(task.value.id, next)
+    if (load !== taskLoad) return
+    showTask(changed)
     message.value = `Estado alterado para "${TASK_STATUS_LABELS[next]}".`
   } catch (e) {
+    if (load !== taskLoad || !task.value) return
     // Se falhar, a tarefa fica como estava.
     statusValue.value = task.value.status
     if (isUnauthenticated(e)) return
@@ -112,12 +125,15 @@ async function save(values: TaskFormValues) {
   if (!task.value || busy.value) return
   saving.value = true
   saveError.value = null
+  const load = taskLoad
   try {
-    showTask(await updateTask(task.value.id, values))
+    const updated = await updateTask(task.value.id, values)
+    if (load !== taskLoad) return
+    showTask(updated)
     editing.value = false
     message.value = 'Alterações guardadas.'
   } catch (e) {
-    if (isUnauthenticated(e)) return
+    if (load !== taskLoad || isUnauthenticated(e)) return
     // O formulário mantém o que foi escrito.
     saveError.value = e
   } finally {

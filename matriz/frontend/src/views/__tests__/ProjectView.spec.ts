@@ -283,6 +283,32 @@ describe('ProjectView (US08, US23, US06)', () => {
     expect(wrapper.get('[role="alert"]').text()).toBe('O projeto não existe ou não tem acesso a ele.')
   })
 
+  it('ao mudar de projeto, ignora a resposta atrasada do projeto anterior', async () => {
+    const OTHER_ID = '00000000-0000-4000-8000-0000000000b2'
+    let releaseFirst!: () => void
+    const heldFirst = new Promise<Response>((resolve) => {
+      releaseFirst = () => resolve(json(project({ name: 'Site' })))
+    })
+    mockApi({
+      [`GET /projects/${PROJECT_ID}`]: () => heldFirst,
+      [`GET /projects/${OTHER_ID}`]: () => json(project({ id: OTHER_ID, name: 'Loja' })),
+      [TASKS]: () => json(page([], { todo: 0, inProgress: 0, done: 0 })),
+      [`GET /projects/${OTHER_ID}/tasks`]: () => json(page([], { todo: 2, inProgress: 0, done: 0 })),
+    })
+    const wrapper = await mountView()
+
+    await wrapper.vm.$router.push(`/projetos/${OTHER_ID}`)
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('Loja')
+
+    releaseFirst()
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('Loja')
+    expect(wrapper.get('[aria-label="Tarefas por estado"]').text()).toBe(
+      'Por fazer: 2, Em curso: 0, Concluída: 0',
+    )
+  })
+
   it('um grupo que falha mostra o erro e pode tentar outra vez', async () => {
     let fail = true
     const counts = { todo: 1, inProgress: 0, done: 0 }

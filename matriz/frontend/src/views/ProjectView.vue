@@ -149,18 +149,23 @@ function isUnauthenticated(e: unknown) {
   return e instanceof ApiError && e.status === 401
 }
 
+/** Identifica o carregamento mais recente do projeto, para ignorar o de uma rota anterior. */
+let projectLoad = 0
+
 async function loadProject() {
+  const load = ++projectLoad
   project.value = null
   projectError.value = null
   counts.value = null
   invalidateGroups()
   try {
     const [p, account] = await Promise.all([getProject(projectId.value), ensureAccount()])
+    if (load !== projectLoad) return
     project.value = p
     accountId.value = account.id
     await loadGroups()
   } catch (e) {
-    if (isUnauthenticated(e)) return
+    if (load !== projectLoad || isUnauthenticated(e)) return
     projectError.value = apiErrorMessage(e, 'Não foi possível carregar o projeto.')
   }
 }

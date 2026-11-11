@@ -257,6 +257,50 @@ describe('TaskDetailView (US19, US06, US07, US22)', () => {
     expect(statusSelect(wrapper).attributes('disabled')).toBeDefined()
   })
 
+  it('ao mudar de tarefa, ignora a resposta atrasada da tarefa anterior', async () => {
+    const other = task({ title: 'Criar logótipo' })
+    let releaseFirst!: () => void
+    const heldFirst = new Promise<Response>((resolve) => {
+      releaseFirst = () => resolve(json(current))
+    })
+    mockApi({
+      [`GET /tasks/${current.id}`]: () => heldFirst,
+      [`GET /tasks/${other.id}`]: () => json(other),
+      [`GET /projects/${PROJECT_ID}`]: () => json(project()),
+    })
+    const { wrapper, router } = await mountView(current)
+
+    await router.push(`/tarefas/${other.id}`)
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('Criar logótipo')
+
+    releaseFirst()
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('Criar logótipo')
+  })
+
+  it('ao mudar de tarefa, ignora a resposta de uma mudança de estado da tarefa anterior', async () => {
+    const other = task({ title: 'Criar logótipo' })
+    let respond: (r: Response) => void = () => {}
+    mockApi({
+      [`GET /tasks/${current.id}`]: () => json(current),
+      [`GET /tasks/${other.id}`]: () => json(other),
+      [`GET /projects/${PROJECT_ID}`]: () => json(project()),
+      [`PUT /tasks/${current.id}/status`]: () => new Promise<Response>((resolve) => (respond = resolve)),
+    })
+    const { wrapper, router } = await mountView(current)
+    await statusSelect(wrapper).setValue('DONE')
+    await flushPromises()
+
+    await router.push(`/tarefas/${other.id}`)
+    await flushPromises()
+    respond(json({ ...current, status: 'DONE' }))
+    await flushPromises()
+
+    expect(wrapper.get('h1').text()).toBe('Criar logótipo')
+    expect(wrapper.get('.badge-status-todo').text()).toBe('Por fazer')
+  })
+
   it('mostra o erro de uma tarefa a que não tem acesso', async () => {
     mockApi({ [`GET /tasks/${current.id}`]: () => problem(404, 'TASK_NOT_FOUND', 'A tarefa não existe.') })
     const { wrapper } = await mountView(current)
