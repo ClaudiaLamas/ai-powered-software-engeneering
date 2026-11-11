@@ -6,18 +6,18 @@ Este ficheiro reúne as restrições de âmbito, as permissões, os requisitos n
 
 Decisões nossas, por validar com o cliente.
 
-- **O MVP inclui só as funcionalidades Must: FN01–FN09, FN12–FN14, FN27 e FN28.** A lista completa está em [requirements.md](requirements.md#4-funcionalidades).
-- **Ficam fora do MVP:** prazos (FN10), "as minhas tarefas" (FN11), pesquisa por texto e filtro por responsável (FN30), notificações (FN15), anexos (FN16), subtarefas e dependências (FN17), histórico de alterações das tarefas (FN18), relatórios (FN19), estados configuráveis (FN20), calendário e cronograma (FN21), pedir ajuda numa tarefa (FN29).
+- **O MVP inclui só as funcionalidades Must: FN01–FN09, FN12–FN14 e FN27–FN29.** A lista completa está em [requirements.md](requirements.md#4-funcionalidades).
+- **Ficam fora do MVP:** prazos (FN10), "as minhas tarefas" (FN11), pesquisa por texto e filtro por responsável (FN30), notificações (FN15), anexos (FN16), subtarefas e dependências (FN17), histórico de alterações das tarefas (FN18), relatórios (FN19), estados configuráveis (FN20), calendário e cronograma (FN21).
 - **Excluídos nesta fase:** utilizadores externos (FN22, R4), registo de tempo (FN23), práticas ágeis como sprints e backlog (FN24), integrações e migração de dados (FN25), várias línguas (FN26).
 - **As contas não têm papel próprio:** em cada projeto, uma conta é Gestor ou Membro; Administrador é uma permissão da conta, acumulável com essas funções (DE01, DE02).
 - **Cada projeto tem exatamente um Gestor** (DE06).
 - **Não existe uma entidade "equipa" separada:** a equipa de um projeto são os seus membros (R6).
-- **Uma tarefa pertence sempre a um projeto** e tem título, descrição, um só responsável e estado (R6, R7, DE09).
+- **Uma tarefa pertence sempre a um projeto** e tem título, descrição, zero ou mais responsáveis e estado (R6, R7, DE09, DE16).
 - **Os estados são três, fixos e iguais para todos os projetos:** Por fazer, Em curso e Concluída (R8).
 
 ## 2. Permissões
 
-Resumo das decisões DE01–DE15 e das regras PN01–PN20. **Nenhuma foi validada pelo cliente.** As colunas Gestor e Membro referem-se à função da conta *naquele* projeto. Uma conta com permissão de Administrador que também participa num projeto tem, nesse projeto, as permissões da sua função.
+Resumo das decisões DE01–DE16 e das regras PN01–PN21. **Nenhuma foi validada pelo cliente.** As colunas Gestor e Membro referem-se à função da conta *naquele* projeto. Uma conta com permissão de Administrador que também participa num projeto tem, nesse projeto, as permissões da sua função.
 
 | Ação | Administrador | Gestor do projeto | Membro do projeto | Origem |
 |---|---|---|---|---|
@@ -30,22 +30,25 @@ Resumo das decisões DE01–DE15 e das regras PN01–PN20. **Nenhuma foi validad
 | Consultar o registo de ações administrativas | Sim | Não | Não | US14, DE12 |
 | Editar e arquivar o projeto | Não | Sim | Não | US10, DE07 |
 | Adicionar e remover membros | Não (exceto ao trocar o Gestor) | Sim | Não | US04, DE07, DE08 |
-| Ver o projeto, as tarefas, os comentários e o progresso | Não | Sim | Sim | R10, PN02 |
-| Criar tarefas, editar título e descrição, escolher o responsável, eliminar tarefas | Não | Sim | Não | US06, DE09 |
+| Ver o projeto, as tarefas, os comentários, os pedidos de responsável pendentes de uma tarefa e o progresso | Não | Sim | Sim | R10, PN02, PN21 |
+| Criar tarefas, editar título e descrição, atribuir e remover responsáveis, eliminar tarefas | Não | Sim | Não | US06, DE09, DE16 |
 | Dar e mudar a prioridade de uma tarefa | Não | Sim | Não | US22, DE09, PN19 |
 | Filtrar e paginar as tarefas de um projeto | Não | Sim | Sim | US23, PN20 |
 | Mudar o estado de uma tarefa | Não | Sim | Sim | US07, DE10 |
 | Comentar tarefas | Não | Sim | Sim | US13, DE10, DE11 |
 | Editar e apagar os próprios comentários | Não | Sim | Sim | US13, PN15 |
+| Pedir que outro membro seja adicionado como responsável | Não | Só se for responsável da tarefa | Só se for responsável da tarefa | US31, DE13, PN21 |
+| Cancelar o próprio pedido de responsável | Não | Sim (quem o fez) | Sim (quem o fez) | US31, PN21 |
+| Ver os pedidos de responsável pendentes do projeto; aceitar ou recusar pedidos | Não | Sim | Não | US31, DE13, PN21 |
 
 **Regras que se aplicam a todas as ações:**
 
 - Um projeto arquivado fica só de leitura para todos (PN09).
 - Uma conta desativada não consegue entrar e não pode ser reativada (US01, US02, PN17).
-- Uma conta pendente não consegue entrar até definir a palavra-passe pelo link de ativação. Pode ser adicionada a projetos e nomeada Gestor, mas não pode ser escolhida como responsável (US02, DE15).
+- Uma conta pendente não consegue entrar até definir a palavra-passe pelo link de ativação. Pode ser adicionada a projetos e nomeada Gestor, mas não pode ser atribuída como responsável (US02, DE15).
 - A conta de sistema não pode ser desativada nem perder a permissão de Administrador (PN16).
-- O responsável de uma tarefa tem de ser membro do projeto com conta ativa quando é escolhido (PN06). Uma tarefa "Concluída" pode manter como responsável quem já não é membro (PN07, DE14).
-- Uma conta desativada não pode ser adicionada a um projeto nem escolhida como responsável (PN08, DE14).
+- Uma tarefa pode ter vários responsáveis ou nenhum, sem repetir a mesma pessoa (DE16). Cada responsável tem de ser membro do projeto com conta ativa quando é atribuído, também ao aceitar um pedido (PN06, PN21). Uma tarefa "Concluída" pode manter entre os responsáveis quem já não é membro (PN07, DE14).
+- Uma conta desativada não pode ser adicionada a um projeto nem atribuída como responsável (PN08, DE14).
 
 ## 3. Requisitos não funcionais
 
@@ -104,5 +107,5 @@ Pontos complementares, decididos na mesma data (decisões internas, por validar)
 | Como se recupera o acesso quando a pessoa se esquece da palavra-passe? Pode usar o mesmo mecanismo de token da ativação (DE15). | D06, DE15, US01 |
 | Uma conta pendente pode receber a permissão de Administrador? | US11, DE15 |
 | Quais são os limites de comprimento do nome e do email de uma conta? | US02, PN11 |
-| Todas as respostas R1–R10, decisões DE01–DE15 e regras PN01–PN20 têm de ser validadas com o cliente. | [requirements.md](requirements.md#22-respostas-assumidas-r1r10), [requirements.md](requirements.md#23-decisões-internas-de01de15), [user-stories.md](user-stories.md#4-regras-de-negócio-pn01pn20) |
+| Todas as respostas R1–R10, decisões DE01–DE16 e regras PN01–PN21 têm de ser validadas com o cliente. | [requirements.md](requirements.md#22-respostas-assumidas-r1r10), [requirements.md](requirements.md#23-decisões-internas-de01de16), [user-stories.md](user-stories.md#4-regras-de-negócio-pn01pn21) |
 | Perguntas ao cliente sem resposta: 2, 4, 5, 19, 23, 26, 27, 31. | [requirements.md](requirements.md#6-perguntas-ao-cliente-ainda-por-responder) |
