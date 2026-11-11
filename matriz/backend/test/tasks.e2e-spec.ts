@@ -734,6 +734,102 @@ describe('Tarefas (API)', () => {
     });
   });
 
+  // ------------------------------------------------- outro utilizador
+  /**
+   * Uma conta ativa, sem a permissão de Administrador, que é Gestor de outro
+   * projeto: não vê nem altera as tarefas de um projeto de que não é membro
+   * (PN02, DE02). Responde 404, como a quem não é membro, sem revelar se o
+   * projeto ou a tarefa existem.
+   */
+  describe('outro utilizador (Gestor de outro projeto, sem ser membro)', () => {
+    let t: Awaited<ReturnType<typeof team>>;
+    let other: Actor;
+
+    beforeAll(async () => {
+      t = await team();
+      other = await accountWithToken({ name: 'Carla Outro Projeto' });
+      await createProject(app, [
+        { accountId: other.account.id, role: 'MANAGER' },
+      ]);
+    });
+
+    it('não cria uma tarefa no projeto: 404 PROJECT_NOT_FOUND e nada é criado', async () => {
+      const before = await prisma.task.count({
+        where: { projectId: t.project.id },
+      });
+      const res = await api(other.token)
+        .create(t.project.id, { title: 'Tarefa intrusa' })
+        .expect(404);
+      expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+      expect(
+        await prisma.task.count({ where: { projectId: t.project.id } }),
+      ).toBe(before);
+    });
+
+    it('não consulta, não edita nem elimina a tarefa pelo ID: 404 TASK_NOT_FOUND', async () => {
+      const task = await createTask(app, t.project.id, {
+        title: 'Original',
+        priority: 'LOW',
+      });
+
+      const got = await api(other.token).get(task.id).expect(404);
+      expect(got.body.code).toBe('TASK_NOT_FOUND');
+
+      const updated = await api(other.token)
+        .update(task.id, { title: 'Alterado', priority: 'HIGH' })
+        .expect(404);
+      expect(updated.body.code).toBe('TASK_NOT_FOUND');
+
+      const removed = await api(other.token).remove(task.id).expect(404);
+      expect(removed.body.code).toBe('TASK_NOT_FOUND');
+
+      const saved = await prisma.task.findUniqueOrThrow({
+        where: { id: task.id },
+      });
+      expect(saved).toMatchObject({ title: 'Original', priority: 'LOW' });
+    });
+  });
+
+  // ------------------------------------------------------- persistência
+  describe('persistência', () => {
+    it('a tarefa criada pela API é devolvida igual por GET, na lista e depois de reiniciar a aplicação', async () => {
+      const t = await team();
+      const created = await api(t.manager.token)
+        .create(t.project.id, {
+          title: '  Preparar apresentação  ',
+          description: 'Diapositivos para a reunião.',
+          priority: 'HIGH',
+          assigneeId: t.member.account.id,
+        })
+        .expect(201);
+
+      const got = await api(t.member.token).get(created.body.id).expect(200);
+      expect(got.body).toEqual(created.body);
+      expect(got.body).toMatchObject({
+        title: 'Preparar apresentação',
+        description: 'Diapositivos para a reunião.',
+        status: 'TODO',
+        priority: 'HIGH',
+        assignee: { id: t.member.account.id },
+      });
+
+      const list = await api(t.member.token).list(t.project.id).expect(200);
+      expect(list.body.items).toEqual([created.body]);
+
+      // Uma nova instância da aplicação lê a mesma tarefa da base de dados.
+      const restarted = await createTestApp();
+      try {
+        const res = await request(restarted.getHttpServer())
+          .get(`/tasks/${created.body.id}`)
+          .set('Authorization', `Bearer ${t.member.token}`)
+          .expect(200);
+        expect(res.body).toEqual(created.body);
+      } finally {
+        await restarted.close();
+      }
+    });
+  });
+
   /**
    * O projeto é arquivado depois da verificação do controlador
    * (`requireWritable`) e antes da escrita: a escrita tem de ver o estado
