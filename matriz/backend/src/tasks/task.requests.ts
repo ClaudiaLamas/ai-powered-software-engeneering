@@ -38,6 +38,14 @@ export const PAGE_SIZE_MAX = 100;
 const PRIORITY_MESSAGE = 'A prioridade tem de ser LOW, MEDIUM ou HIGH.';
 const STATUS_MESSAGE = 'O estado tem de ser TODO, IN_PROGRESS ou DONE.';
 
+/**
+ * Chave de comparação de `@ArrayUnique` para UUID: em minúsculas. Um
+ * elemento que não é texto fica como está (dá erro em `@IsUUID`).
+ */
+function sameUuid(id: unknown): unknown {
+  return typeof id === 'string' ? id.toLowerCase() : id;
+}
+
 /** Campos comuns a `CreateTaskRequest` e `UpdateTaskRequest`. */
 class TaskFields {
   /** Em falta dá `TITLE_INVALID` no serviço (ao criar); `null` ou outro tipo é erro de formato. */
@@ -60,7 +68,10 @@ export class CreateTaskRequest extends TaskFields {
   /** Responsáveis (DE16), sem repetidos; omitido ou vazio = "Sem responsável". */
   @IsOptional()
   @IsArray({ message: 'Os responsáveis têm de ser uma lista.' })
-  @ArrayUnique({ message: 'Os responsáveis não podem ter repetidos.' })
+  // O PostgreSQL compara UUID sem distinguir maiúsculas: aqui também.
+  @ArrayUnique(sameUuid, {
+    message: 'Os responsáveis não podem ter repetidos.',
+  })
   @IsUUID('all', { each: true, message: 'Um dos responsáveis não é válido.' })
   assigneeIds?: string[];
 }

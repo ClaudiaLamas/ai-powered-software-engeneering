@@ -159,6 +159,23 @@ describe('Tarefas (API)', () => {
       });
     });
 
+    it('recusa o mesmo membro em minúsculas e maiúsculas com 400 e não cria a tarefa (DE16)', async () => {
+      const before = await prisma.task.count({
+        where: { projectId: t.project.id },
+      });
+      const id = t.member.account.id;
+      const res = await api(t.manager.token)
+        .create(t.project.id, {
+          title: 'Tarefa repetida',
+          assigneeIds: [id.toLowerCase(), id.toUpperCase()],
+        })
+        .expect(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(
+        await prisma.task.count({ where: { projectId: t.project.id } }),
+      ).toBe(before);
+    });
+
     it('com assigneeIds vazio, a tarefa fica "Sem responsável"', async () => {
       const res = await api(t.manager.token)
         .create(t.project.id, { title: 'Sem ninguém', assigneeIds: [] })
@@ -182,6 +199,11 @@ describe('Tarefas (API)', () => {
       ['um assigneeIds com um id que não é UUID', { title: 'Tarefa', assigneeIds: ['ana'] }],
       ['um assigneeIds que não é lista', { title: 'Tarefa', assigneeIds: randomUUID() }],
       ['um assigneeIds com repetidos', { title: 'Tarefa', assigneeIds: [ID_A, ID_A] }],
+      [
+        'um assigneeIds com o mesmo id em minúsculas e maiúsculas',
+        { title: 'Tarefa', assigneeIds: [ID_A, ID_A.toUpperCase()] },
+      ],
+      ['um assigneeIds com um elemento que não é texto', { title: 'Tarefa', assigneeIds: [ID_A, 1] }],
       ['o antigo assigneeId (0.4.0)', { title: 'Tarefa', assigneeId: randomUUID() }],
     ])('recusa %s com 400 VALIDATION_ERROR', async (_, body) => {
       const res = await api(t.manager.token)
