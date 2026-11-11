@@ -8,15 +8,19 @@ import { ProblemException } from '../common/problem.js';
 import type { Prisma, ProjectStatus } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
+  type AccountSummaryDto,
   type TaskDto,
   type TaskPageDto,
   taskSelect,
   toTaskDto,
 } from './task.dto.js';
 import {
+  type AssigneeField,
+  assigneeAlreadyAssigned,
   assigneeNotActive,
+  assigneeNotFound,
   assigneeNotMember,
-  clearsAssigneeOnStatusChange,
+  assigneesRemovedOnStatusChange,
   normalizeDescription,
   normalizeTitle,
 } from './task-rules.js';
@@ -29,7 +33,8 @@ import type {
 
 /**
  * Módulo Tarefas (`tasks`, architecture.md): criar, listar, consultar, editar
- * e eliminar tarefas (US06, US08, US19, US22, US23).
+ * e eliminar tarefas, atribuir e remover responsáveis e listar quem pode ser
+ * responsável (US06, US08, US19, US22, US23; DE16).
  *
  * As verificações de acesso (`404` → `403` → `409`) são feitas pelo
  * controlador com o AuthorizationService antes de chamar este serviço; o
@@ -67,11 +72,16 @@ export class TasksService {
   ): Promise<TaskDto> {
     const title = normalizeTitle(body.title);
     const description = normalizeDescription(body.description);
-    const assigneeId = body.assigneeId ?? null;
+    const assigneeIds = body.assigneeIds ?? [];
 
     const task = await this.writeInActiveProject(access, async (tx) => {
-      if (assigneeId) {
-        await this.requireAssignable(tx, access.projectId, assigneeId);
+      for (const accountId of assigneeIds) {
+        await this.requireAssignable(
+          tx,
+          access.projectId,
+          accountId,
+          'assigneeIds',
+        );
       }
       return tx.task.create({
         data: {
@@ -79,7 +89,9 @@ export class TasksService {
           title,
           description,
           ...(body.priority && { priority: body.priority }),
-          assigneeId,
+          assignees: {
+            create: assigneeIds.map((accountId) => ({ accountId })),
+          },
         },
         select: taskSelect(access.projectId),
       });
@@ -149,9 +161,8 @@ export class TasksService {
 
   /**
    * `updateTask` (US06, US22): só depois de `requireTask`, `requireManager` e
-   * `requireWritable`. Só muda os campos enviados; o projeto e o estado não
-   * mudam por aqui. Um responsável igual ao atual não é verificado outra vez
-   * (decisão interna, 2026-11-10).
+   * `requireWritable`. Só muda os campos enviados; o projeto, o estado e os
+   * responsáveis não mudam por aqui.
    */
   async update(access: TaskAccess, body: UpdateTaskRequest): Promise<TaskDto> {
     const data: Prisma.TaskUncheckedUpdateManyInput = {};
@@ -162,17 +173,6 @@ export class TasksService {
     if (body.priority !== undefined) data.priority = body.priority;
 
     await this.writeInActiveProject(access, async (tx) => {
-      if (body.assigneeId !== undefined) {
-        const current = await tx.task.findUnique({
-          where: { id: access.taskId },
-          select: { assigneeId: true },
-        });
-        if (!current) throw taskNotFound();
-        if (body.assigneeId && body.assigneeId !== current.assigneeId) {
-          await this.requireAssignable(tx, access.projectId, body.assigneeId);
-        }
-        data.assigneeId = body.assigneeId;
-      }
       const { count } = await tx.task.updateMany({
         where: { id: access.taskId },
         data,
@@ -186,34 +186,36 @@ export class TasksService {
   /**
    * `changeTaskStatus` (US07): só depois de `requireTask` e `requireWritable`;
    * qualquer membro. Qualquer estado passa a qualquer outro (PN10). Ao reabrir
-   * uma tarefa `DONE` de quem já não é membro ou tem a conta desativada, a
-   * tarefa fica "Sem responsável" (PN07, PN08).
+   * uma tarefa `DONE`, saem dos responsáveis quem já não é membro ou tem a
+   * conta desativada; os outros mantêm-se (PN07, PN08, DE16).
    */
   async changeStatus(
     access: TaskAccess,
     body: ChangeTaskStatusRequest,
   ): Promise<TaskDto> {
     await this.writeInActiveProject(access, async (tx) => {
-      // Bloqueia a tarefa: dois pedidos ao mesmo tempo veem o estado um do outro.
-      const [locked] = await tx.$queryRaw<{ id: string }[]>`
-        SELECT id FROM task WHERE id = ${access.taskId}::uuid FOR UPDATE`;
-      if (!locked) throw taskNotFound();
+      await this.lockTask(tx, access.taskId);
       const current = await tx.task.findUniqueOrThrow({
         where: { id: access.taskId },
         select: taskSelect(access.projectId),
       });
-      const { assignee } = current;
-      const clear = clearsAssigneeOnStatusChange(
+      const removed = assigneesRemovedOnStatusChange(
         current.status,
         body.status,
-        assignee && {
-          active: assignee.status === 'ACTIVE',
-          isProjectMember: assignee.memberships.length > 0,
-        },
+        current.assignees.map(({ account }) => ({
+          accountId: account.id,
+          active: account.status === 'ACTIVE',
+          isProjectMember: account.memberships.length > 0,
+        })),
       );
       await tx.task.update({
         where: { id: access.taskId },
-        data: { status: body.status, ...(clear && { assigneeId: null }) },
+        data: {
+          status: body.status,
+          ...(removed.length > 0 && {
+            assignees: { deleteMany: { accountId: { in: removed } } },
+          }),
+        },
       });
     });
     return this.get(access);
@@ -221,7 +223,8 @@ export class TasksService {
 
   /**
    * `deleteTask` (US06, CL2): só depois de `requireTask`, `requireManager` e
-   * `requireWritable`. Os comentários são eliminados em cascata (database.md §4).
+   * `requireWritable`. Os comentários e os responsáveis são eliminados em
+   * cascata (database.md §4).
    */
   async remove(access: TaskAccess): Promise<void> {
     await this.writeInActiveProject(access, async (tx) => {
@@ -233,21 +236,93 @@ export class TasksService {
   }
 
   /**
+   * `addTaskAssignee` (US06, DE16): só depois de `requireTask`,
+   * `requireManager` e `requireWritable`. Em qualquer estado da tarefa. Uma
+   * conta que já é responsável dá `409` antes das regras de PN06 (por
+   * exemplo, quem saiu do projeto numa tarefa `DONE`).
+   */
+  async addAssignee(access: TaskAccess, accountId: string): Promise<TaskDto> {
+    await this.writeInActiveProject(access, async (tx) => {
+      // Bloqueia a tarefa: dois pedidos iguais ao mesmo tempo dão um 201 e um 409.
+      await this.lockTask(tx, access.taskId);
+      const existing = await tx.taskAssignee.findUnique({
+        where: { taskId_accountId: { taskId: access.taskId, accountId } },
+        select: { accountId: true },
+      });
+      if (existing) throw assigneeAlreadyAssigned();
+      await this.requireAssignable(
+        tx,
+        access.projectId,
+        accountId,
+        'accountId',
+      );
+      await tx.taskAssignee.create({
+        data: { taskId: access.taskId, accountId },
+      });
+    });
+    return this.get(access);
+  }
+
+  /**
+   * `removeTaskAssignee` (US06, DE14): só depois de `requireTask`,
+   * `requireManager` e `requireWritable`. Qualquer responsável, também numa
+   * tarefa `DONE` e quem já não é membro; quem não é responsável dá `404`.
+   */
+  async removeAssignee(access: TaskAccess, accountId: string): Promise<void> {
+    await this.writeInActiveProject(access, async (tx) => {
+      await this.lockTask(tx, access.taskId);
+      const { count } = await tx.taskAssignee.deleteMany({
+        where: { taskId: access.taskId, accountId },
+      });
+      if (count === 0) throw assigneeNotFound();
+    });
+  }
+
+  /**
+   * `listAssignableAccounts` (US06, PN06, PN08, DE15): só depois de
+   * `requireMember` e `requireManager`. Membros do projeto com conta ativa,
+   * por ordem do nome (e do id, em caso de empate).
+   */
+  async listAssignable(
+    access: ProjectAccess,
+  ): Promise<{ items: AccountSummaryDto[] }> {
+    const members = await this.prisma.projectMember.findMany({
+      where: { projectId: access.projectId, account: { status: 'ACTIVE' } },
+      orderBy: [{ account: { name: 'asc' } }, { accountId: 'asc' }],
+      select: { account: { select: { id: true, name: true, status: true } } },
+    });
+    return { items: members.map((m) => m.account) };
+  }
+
+  /**
+   * Bloqueia a linha da tarefa até ao fim da transação: as escritas na mesma
+   * tarefa veem-se umas às outras. Sem linha, a tarefa foi eliminada depois
+   * das verificações do controlador.
+   */
+  private async lockTask(tx: Tx, taskId: string) {
+    const [locked] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT id FROM task WHERE id = ${taskId}::uuid FOR UPDATE`;
+    if (!locked) throw taskNotFound();
+  }
+
+  /**
    * O responsável tem de ser membro do projeto (`ASSIGNEE_NOT_MEMBER`, PN06)
    * com conta ativa (`ASSIGNEE_NOT_ACTIVE`, PN08, DE15). Uma conta que não
-   * existe não é membro (pressuposto do contrato).
+   * existe não é membro (pressuposto do contrato). `field` é o campo do
+   * pedido indicado no erro.
    */
   private async requireAssignable(
     tx: Tx,
     projectId: string,
     accountId: string,
+    field: AssigneeField,
   ) {
     const membership = await tx.projectMember.findUnique({
       where: { projectId_accountId: { projectId, accountId } },
       select: { account: { select: { status: true } } },
     });
-    if (!membership) throw assigneeNotMember();
-    if (membership.account.status !== 'ACTIVE') throw assigneeNotActive();
+    if (!membership) throw assigneeNotMember(field);
+    if (membership.account.status !== 'ACTIVE') throw assigneeNotActive(field);
   }
 
   /**

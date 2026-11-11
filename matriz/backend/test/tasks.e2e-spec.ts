@@ -16,9 +16,13 @@ import {
 
 /**
  * Tarefas: criar, listar (com filtros e paginação), consultar, editar e
- * eliminar e mudar o estado (US06, US07, US08, US19, US22, US23; openapi.yaml
- * 0.4.0). A lista de responsáveis possíveis fica para outro passo.
+ * eliminar, mudar o estado, atribuir e remover responsáveis e listar quem pode
+ * ser responsável (US06, US07, US08, US19, US22, US23; DE16; openapi.yaml
+ * 0.5.0).
  */
+/** Um UUID fixo, para repetir o mesmo id num pedido. */
+const ID_A = randomUUID();
+
 describe('Tarefas (API)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
@@ -55,6 +59,12 @@ describe('Tarefas (API)', () => {
       remove: (id: string) => auth(request(server).delete(`/tasks/${id}`)),
       changeStatus: (id: string, body: object) =>
         auth(request(server).put(`/tasks/${id}/status`)).send(body),
+      addAssignee: (id: string, body: object) =>
+        auth(request(server).post(`/tasks/${id}/assignees`)).send(body),
+      removeAssignee: (id: string, accountId: string) =>
+        auth(request(server).delete(`/tasks/${id}/assignees/${accountId}`)),
+      assignable: (projectId: string) =>
+        auth(request(server).get(`/projects/${projectId}/assignable-accounts`)),
     };
   }
 
@@ -107,7 +117,7 @@ describe('Tarefas (API)', () => {
         description: null,
         status: 'TODO',
         priority: 'MEDIUM',
-        assignee: null,
+        assignees: [],
         createdAt: expect.any(String),
         updatedAt: expect.any(String),
       });
@@ -117,13 +127,13 @@ describe('Tarefas (API)', () => {
       expect(saved.title).toBe('Publicar página inicial');
     });
 
-    it('cria a tarefa com descrição, prioridade e um responsável membro do projeto', async () => {
+    it('cria a tarefa com descrição, prioridade e dois responsáveis, por ordem do nome (DE16)', async () => {
       const res = await api(t.manager.token)
         .create(t.project.id, {
           title: 'Rever textos',
           description: 'Rever os textos da página inicial.',
           priority: 'HIGH',
-          assigneeId: t.member.account.id,
+          assigneeIds: [t.member.account.id, t.manager.account.id],
         })
         .expect(201);
 
@@ -132,13 +142,28 @@ describe('Tarefas (API)', () => {
         description: 'Rever os textos da página inicial.',
         status: 'TODO',
         priority: 'HIGH',
-        assignee: {
-          id: t.member.account.id,
-          name: 'Bruno Membro',
-          status: 'ACTIVE',
-          isProjectMember: true,
-        },
+        assignees: [
+          {
+            id: t.manager.account.id,
+            name: 'Ana Gestora',
+            status: 'ACTIVE',
+            isProjectMember: true,
+          },
+          {
+            id: t.member.account.id,
+            name: 'Bruno Membro',
+            status: 'ACTIVE',
+            isProjectMember: true,
+          },
+        ],
       });
+    });
+
+    it('com assigneeIds vazio, a tarefa fica "Sem responsável"', async () => {
+      const res = await api(t.manager.token)
+        .create(t.project.id, { title: 'Sem ninguém', assigneeIds: [] })
+        .expect(201);
+      expect(res.body.assignees).toEqual([]);
     });
 
     it('uma descrição só com espaços fica null', async () => {
@@ -154,7 +179,10 @@ describe('Tarefas (API)', () => {
       ['uma prioridade fora do enum', { title: 'Tarefa', priority: 'URGENT' }],
       ['uma prioridade null', { title: 'Tarefa', priority: null }],
       ['um título que não é texto', { title: 123 }],
-      ['um assigneeId que não é UUID', { title: 'Tarefa', assigneeId: 'ana' }],
+      ['um assigneeIds com um id que não é UUID', { title: 'Tarefa', assigneeIds: ['ana'] }],
+      ['um assigneeIds que não é lista', { title: 'Tarefa', assigneeIds: randomUUID() }],
+      ['um assigneeIds com repetidos', { title: 'Tarefa', assigneeIds: [ID_A, ID_A] }],
+      ['o antigo assigneeId (0.4.0)', { title: 'Tarefa', assigneeId: randomUUID() }],
     ])('recusa %s com 400 VALIDATION_ERROR', async (_, body) => {
       const res = await api(t.manager.token)
         .create(t.project.id, body)
@@ -184,14 +212,26 @@ describe('Tarefas (API)', () => {
       expect(res.body.code).toBe('DESCRIPTION_TOO_LONG');
     });
 
-    it('recusa um responsável que não é membro do projeto (PN06)', async () => {
+    it('recusa um responsável que não é membro do projeto (PN06) e não cria a tarefa', async () => {
       const outsider = await createAccount(app, { name: 'Rui Externo' });
-      for (const assigneeId of [outsider.id, randomUUID()]) {
+      const before = await prisma.task.count({
+        where: { projectId: t.project.id },
+      });
+      for (const accountId of [outsider.id, randomUUID()]) {
         const res = await api(t.manager.token)
-          .create(t.project.id, { title: 'Tarefa', assigneeId })
+          .create(t.project.id, {
+            title: 'Tarefa',
+            assigneeIds: [t.member.account.id, accountId],
+          })
           .expect(400);
         expect(res.body.code).toBe('ASSIGNEE_NOT_MEMBER');
+        expect(res.body.errors).toEqual([
+          { field: 'assigneeIds', message: expect.any(String) },
+        ]);
       }
+      expect(
+        await prisma.task.count({ where: { projectId: t.project.id } }),
+      ).toBe(before);
     });
 
     it.each(['PENDING', 'DEACTIVATED'] as const)(
@@ -206,7 +246,7 @@ describe('Tarefas (API)', () => {
           },
         });
         const res = await api(t.manager.token)
-          .create(t.project.id, { title: 'Tarefa', assigneeId: account.id })
+          .create(t.project.id, { title: 'Tarefa', assigneeIds: [account.id] })
           .expect(400);
         expect(res.body.code).toBe('ASSIGNEE_NOT_ACTIVE');
       },
@@ -403,7 +443,7 @@ describe('Tarefas (API)', () => {
       const task = await createTask(app, t.project.id, {
         status: 'DONE',
         priority: 'LOW',
-        assigneeId: gone.id,
+        assigneeIds: [gone.id],
       });
       const res = await api(t.member.token)
         .list(t.project.id, { status: 'DONE', priority: 'LOW' })
@@ -411,12 +451,14 @@ describe('Tarefas (API)', () => {
       expect(res.body.items).toEqual([
         expect.objectContaining({
           id: task.id,
-          assignee: {
-            id: gone.id,
-            name: 'Rui Saiu',
-            status: 'ACTIVE',
-            isProjectMember: false,
-          },
+          assignees: [
+            {
+              id: gone.id,
+              name: 'Rui Saiu',
+              status: 'ACTIVE',
+              isProjectMember: false,
+            },
+          ],
         }),
       ]);
     });
@@ -428,7 +470,7 @@ describe('Tarefas (API)', () => {
       const t = await team();
       const task = await createTask(app, t.project.id, {
         title: 'Rever textos',
-        assigneeId: t.member.account.id,
+        assigneeIds: [t.member.account.id],
       });
 
       const res = await api(t.member.token).get(task.id).expect(200);
@@ -438,7 +480,7 @@ describe('Tarefas (API)', () => {
         title: 'Rever textos',
         status: 'TODO',
         priority: 'MEDIUM',
-        assignee: { id: t.member.account.id, isProjectMember: true },
+        assignees: [{ id: t.member.account.id, isProjectMember: true }],
       });
 
       for (const id of [task.id, randomUUID()]) {
@@ -458,12 +500,12 @@ describe('Tarefas (API)', () => {
       t = await team();
     });
 
-    it('muda o título (aparado) e mantém o responsável, o estado e a prioridade', async () => {
+    it('muda o título (aparado) e mantém os responsáveis, o estado e a prioridade', async () => {
       const task = await createTask(app, t.project.id, {
         title: 'Rever textos',
         status: 'IN_PROGRESS',
         priority: 'HIGH',
-        assigneeId: t.member.account.id,
+        assigneeIds: [t.member.account.id],
       });
       const res = await api(t.manager.token)
         .update(task.id, { title: '  Rever textos da página inicial ' })
@@ -473,56 +515,26 @@ describe('Tarefas (API)', () => {
         title: 'Rever textos da página inicial',
         status: 'IN_PROGRESS',
         priority: 'HIGH',
-        assignee: { id: t.member.account.id },
+        assignees: [{ id: t.member.account.id }],
       });
     });
 
-    it('muda a prioridade, limpa a descrição e deixa "Sem responsável"', async () => {
+    it('muda a prioridade e limpa a descrição, sem mexer nos responsáveis', async () => {
       const task = await createTask(app, t.project.id, {
-        assigneeId: t.member.account.id,
+        assigneeIds: [t.member.account.id],
       });
       await prisma.task.update({
         where: { id: task.id },
         data: { description: 'Antiga' },
       });
       const res = await api(t.manager.token)
-        .update(task.id, { priority: 'LOW', description: '', assigneeId: null })
+        .update(task.id, { priority: 'LOW', description: '' })
         .expect(200);
       expect(res.body).toMatchObject({
         priority: 'LOW',
         description: null,
-        assignee: null,
+        assignees: [{ id: t.member.account.id }],
       });
-    });
-
-    it('aceita reenviar o responsável atual de uma tarefa "Concluída" de quem saiu do projeto', async () => {
-      const gone = await createAccount(app, { name: 'Rui Saiu' });
-      const task = await createTask(app, t.project.id, {
-        status: 'DONE',
-        assigneeId: gone.id,
-      });
-      const res = await api(t.manager.token)
-        .update(task.id, { title: 'Novo título', assigneeId: gone.id })
-        .expect(200);
-      expect(res.body.assignee).toMatchObject({
-        id: gone.id,
-        isProjectMember: false,
-      });
-    });
-
-    it('recusa um novo responsável fora do projeto e mantém o atual', async () => {
-      const outsider = await createAccount(app);
-      const task = await createTask(app, t.project.id, {
-        assigneeId: t.member.account.id,
-      });
-      const res = await api(t.manager.token)
-        .update(task.id, { assigneeId: outsider.id })
-        .expect(400);
-      expect(res.body.code).toBe('ASSIGNEE_NOT_MEMBER');
-      const saved = await prisma.task.findUniqueOrThrow({
-        where: { id: task.id },
-      });
-      expect(saved.assigneeId).toBe(t.member.account.id);
     });
 
     it.each([
@@ -534,6 +546,8 @@ describe('Tarefas (API)', () => {
       ['o estado (muda-se com PUT /status)', { status: 'DONE' }],
       ['uma prioridade fora do enum', { priority: 'high' }],
       ['um título null', { title: null }],
+      ['o antigo assigneeId (0.4.0)', { assigneeId: null }],
+      ['assigneeIds (mudam-se com /assignees)', { assigneeIds: [] }],
     ])('recusa %s com 400 VALIDATION_ERROR', async (_, body) => {
       const task = await createTask(app, t.project.id);
       const res = await api(t.manager.token).update(task.id, body).expect(400);
@@ -592,7 +606,7 @@ describe('Tarefas (API)', () => {
       const task = await createTask(app, t.project.id, {
         title: 'Rever textos',
         priority: 'HIGH',
-        assigneeId: t.member.account.id,
+        assigneeIds: [t.member.account.id],
       });
 
       const res = await api(t.member.token)
@@ -604,7 +618,7 @@ describe('Tarefas (API)', () => {
         title: 'Rever textos',
         status: 'IN_PROGRESS',
         priority: 'HIGH',
-        assignee: { id: t.member.account.id, isProjectMember: true },
+        assignees: [{ id: t.member.account.id, isProjectMember: true }],
       });
       const list = await api(t.member.token)
         .list(t.project.id, { status: 'IN_PROGRESS' })
@@ -615,25 +629,42 @@ describe('Tarefas (API)', () => {
     it('reabrir mantém o responsável que continua membro com a conta ativa', async () => {
       const task = await createTask(app, t.project.id, {
         status: 'DONE',
-        assigneeId: t.member.account.id,
+        assigneeIds: [t.member.account.id],
       });
       const res = await api(t.manager.token)
         .changeStatus(task.id, { status: 'TODO' })
         .expect(200);
       expect(res.body.status).toBe('TODO');
-      expect(res.body.assignee).toMatchObject({ id: t.member.account.id });
+      expect(res.body.assignees).toMatchObject([{ id: t.member.account.id }]);
     });
 
-    it('reabrir uma tarefa de quem já não é membro deixa-a "Sem responsável" (PN07, PN10)', async () => {
+    it('reabrir uma tarefa só de quem já não é membro deixa-a "Sem responsável" (PN07, PN10)', async () => {
       const gone = await createAccount(app, { name: 'Rui Saiu' });
       const task = await createTask(app, t.project.id, {
         status: 'DONE',
-        assigneeId: gone.id,
+        assigneeIds: [gone.id],
       });
       const res = await api(t.member.token)
         .changeStatus(task.id, { status: 'IN_PROGRESS' })
         .expect(200);
-      expect(res.body).toMatchObject({ status: 'IN_PROGRESS', assignee: null });
+      expect(res.body).toMatchObject({ status: 'IN_PROGRESS', assignees: [] });
+    });
+
+    it('reabrir tira só quem já não é membro e mantém os outros responsáveis (DE14, DE16)', async () => {
+      const gone = await createAccount(app, { name: 'Rui Saiu' });
+      const task = await createTask(app, t.project.id, {
+        status: 'DONE',
+        assigneeIds: [gone.id, t.member.account.id],
+      });
+      const res = await api(t.member.token)
+        .changeStatus(task.id, { status: 'TODO' })
+        .expect(200);
+      expect(res.body.assignees).toEqual([
+        expect.objectContaining({ id: t.member.account.id }),
+      ]);
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: task.id } }),
+      ).toBe(1);
     });
 
     it('reabrir uma tarefa de uma conta desativada deixa-a "Sem responsável" (PN08, PN10)', async () => {
@@ -646,12 +677,12 @@ describe('Tarefas (API)', () => {
       });
       const task = await createTask(app, t.project.id, {
         status: 'DONE',
-        assigneeId: rui.id,
+        assigneeIds: [rui.id],
       });
       const res = await api(t.member.token)
         .changeStatus(task.id, { status: 'IN_PROGRESS' })
         .expect(200);
-      expect(res.body).toMatchObject({ status: 'IN_PROGRESS', assignee: null });
+      expect(res.body).toMatchObject({ status: 'IN_PROGRESS', assignees: [] });
     });
 
     it('recusa estados inválidos e campos a mais com 400 VALIDATION_ERROR', async () => {
@@ -696,12 +727,18 @@ describe('Tarefas (API)', () => {
         [1, 2, 3, 4].map(() => createTask(app, t.project.id)),
       );
       await createComment(app, tasks[0].id, t.member.account.id);
+      await prisma.taskAssignee.create({
+        data: { taskId: tasks[0].id, accountId: t.member.account.id },
+      });
 
       await api(t.manager.token).remove(tasks[0].id).expect(204, '');
 
       await api(t.manager.token).get(tasks[0].id).expect(404);
       expect(
         await prisma.comment.count({ where: { taskId: tasks[0].id } }),
+      ).toBe(0);
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: tasks[0].id } }),
       ).toBe(0);
       const list = await api(t.member.token).list(t.project.id).expect(200);
       expect(list.body.total).toBe(3);
@@ -731,6 +768,305 @@ describe('Tarefas (API)', () => {
         .expect(409);
       expect(conflict.body.code).toBe('PROJECT_ARCHIVED');
       await api().remove(task.id).expect(401);
+    });
+  });
+
+  // ------------------------------------------------- atribuir responsável
+  describe('POST /tasks/{taskId}/assignees (addTaskAssignee, US06, DE16)', () => {
+    let t: Awaited<ReturnType<typeof team>>;
+
+    beforeAll(async () => {
+      t = await team();
+    });
+
+    it('o Gestor atribui mais um responsável; a lista fica por ordem do nome', async () => {
+      const task = await createTask(app, t.project.id, {
+        assigneeIds: [t.member.account.id],
+      });
+      const res = await api(t.manager.token)
+        .addAssignee(task.id, { accountId: t.manager.account.id })
+        .expect(201);
+      expect(res.body).toMatchObject({
+        id: task.id,
+        assignees: [
+          { id: t.manager.account.id, name: 'Ana Gestora', isProjectMember: true },
+          { id: t.member.account.id, name: 'Bruno Membro', isProjectMember: true },
+        ],
+      });
+      const got = await api(t.member.token).get(task.id).expect(200);
+      expect(got.body).toEqual(res.body);
+    });
+
+    it('atribui também numa tarefa "Concluída"', async () => {
+      const task = await createTask(app, t.project.id, { status: 'DONE' });
+      const res = await api(t.manager.token)
+        .addAssignee(task.id, { accountId: t.member.account.id })
+        .expect(201);
+      expect(res.body).toMatchObject({
+        status: 'DONE',
+        assignees: [{ id: t.member.account.id }],
+      });
+    });
+
+    it('recusa um responsável repetido com 409 ASSIGNEE_ALREADY_ASSIGNED', async () => {
+      const task = await createTask(app, t.project.id, {
+        assigneeIds: [t.member.account.id],
+      });
+      const res = await api(t.manager.token)
+        .addAssignee(task.id, { accountId: t.member.account.id })
+        .expect(409);
+      expect(res.body.code).toBe('ASSIGNEE_ALREADY_ASSIGNED');
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: task.id } }),
+      ).toBe(1);
+    });
+
+    it('dois pedidos iguais ao mesmo tempo: um atribui, o outro dá 409', async () => {
+      const task = await createTask(app, t.project.id);
+      const results = await Promise.all(
+        [1, 2].map(() =>
+          api(t.manager.token).addAssignee(task.id, {
+            accountId: t.member.account.id,
+          }),
+        ),
+      );
+      expect(results.map((r) => r.status).sort((a, b) => a - b)).toEqual([201, 409]);
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: task.id } }),
+      ).toBe(1);
+    });
+
+    it('recusa quem não é membro e uma conta que não existe com 400 ASSIGNEE_NOT_MEMBER', async () => {
+      const outsider = await createAccount(app, { name: 'Rui Externo' });
+      const task = await createTask(app, t.project.id);
+      for (const accountId of [outsider.id, randomUUID()]) {
+        const res = await api(t.manager.token)
+          .addAssignee(task.id, { accountId })
+          .expect(400);
+        expect(res.body).toMatchObject({
+          code: 'ASSIGNEE_NOT_MEMBER',
+          errors: [{ field: 'accountId', message: expect.any(String) }],
+        });
+      }
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: task.id } }),
+      ).toBe(0);
+    });
+
+    it.each(['PENDING', 'DEACTIVATED'] as const)(
+      'recusa um membro com a conta %s com 400 ASSIGNEE_NOT_ACTIVE (PN08, DE15)',
+      async (status) => {
+        const account = await createAccount(app, { status });
+        await prisma.projectMember.create({
+          data: { projectId: t.project.id, accountId: account.id, role: 'MEMBER' },
+        });
+        const task = await createTask(app, t.project.id);
+        const res = await api(t.manager.token)
+          .addAssignee(task.id, { accountId: account.id })
+          .expect(400);
+        expect(res.body.code).toBe('ASSIGNEE_NOT_ACTIVE');
+      },
+    );
+
+    it.each([
+      ['um corpo vazio', {}],
+      ['um accountId que não é UUID', { accountId: 'ana' }],
+      ['um campo a mais', { accountId: ID_A, role: 'MEMBER' }],
+    ])('recusa %s com 400 VALIDATION_ERROR', async (_, body) => {
+      const task = await createTask(app, t.project.id);
+      const res = await api(t.manager.token)
+        .addAssignee(task.id, body)
+        .expect(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('recusa o Membro com 403 NOT_PROJECT_MANAGER, mesmo a atribuir-se a si próprio', async () => {
+      const task = await createTask(app, t.project.id);
+      const res = await api(t.member.token)
+        .addAssignee(task.id, { accountId: t.member.account.id })
+        .expect(403);
+      expect(res.body.code).toBe('NOT_PROJECT_MANAGER');
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: task.id } }),
+      ).toBe(0);
+    });
+
+    it('responde 404 a quem não é membro, 409 num projeto arquivado e 401 sem sessão', async () => {
+      const task = await createTask(app, t.project.id);
+      for (const id of [task.id, randomUUID()]) {
+        const res = await api(t.outsiderAdmin.token)
+          .addAssignee(id, { accountId: t.member.account.id })
+          .expect(404);
+        expect(res.body.code).toBe('TASK_NOT_FOUND');
+      }
+
+      const archived = await team('ARCHIVED');
+      const archivedTask = await createTask(app, archived.project.id);
+      const conflict = await api(archived.manager.token)
+        .addAssignee(archivedTask.id, { accountId: archived.member.account.id })
+        .expect(409);
+      expect(conflict.body.code).toBe('PROJECT_ARCHIVED');
+
+      await api()
+        .addAssignee(task.id, { accountId: t.member.account.id })
+        .expect(401);
+    });
+
+    it('num projeto arquivado, o 409 vem antes das regras do responsável', async () => {
+      const archived = await team('ARCHIVED');
+      const archivedTask = await createTask(app, archived.project.id);
+      const res = await api(archived.manager.token)
+        .addAssignee(archivedTask.id, { accountId: randomUUID() })
+        .expect(409);
+      expect(res.body.code).toBe('PROJECT_ARCHIVED');
+    });
+  });
+
+  // ------------------------------------------------- remover responsável
+  describe('DELETE /tasks/{taskId}/assignees/{accountId} (removeTaskAssignee, US06)', () => {
+    let t: Awaited<ReturnType<typeof team>>;
+
+    beforeAll(async () => {
+      t = await team();
+    });
+
+    it('o Gestor remove um responsável e os outros mantêm-se', async () => {
+      const task = await createTask(app, t.project.id, {
+        assigneeIds: [t.manager.account.id, t.member.account.id],
+      });
+      await api(t.manager.token)
+        .removeAssignee(task.id, t.member.account.id)
+        .expect(204, '');
+      const got = await api(t.member.token).get(task.id).expect(200);
+      expect(got.body.assignees).toEqual([
+        expect.objectContaining({ id: t.manager.account.id }),
+      ]);
+    });
+
+    it('sem responsáveis, a tarefa fica "Sem responsável"', async () => {
+      const task = await createTask(app, t.project.id, {
+        assigneeIds: [t.member.account.id],
+      });
+      await api(t.manager.token)
+        .removeAssignee(task.id, t.member.account.id)
+        .expect(204);
+      const got = await api(t.member.token).get(task.id).expect(200);
+      expect(got.body.assignees).toEqual([]);
+    });
+
+    it('remove de uma tarefa "Concluída" quem já não é membro (DE14)', async () => {
+      const gone = await createAccount(app, { name: 'Rui Saiu' });
+      const task = await createTask(app, t.project.id, {
+        status: 'DONE',
+        assigneeIds: [gone.id],
+      });
+      await api(t.manager.token).removeAssignee(task.id, gone.id).expect(204);
+      const got = await api(t.member.token).get(task.id).expect(200);
+      expect(got.body).toMatchObject({ status: 'DONE', assignees: [] });
+    });
+
+    it('responde 404 ASSIGNEE_NOT_FOUND a quem não é responsável da tarefa', async () => {
+      const task = await createTask(app, t.project.id, {
+        assigneeIds: [t.manager.account.id],
+      });
+      for (const accountId of [t.member.account.id, randomUUID()]) {
+        const res = await api(t.manager.token)
+          .removeAssignee(task.id, accountId)
+          .expect(404);
+        expect(res.body.code).toBe('ASSIGNEE_NOT_FOUND');
+      }
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: task.id } }),
+      ).toBe(1);
+    });
+
+    it('recusa o Membro com 403 e não remove ninguém', async () => {
+      const task = await createTask(app, t.project.id, {
+        assigneeIds: [t.member.account.id],
+      });
+      const res = await api(t.member.token)
+        .removeAssignee(task.id, t.member.account.id)
+        .expect(403);
+      expect(res.body.code).toBe('NOT_PROJECT_MANAGER');
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: task.id } }),
+      ).toBe(1);
+    });
+
+    it('responde 404 a quem não é membro, 409 num projeto arquivado, 400 a um id inválido e 401 sem sessão', async () => {
+      const task = await createTask(app, t.project.id, {
+        assigneeIds: [t.member.account.id],
+      });
+      const notFound = await api(t.outsiderAdmin.token)
+        .removeAssignee(task.id, t.member.account.id)
+        .expect(404);
+      expect(notFound.body.code).toBe('TASK_NOT_FOUND');
+
+      const archived = await team('ARCHIVED');
+      const archivedTask = await createTask(app, archived.project.id, {
+        assigneeIds: [archived.member.account.id],
+      });
+      const conflict = await api(archived.manager.token)
+        .removeAssignee(archivedTask.id, archived.member.account.id)
+        .expect(409);
+      expect(conflict.body.code).toBe('PROJECT_ARCHIVED');
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: archivedTask.id } }),
+      ).toBe(1);
+
+      const invalid = await api(t.manager.token)
+        .removeAssignee(task.id, 'nao-e-uuid')
+        .expect(400);
+      expect(invalid.body.code).toBe('VALIDATION_ERROR');
+      await api().removeAssignee(task.id, t.member.account.id).expect(401);
+    });
+  });
+
+  // ------------------------------------------- quem pode ser responsável
+  describe('GET /projects/{projectId}/assignable-accounts (listAssignableAccounts, US06)', () => {
+    it('lista só os membros com conta ativa, por ordem do nome (PN06, PN08, DE15)', async () => {
+      const t = await team();
+      const outsider = await createAccount(app, { name: 'Aaron Externo' });
+      const pending = await createAccount(app, { name: 'Pedro Pendente', status: 'PENDING' });
+      const deactivated = await createAccount(app, {
+        name: 'Daniel Desativado',
+        status: 'DEACTIVATED',
+      });
+      const carla = await createAccount(app, { name: 'Carla Membro' });
+      for (const account of [pending, deactivated, carla]) {
+        await prisma.projectMember.create({
+          data: { projectId: t.project.id, accountId: account.id, role: 'MEMBER' },
+        });
+      }
+
+      const res = await api(t.manager.token).assignable(t.project.id).expect(200);
+      expect(res.body).toEqual({
+        items: [
+          { id: t.manager.account.id, name: 'Ana Gestora', status: 'ACTIVE' },
+          { id: t.member.account.id, name: 'Bruno Membro', status: 'ACTIVE' },
+          { id: carla.id, name: 'Carla Membro', status: 'ACTIVE' },
+        ],
+      });
+      expect(res.body.items.map((a: { id: string }) => a.id)).not.toContain(outsider.id);
+    });
+
+    it('um projeto arquivado continua legível (PN09)', async () => {
+      const archived = await team('ARCHIVED');
+      const res = await api(archived.manager.token)
+        .assignable(archived.project.id)
+        .expect(200);
+      expect(res.body.items).toHaveLength(2);
+    });
+
+    it('recusa o Membro com 403, responde 404 a quem não é membro e 401 sem sessão', async () => {
+      const t = await team();
+      const forbidden = await api(t.member.token).assignable(t.project.id).expect(403);
+      expect(forbidden.body.code).toBe('NOT_PROJECT_MANAGER');
+      for (const projectId of [t.project.id, randomUUID()]) {
+        const res = await api(t.outsiderAdmin.token).assignable(projectId).expect(404);
+        expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+      }
+      await api().assignable(t.project.id).expect(401);
     });
   });
 
@@ -766,7 +1102,7 @@ describe('Tarefas (API)', () => {
       ).toBe(before);
     });
 
-    it('não consulta, não edita nem elimina a tarefa pelo ID: 404 TASK_NOT_FOUND', async () => {
+    it('não consulta, não edita, não elimina nem muda os responsáveis da tarefa pelo ID: 404 TASK_NOT_FOUND', async () => {
       const task = await createTask(app, t.project.id, {
         title: 'Original',
         priority: 'LOW',
@@ -782,6 +1118,18 @@ describe('Tarefas (API)', () => {
 
       const removed = await api(other.token).remove(task.id).expect(404);
       expect(removed.body.code).toBe('TASK_NOT_FOUND');
+
+      const assigned = await api(other.token)
+        .addAssignee(task.id, { accountId: other.account.id })
+        .expect(404);
+      expect(assigned.body.code).toBe('TASK_NOT_FOUND');
+      const unassigned = await api(other.token)
+        .removeAssignee(task.id, t.member.account.id)
+        .expect(404);
+      expect(unassigned.body.code).toBe('TASK_NOT_FOUND');
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: task.id } }),
+      ).toBe(0);
 
       const saved = await prisma.task.findUniqueOrThrow({
         where: { id: task.id },
@@ -799,7 +1147,7 @@ describe('Tarefas (API)', () => {
           title: '  Preparar apresentação  ',
           description: 'Diapositivos para a reunião.',
           priority: 'HIGH',
-          assigneeId: t.member.account.id,
+          assigneeIds: [t.member.account.id],
         })
         .expect(201);
 
@@ -810,7 +1158,7 @@ describe('Tarefas (API)', () => {
         description: 'Diapositivos para a reunião.',
         status: 'TODO',
         priority: 'HIGH',
-        assignee: { id: t.member.account.id },
+        assignees: [{ id: t.member.account.id }],
       });
 
       const list = await api(t.member.token).list(t.project.id).expect(200);
@@ -867,7 +1215,7 @@ describe('Tarefas (API)', () => {
       await expectArchived(
         tasks.create(access, {
           title: 'Tarefa nova',
-          assigneeId: member.account.id,
+          assigneeIds: [member.account.id],
         }),
       );
       const count = await prisma.task.count({
@@ -893,6 +1241,19 @@ describe('Tarefas (API)', () => {
       expect(
         await prisma.task.findUnique({ where: { id: task.id } }),
       ).not.toBeNull();
+    });
+
+    it('não atribui nem remove responsáveis', async () => {
+      const { access, member, task, tasks } = await archivedAfterCheck();
+      const taskAccess = { ...access, taskId: task.id };
+      await expectArchived(tasks.addAssignee(taskAccess, member.account.id));
+      await prisma.taskAssignee.create({
+        data: { taskId: task.id, accountId: member.account.id },
+      });
+      await expectArchived(tasks.removeAssignee(taskAccess, member.account.id));
+      expect(
+        await prisma.taskAssignee.count({ where: { taskId: task.id } }),
+      ).toBe(1);
     });
 
     it('espera por um arquivo ainda por confirmar e responde 409', async () => {
