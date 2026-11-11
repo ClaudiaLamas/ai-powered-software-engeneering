@@ -231,9 +231,11 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 |---|---|
 | Migration `add_task_priority` (enum `task_priority`, coluna `priority` com `MEDIUM` por omissão, índice `(project_id, priority)`) | Feito (2026-11-10) |
 | Backend `tasks`: `createProjectTask`, `listProjectTasks` (filtros, paginação, `total`, `countsByStatus`), `getTask`, `updateTask`, `deleteTask`; testes `src/tasks/task-rules.spec.ts` e `test/tasks.e2e-spec.ts` | Feito (2026-11-10) |
-| Backend: `changeTaskStatus` (com a reabertura, PN10) e `listAssignableAccounts` | Por fazer |
+| Backend: `changeTaskStatus` (com a reabertura, PN10), com testes unitários e de API | Feito (2026-11-11) |
+| Backend: `listAssignableAccounts` | Por fazer |
 | Reação a "membro removido" e a "conta desativada" (PN07, PN08) | À espera dos incrementos 2 e 3 |
-| Frontend | Por fazer |
+| Frontend: `ProjectView` (`/projetos/:projectId`) com os três grupos por estado, um pedido cada, os totais de `countsByStatus`, "Ver mais", filtros de estado e prioridade e o formulário de criação para o Gestor; `TaskDetailView` (`/tarefas/:taskId`) com edição (título, descrição, prioridade), mudança de estado e eliminação com confirmação; etiquetas num só sítio (`src/tasks/task-labels.ts`); testes de componentes e vistas | Feito (2026-11-11); por verificar no navegador |
+| Frontend: escolha do responsável, seletor de estado nos cartões do wireframe, ligação a partir do ecrã inicial | Por fazer (precisam de `listAssignableAccounts` e do `DashboardView`) |
 
 **Objetivo:** gerir as tarefas de cada projeto, os seus responsáveis e a prioridade, e filtrar e paginar a lista.
 
