@@ -128,17 +128,30 @@ async function loadMore(status: TaskStatus) {
 /**
  * Invalida os pedidos em curso de todos os grupos, incluindo os que o filtro
  * de estado escondeu, para que uma resposta antiga (de outros filtros ou de
- * outro projeto) não substitua as tarefas nem as contagens.
+ * outro projeto) não substitua as tarefas nem as contagens. Com `clear`,
+ * esvazia também as tarefas já carregadas, que deixaram de corresponder ao
+ * projeto ou aos filtros.
  */
-function invalidateGroups() {
+function invalidateGroups(clear: boolean) {
   for (const status of TASK_STATUSES) {
-    groups[status].request += 1
-    groups[status].loading = false
+    const group = groups[status]
+    group.request += 1
+    group.loading = false
+    if (clear) {
+      group.items = []
+      group.pages = 0
+      group.error = null
+    }
   }
 }
 
+/**
+ * Pede os grupos visíveis. Com `keepPages` (depois de criar uma tarefa no
+ * mesmo projeto e com os mesmos filtros), volta a pedir as páginas que já
+ * estavam à vista; sem ele, começa do zero.
+ */
 function loadGroups(keepPages = false) {
-  invalidateGroups()
+  invalidateGroups(!keepPages)
   return Promise.all(
     visibleStatuses.value.map((s) => loadGroup(s, keepPages ? Math.max(groups[s].pages, 1) : 1)),
   )
@@ -157,7 +170,7 @@ async function loadProject() {
   project.value = null
   projectError.value = null
   counts.value = null
-  invalidateGroups()
+  invalidateGroups(true)
   try {
     const [p, account] = await Promise.all([getProject(projectId.value), ensureAccount()])
     if (load !== projectLoad) return

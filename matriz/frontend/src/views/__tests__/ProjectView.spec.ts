@@ -309,6 +309,46 @@ describe('ProjectView (US08, US23, US06)', () => {
     )
   })
 
+  it('ao mudar de projeto, não mostra as tarefas do anterior, mesmo que a lista falhe', async () => {
+    const OTHER_ID = '00000000-0000-4000-8000-0000000000b2'
+    const counts = { todo: 1, inProgress: 0, done: 0 }
+    mockApi({
+      [`GET /projects/${PROJECT_ID}`]: () => json(project()),
+      [`GET /projects/${OTHER_ID}`]: () => json(project({ id: OTHER_ID, name: 'Loja' })),
+      [TASKS]: tasksByStatus({ TODO: page([task({ title: 'Tarefa do Site' })], counts) }, counts),
+      [`GET /projects/${OTHER_ID}/tasks`]: () => json({ message: 'x' }, 500),
+    })
+    const wrapper = await mountView()
+    expect(group(wrapper, 'Por fazer').text()).toContain('Tarefa do Site')
+
+    await wrapper.vm.$router.push(`/projetos/${OTHER_ID}`)
+    await flushPromises()
+
+    expect(wrapper.get('h1').text()).toBe('Loja')
+    expect(wrapper.text()).not.toContain('Tarefa do Site')
+    expect(group(wrapper, 'Por fazer').get('[role="alert"]').text()).toContain(
+      'Não foi possível contactar o servidor.',
+    )
+  })
+
+  it('ao mudar os filtros, não mostra as tarefas dos filtros anteriores, mesmo que a lista falhe', async () => {
+    const counts = { todo: 1, inProgress: 0, done: 0 }
+    mockApi({
+      [`GET /projects/${PROJECT_ID}`]: () => json(project()),
+      [TASKS]: (url) => {
+        if (url.searchParams.get('priority') === 'HIGH') return json({ message: 'x' }, 500)
+        return tasksByStatus({ TODO: page([task({ title: 'Tarefa média' })], counts) }, counts)(url)
+      },
+    })
+    const wrapper = await mountView()
+    expect(group(wrapper, 'Por fazer').text()).toContain('Tarefa média')
+
+    await wrapper.findAll('.filters select')[1]!.setValue('HIGH')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Tarefa média')
+  })
+
   it('um grupo que falha mostra o erro e pode tentar outra vez', async () => {
     let fail = true
     const counts = { todo: 1, inProgress: 0, done: 0 }
