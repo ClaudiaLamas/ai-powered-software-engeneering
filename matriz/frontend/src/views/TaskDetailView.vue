@@ -3,21 +3,35 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { apiErrorMessage } from '@/api/errors'
 import { ApiError } from '@/api/http'
-import type { Project, Task, TaskStatus } from '@/api/types'
+import type { AccountSummary, Project, Task, TaskStatus } from '@/api/types'
 import { ensureAccount } from '@/auth/auth-api'
 import SelectField from '@/components/SelectField.vue'
 import TaskForm from '@/components/TaskForm.vue'
 import TaskPriorityBadge from '@/components/TaskPriorityBadge.vue'
 import TaskStatusBadge from '@/components/TaskStatusBadge.vue'
 import { canManageTasks, getProject } from '@/projects/projects-api'
-import { TASK_STATUS_LABELS, TASK_STATUS_OPTIONS, assigneeLabel } from '@/tasks/task-labels'
+import {
+  NO_ASSIGNEE_LABEL,
+  TASK_STATUS_LABELS,
+  TASK_STATUS_OPTIONS,
+  assigneeLabel,
+} from '@/tasks/task-labels'
 import type { TaskFormValues } from '@/tasks/task-validation'
-import { changeTaskStatus, deleteTask, getTask, updateTask } from '@/tasks/tasks-api'
+import {
+  addTaskAssignee,
+  changeTaskStatus,
+  deleteTask,
+  getTask,
+  listAssignableAccounts,
+  removeTaskAssignee,
+  updateTask,
+} from '@/tasks/tasks-api'
 
 /**
  * Detalhe da tarefa (US19, sem comentários): o Gestor edita o título, a
- * descrição e a prioridade e elimina a tarefa (US06, US22); qualquer membro
- * muda o estado (US07). Num projeto arquivado é só de leitura (CL3).
+ * descrição e a prioridade, atribui e remove responsáveis (DE16) e elimina a
+ * tarefa (US06, US22); qualquer membro muda o estado (US07). Num projeto
+ * arquivado é só de leitura (CL3).
  */
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +57,24 @@ const editing = ref(false)
 const saving = ref(false)
 const saveError = ref<unknown>(null)
 
+// Responsáveis (US06, DE16)
+const assignable = ref<AccountSummary[] | undefined>()
+const newAssigneeId = ref('')
+const assigning = ref(false)
+/** Conta a ser removida dos responsáveis, enquanto o pedido está em curso. */
+const removingId = ref<string | null>(null)
+const assigneeError = ref<string | null>(null)
+/** Quem ainda pode ser atribuído: membros ativos que não são já responsáveis. */
+const assigneeOptions = computed(() => {
+  const current = new Set(task.value?.assignees.map((a) => a.id))
+  return [
+    { value: '', label: 'Escolher…' },
+    ...(assignable.value ?? [])
+      .filter((a) => !current.has(a.id))
+      .map((a) => ({ value: a.id, label: a.name })),
+  ]
+})
+
 // Eliminação (US06)
 const confirmingDelete = ref(false)
 const deleting = ref(false)
@@ -52,7 +84,14 @@ const deleteError = ref<string | null>(null)
  * Só uma alteração à tarefa de cada vez: cada resposta substitui a tarefa
  * inteira, e uma resposta que chegasse fora de ordem repunha dados antigos.
  */
-const busy = computed(() => changingStatus.value || saving.value || deleting.value)
+const busy = computed(
+  () =>
+    changingStatus.value ||
+    saving.value ||
+    deleting.value ||
+    assigning.value ||
+    removingId.value !== null,
+)
 
 function isUnauthenticated(e: unknown) {
   // Um 401 já terminou a sessão e voltou ao ecrã de entrada (cliente HTTP).
@@ -75,6 +114,9 @@ async function load() {
   task.value = null
   project.value = null
   loadError.value = null
+  assignable.value = undefined
+  assigneeError.value = null
+  newAssigneeId.value = ''
   try {
     const [t, account] = await Promise.all([getTask(taskId.value), ensureAccount()])
     const p = await getProject(t.projectId)
@@ -82,9 +124,63 @@ async function load() {
     project.value = p
     accountId.value = account.id
     showTask(t)
+    if (canManage.value) void loadAssignable(current, p.id)
   } catch (e) {
     if (current !== taskLoad || isUnauthenticated(e)) return
     loadError.value = apiErrorMessage(e, 'Não foi possível carregar a tarefa.')
+  }
+}
+
+/** Só para o Gestor: quem pode ser escolhido como responsável. */
+async function loadAssignable(load: number, projectId: string) {
+  try {
+    const accounts = await listAssignableAccounts(projectId)
+    if (load === taskLoad) assignable.value = accounts
+  } catch (e) {
+    if (load !== taskLoad || isUnauthenticated(e)) return
+    assigneeError.value = apiErrorMessage(e, 'Não foi possível carregar quem pode ser responsável.')
+  }
+}
+
+async function addAssignee() {
+  if (!task.value || !newAssigneeId.value || busy.value) return
+  const id = newAssigneeId.value
+  const name = assignable.value?.find((a) => a.id === id)?.name ?? ''
+  assigning.value = true
+  assigneeError.value = null
+  message.value = null
+  const load = taskLoad
+  try {
+    const updated = await addTaskAssignee(task.value.id, id)
+    if (load !== taskLoad) return
+    showTask(updated)
+    newAssigneeId.value = ''
+    message.value = `${name} passou a responsável.`
+  } catch (e) {
+    if (load !== taskLoad || isUnauthenticated(e)) return
+    assigneeError.value = apiErrorMessage(e, 'Não foi possível atribuir o responsável.')
+  } finally {
+    assigning.value = false
+  }
+}
+
+async function removeAssignee(id: string, name: string) {
+  if (!task.value || busy.value) return
+  removingId.value = id
+  assigneeError.value = null
+  message.value = null
+  const load = taskLoad
+  try {
+    await removeTaskAssignee(task.value.id, id)
+    if (load !== taskLoad) return
+    // A resposta é 204: tira a pessoa da lista à vista.
+    task.value = { ...task.value, assignees: task.value.assignees.filter((a) => a.id !== id) }
+    message.value = `${name} deixou de ser responsável.`
+  } catch (e) {
+    if (load !== taskLoad || isUnauthenticated(e)) return
+    assigneeError.value = apiErrorMessage(e, 'Não foi possível remover o responsável.')
+  } finally {
+    removingId.value = null
   }
 }
 
@@ -213,11 +309,45 @@ watch(taskId, load, { immediate: true })
           <TaskPriorityBadge :priority="task.priority" />
         </p>
         <dl class="task-details">
-          <dt>Responsável</dt>
-          <dd>{{ assigneeLabel(task.assignee) }}</dd>
+          <dt id="assignees-title">Responsáveis</dt>
+          <dd>
+            <span v-if="task.assignees.length === 0">{{ NO_ASSIGNEE_LABEL }}</span>
+            <ul v-else class="assignee-list" aria-labelledby="assignees-title">
+              <li v-for="assignee in task.assignees" :key="assignee.id">
+                {{ assigneeLabel(assignee) }}
+                <button
+                  v-if="canManage"
+                  type="button"
+                  class="btn"
+                  :disabled="busy"
+                  :aria-label="`Remover ${assignee.name} dos responsáveis`"
+                  @click="removeAssignee(assignee.id, assignee.name)"
+                >
+                  {{ removingId === assignee.id ? 'A remover…' : 'Remover' }}
+                </button>
+              </li>
+            </ul>
+          </dd>
           <dt>Descrição</dt>
           <dd class="task-description">{{ task.description ?? 'Sem descrição' }}</dd>
         </dl>
+        <p v-if="assigneeError" role="alert" class="alert">{{ assigneeError }}</p>
+        <form
+          v-if="canManage && assignable"
+          class="assignee-add"
+          aria-label="Atribuir responsável"
+          @submit.prevent="addAssignee"
+        >
+          <SelectField
+            v-model="newAssigneeId"
+            label="Atribuir responsável"
+            :options="assigneeOptions"
+            :disabled="busy || assigneeOptions.length === 1"
+          />
+          <button type="submit" class="btn" :disabled="busy || !newAssigneeId">
+            {{ assigning ? 'A atribuir…' : 'Atribuir' }}
+          </button>
+        </form>
         <div v-if="canManage" class="actions">
           <button type="button" class="btn" @click="startEditing">Editar</button>
           <button

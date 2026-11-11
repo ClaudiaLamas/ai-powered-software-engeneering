@@ -5,6 +5,7 @@ import {
   TASK_STATUS_LABELS,
   TASK_STATUS_OPTIONS,
   assigneeLabel,
+  assigneesLabel,
 } from '../task-labels'
 
 describe('etiquetas das tarefas', () => {
@@ -23,7 +24,6 @@ describe('assigneeLabel (DE14)', () => {
   const rui = { id: 'r', name: 'Rui', status: 'ACTIVE' as const, isProjectMember: true }
 
   it.each([
-    ['sem responsável', null, 'Sem responsável'],
     ['membro com conta ativa', rui, 'Rui'],
     ['já não é membro', { ...rui, isProjectMember: false }, 'Rui (já não é membro)'],
     ['conta desativada', { ...rui, status: 'DEACTIVATED' as const }, 'Rui (conta desativada)'],
@@ -34,5 +34,18 @@ describe('assigneeLabel (DE14)', () => {
     ],
   ])('%s', (_, assignee, label) => {
     expect(assigneeLabel(assignee)).toBe(label)
+  })
+})
+
+describe('assigneesLabel (DE16)', () => {
+  const ana = { id: 'a', name: 'Ana', status: 'ACTIVE' as const, isProjectMember: true }
+  const rui = { id: 'r', name: 'Rui', status: 'ACTIVE' as const, isProjectMember: false }
+
+  it('sem responsáveis, mostra "Sem responsável"', () => {
+    expect(assigneesLabel([])).toBe('Sem responsável')
+  })
+
+  it('junta os responsáveis pela ordem da API, cada um com a sua indicação', () => {
+    expect(assigneesLabel([ana, rui])).toBe('Ana, Rui (já não é membro)')
   })
 })

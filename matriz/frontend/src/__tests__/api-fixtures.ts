@@ -44,7 +44,7 @@ export function task(overrides: Partial<Task> = {}): Task {
     description: null,
     status: 'TODO',
     priority: 'MEDIUM',
-    assignee: null,
+    assignees: [],
     createdAt: ana.createdAt,
     updatedAt: ana.createdAt,
     ...overrides,

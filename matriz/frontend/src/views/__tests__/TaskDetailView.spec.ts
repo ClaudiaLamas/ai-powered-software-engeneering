@@ -41,6 +41,18 @@ function statusSelect(wrapper: Awaited<ReturnType<typeof mountView>>['wrapper'])
   return wrapper.get('section[aria-label="Estado da tarefa"] select')
 }
 
+const ASSIGNABLE = `GET /projects/${PROJECT_ID}/assignable-accounts`
+const carla = { id: '00000000-0000-4000-8000-000000000003', name: 'Carla Membro', status: 'ACTIVE' as const }
+const assignableAccounts = [
+  { id: ana.id, name: ana.name, status: 'ACTIVE' as const },
+  { id: bruno.id, name: bruno.name, status: 'ACTIVE' as const },
+  carla,
+]
+
+function assigneeSelect(wrapper: Awaited<ReturnType<typeof mountView>>['wrapper']) {
+  return wrapper.get('form[aria-label="Atribuir responsável"] select')
+}
+
 describe('TaskDetailView (US19, US06, US07, US22)', () => {
   let current: Task
 
@@ -51,7 +63,7 @@ describe('TaskDetailView (US19, US06, US07, US22)', () => {
       title: 'Rever textos',
       description: 'Na página inicial.',
       priority: 'MEDIUM',
-      assignee: { id: bruno.id, name: 'Bruno Membro', status: 'ACTIVE', isProjectMember: true },
+      assignees: [{ id: bruno.id, name: 'Bruno Membro', status: 'ACTIVE', isProjectMember: true }],
     })
   })
 
@@ -61,6 +73,7 @@ describe('TaskDetailView (US19, US06, US07, US22)', () => {
     return mockApi({
       [`GET /tasks/${current.id}`]: () => json(current),
       [`GET /projects/${PROJECT_ID}`]: () => json(p),
+      [ASSIGNABLE]: () => json({ items: assignableAccounts }),
       ...extra,
     })
   }
@@ -77,10 +90,94 @@ describe('TaskDetailView (US19, US06, US07, US22)', () => {
   })
 
   it('mostra "Sem responsável"', async () => {
-    current = { ...current, assignee: null }
+    current = { ...current, assignees: [] }
     routes()
     const { wrapper } = await mountView(current)
     expect(wrapper.text()).toContain('Sem responsável')
+  })
+
+  it('mostra todos os responsáveis, cada um com a sua indicação (DE14, DE16)', async () => {
+    current = {
+      ...current,
+      status: 'DONE',
+      assignees: [
+        { id: bruno.id, name: 'Bruno Membro', status: 'ACTIVE', isProjectMember: true },
+        { id: carla.id, name: 'Rui Saiu', status: 'ACTIVE', isProjectMember: false },
+      ],
+    }
+    routes()
+    const { wrapper } = await mountView(current)
+    const items = wrapper.findAll('.assignee-list li')
+    expect(items.map((li) => li.text().replace(/\s*Remover$/, ''))).toEqual([
+      'Bruno Membro',
+      'Rui Saiu (já não é membro)',
+    ])
+  })
+
+  it('o Gestor atribui um responsável escolhido entre quem ainda não é (US06, DE16)', async () => {
+    const fetchMock = routes({
+      [`POST /tasks/${current.id}/assignees`]: () =>
+        json(
+          {
+            ...current,
+            assignees: [...current.assignees, { ...carla, isProjectMember: true }],
+          },
+          201,
+        ),
+    })
+    const { wrapper } = await mountView(current)
+    const options = assigneeSelect(wrapper).findAll('option').map((o) => o.text())
+    expect(options).toEqual(['Escolher…', 'Ana Gestora', 'Carla Membro'])
+    const submit = wrapper.get('form[aria-label="Atribuir responsável"] button')
+    expect(submit.attributes('disabled')).toBeDefined()
+
+    await assigneeSelect(wrapper).setValue(carla.id)
+    await wrapper.get('form[aria-label="Atribuir responsável"]').trigger('submit')
+    await flushPromises()
+
+    expect(bodyOf(fetchMock, `POST /tasks/${current.id}/assignees`)).toEqual({ accountId: carla.id })
+    expect(wrapper.findAll('.assignee-list li')).toHaveLength(2)
+    expect(wrapper.get('[role="status"]').text()).toBe('Carla Membro passou a responsável.')
+    expect(assigneeSelect(wrapper).findAll('option').map((o) => o.text())).toEqual([
+      'Escolher…',
+      'Ana Gestora',
+    ])
+  })
+
+  it('se a atribuição falhar, mostra o erro da API e os responsáveis não mudam', async () => {
+    routes({
+      [`POST /tasks/${current.id}/assignees`]: () =>
+        problem(409, 'ASSIGNEE_ALREADY_ASSIGNED', 'Esta pessoa já é responsável pela tarefa.'),
+    })
+    const { wrapper } = await mountView(current)
+    await assigneeSelect(wrapper).setValue(carla.id)
+    await wrapper.get('form[aria-label="Atribuir responsável"]').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toBe('Esta pessoa já é responsável pela tarefa.')
+    expect(wrapper.findAll('.assignee-list li')).toHaveLength(1)
+  })
+
+  it('o Gestor remove um responsável; sem nenhum, mostra "Sem responsável"', async () => {
+    const fetchMock = routes({
+      [`DELETE /tasks/${current.id}/assignees/${bruno.id}`]: () => new Response(null, { status: 204 }),
+    })
+    const { wrapper } = await mountView(current)
+    await wrapper.get('button[aria-label="Remover Bruno Membro dos responsáveis"]').trigger('click')
+    await flushPromises()
+    expect(calls(fetchMock)).toContain(`DELETE /tasks/${current.id}/assignees/${bruno.id}`)
+    expect(wrapper.text()).toContain('Sem responsável')
+    expect(wrapper.get('[role="status"]').text()).toBe('Bruno Membro deixou de ser responsável.')
+    expect(assigneeSelect(wrapper).findAll('option').map((o) => o.text())).toContain('Bruno Membro')
+  })
+
+  it('o Membro vê os responsáveis, mas não os pode mudar nem pede a lista de quem pode ser', async () => {
+    setSession('token-de-teste', bruno)
+    const fetchMock = routes()
+    const { wrapper } = await mountView(current)
+    expect(wrapper.text()).toContain('Bruno Membro')
+    expect(wrapper.find('form[aria-label="Atribuir responsável"]').exists()).toBe(false)
+    expect(wrapper.find('button[aria-label^="Remover"]').exists()).toBe(false)
+    expect(calls(fetchMock)).not.toContain(ASSIGNABLE)
   })
 
   it('o Gestor edita o título, a descrição e a prioridade', async () => {

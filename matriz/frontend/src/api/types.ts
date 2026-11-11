@@ -83,7 +83,8 @@ export interface Task {
   description: string | null
   status: TaskStatus
   priority: TaskPriority
-  assignee: Assignee | null
+  /** Por ordem do nome (DE16); vazia = "Sem responsável". */
+  assignees: Assignee[]
   createdAt: string
   updatedAt: string
 }

@@ -31,6 +31,58 @@ describe('TaskForm', () => {
     ])
   })
 
+  it('sem assignableAccounts não mostra a escolha de responsáveis nem os envia (editar)', () => {
+    const wrapper = mountForm()
+    expect(wrapper.find('fieldset').exists()).toBe(false)
+  })
+
+  it('com assignableAccounts, envia os responsáveis escolhidos (DE16)', async () => {
+    const wrapper = mountForm({
+      assignableAccounts: [
+        { id: 'a', name: 'Ana Gestora', status: 'ACTIVE' },
+        { id: 'b', name: 'Bruno Membro', status: 'ACTIVE' },
+      ],
+    })
+    expect(wrapper.get('fieldset legend').text()).toBe('Responsáveis (opcional)')
+    const boxes = wrapper.findAll('input[type="checkbox"]')
+    expect(boxes.map((b) => b.element.parentElement!.textContent!.trim())).toEqual([
+      'Ana Gestora',
+      'Bruno Membro',
+    ])
+    await wrapper.get('input').setValue('Rever textos')
+    await boxes[1]!.setValue(true)
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('submit')![0]).toEqual([
+      { title: 'Rever textos', description: '', priority: 'MEDIUM', assigneeIds: ['b'] },
+    ])
+  })
+
+  it('sem ninguém escolhido, envia assigneeIds vazio; sem membros ativos, avisa', async () => {
+    const wrapper = mountForm({ assignableAccounts: [] })
+    expect(wrapper.get('fieldset').text()).toContain('Não há membros com a conta ativa para escolher.')
+    await wrapper.get('input').setValue('Rever textos')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('submit')![0]).toEqual([
+      { title: 'Rever textos', description: '', priority: 'MEDIUM', assigneeIds: [] },
+    ])
+  })
+
+  it('mostra no grupo dos responsáveis o erro da API em assigneeIds', async () => {
+    const wrapper = mountForm({ assignableAccounts: [{ id: 'a', name: 'Ana', status: 'ACTIVE' }] })
+    await wrapper.setProps({
+      error: new ApiError({
+        type: 'about:blank',
+        title: 'Dados inválidos',
+        status: 400,
+        code: 'ASSIGNEE_NOT_MEMBER',
+        detail: 'O responsável tem de ser membro do projeto.',
+        errors: [{ field: 'assigneeIds', message: 'O responsável tem de ser membro do projeto.' }],
+      }),
+    })
+    expect(wrapper.get('fieldset .field-error').text()).toBe('O responsável tem de ser membro do projeto.')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+
   it('as opções de prioridade mostram as etiquetas e enviam o valor técnico', async () => {
     const wrapper = mountForm()
     const options = wrapper.findAll('select option')

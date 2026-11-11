@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import type { Task, TaskStatus } from '@/api/types'
-import { TASK_STATUS_LABELS, assigneeLabel } from '@/tasks/task-labels'
+import { TASK_STATUS_LABELS, assigneesLabel } from '@/tasks/task-labels'
 import TaskPriorityBadge from './TaskPriorityBadge.vue'
 
 /**
@@ -27,7 +27,7 @@ defineEmits<{ more: []; retry: [] }>()
         <RouterLink :to="{ name: 'task', params: { taskId: task.id } }">{{ task.title }}</RouterLink>
         <span class="task-meta">
           <TaskPriorityBadge :priority="task.priority" />
-          <span class="muted">{{ assigneeLabel(task.assignee) }}</span>
+          <span class="muted">{{ assigneesLabel(task.assignees) }}</span>
         </span>
       </li>
     </ul>
