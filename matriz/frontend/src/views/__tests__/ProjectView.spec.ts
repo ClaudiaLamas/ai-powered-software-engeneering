@@ -144,6 +144,42 @@ describe('ProjectView (US08, US23, US06)', () => {
     )
   })
 
+  it('ao mudar os filtros, ignora as respostas antigas dos grupos que ficaram escondidos', async () => {
+    const all = { todo: 25, inProgress: 2, done: 1 }
+    const high = { todo: 1, inProgress: 1, done: 0 }
+    // O primeiro pedido de "Por fazer" (sem filtros) fica pendente até ao fim.
+    let releaseTodo!: () => void
+    const heldTodo = new Promise<Response>((resolve) => {
+      releaseTodo = () => resolve(json(page(Array.from({ length: 20 }, () => task()), all, { total: 25 })))
+    })
+    let todoRequests = 0
+    mockApi({
+      [`GET /projects/${PROJECT_ID}`]: () => json(project()),
+      [TASKS]: (url) => {
+        const status = url.searchParams.get('status')
+        const counts = url.searchParams.get('priority') === 'HIGH' ? high : all
+        if (status === 'TODO' && ++todoRequests === 1) return heldTodo
+        if (status === 'IN_PROGRESS' && counts === high) {
+          return json(page([task({ status: 'IN_PROGRESS', priority: 'HIGH' })], high))
+        }
+        return json(page([], counts))
+      },
+    })
+    const wrapper = await mountView()
+
+    await wrapper.findAll('.filters select')[0]!.setValue('IN_PROGRESS')
+    await wrapper.findAll('.filters select')[1]!.setValue('HIGH')
+    await flushPromises()
+    releaseTodo()
+    await flushPromises()
+
+    expect(wrapper.get('[aria-label="Tarefas por estado"]').text()).toBe(
+      'Por fazer: 1, Em curso: 1, Concluída: 0',
+    )
+    expect(group(wrapper, 'Em curso').get('h2').text()).toBe('Em curso (1)')
+    expect(group(wrapper, 'Em curso').text()).not.toContain('Ver mais')
+  })
+
   it('o Membro não vê o formulário de criação', async () => {
     setSession('token-de-teste', bruno)
     mockApi({

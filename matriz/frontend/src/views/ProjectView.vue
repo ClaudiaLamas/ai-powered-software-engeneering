@@ -125,7 +125,20 @@ async function loadMore(status: TaskStatus) {
   }
 }
 
+/**
+ * Invalida os pedidos em curso de todos os grupos, incluindo os que o filtro
+ * de estado escondeu, para que uma resposta antiga (de outros filtros ou de
+ * outro projeto) não substitua as tarefas nem as contagens.
+ */
+function invalidateGroups() {
+  for (const status of TASK_STATUSES) {
+    groups[status].request += 1
+    groups[status].loading = false
+  }
+}
+
 function loadGroups(keepPages = false) {
+  invalidateGroups()
   return Promise.all(
     visibleStatuses.value.map((s) => loadGroup(s, keepPages ? Math.max(groups[s].pages, 1) : 1)),
   )
@@ -140,6 +153,7 @@ async function loadProject() {
   project.value = null
   projectError.value = null
   counts.value = null
+  invalidateGroups()
   try {
     const [p, account] = await Promise.all([getProject(projectId.value), ensureAccount()])
     project.value = p
