@@ -1405,7 +1405,11 @@ paths:
       tags: [comments]
       operationId: listTaskComments
       summary: Listar os comentários de uma tarefa
-      description: Qualquer membro do projeto (US19). Ordenados por `createdAt`, mais antigos primeiro.
+      description: |
+        Qualquer membro do projeto (US19). Ordenados por `createdAt`, mais
+        antigos primeiro, e pelo `id` em caso de empate (decisão interna,
+        2026-11-11). Inclui os comentários de quem saiu do projeto ou tem a
+        conta desativada, com `author.status` (CL12).
       responses:
         "200":
           description: Lista dos comentários (pode ser vazia).
@@ -1423,7 +1427,9 @@ paths:
       summary: Comentar uma tarefa
       description: |
         Qualquer membro do projeto (US13, PN15). O autor e a data são definidos
-        pelo backend.
+        pelo backend; `authorId`, `createdAt` ou outro campo no corpo dá
+        `400 VALIDATION_ERROR`. A resposta não leva o cabeçalho `Location`:
+        não há `GET /comments/{commentId}` (decisão interna, 2026-11-11).
       requestBody:
         required: true
         content:
@@ -2266,7 +2272,9 @@ components:
           minLength: 1
           maxLength: 2000
           pattern: '\S'
-          description: 1–2000 caracteres, não só espaços (PN15).
+          description: |
+            1–2000 caracteres, não só espaços (PN15). Os espaços das pontas
+            não contam e não ficam guardados (decisão interna, 2026-11-11).
 
     # ---- registo administrativo
     AuditLogEntry:
@@ -2461,8 +2469,10 @@ components:
 
     CommentValidationError:
       description: |
-        Valores de `code`: `VALIDATION_ERROR`; `BODY_INVALID` — comentário
-        vazio, só com espaços ou com mais de 2000 caracteres (PN15).
+        Valores de `code`: `VALIDATION_ERROR` (por exemplo, `body` que não é
+        texto ou um campo desconhecido, como `authorId`); `BODY_INVALID` —
+        comentário em falta, vazio, só com espaços ou com mais de 2000
+        caracteres sem contar os espaços das pontas (PN15).
       content:
         application/problem+json:
           schema:

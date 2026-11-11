@@ -123,7 +123,7 @@ No máximo um pedido `PENDING` por (task_id, account_id): índice único parcial
 | id | id | PK | Sim | Identificador interno. | — |
 | task_id | id | FK → TASK | Sim | | US13 |
 | author_id | id | FK → ACCOUNT | Sim | Referencia ACCOUNT (e não PROJECT_MEMBER) para o comentário se manter quando o autor sai do projeto. | PN15, CL12 |
-| body | string | | Sim | Texto do comentário, com 1 a 2000 caracteres e não só espaços. | PN15 |
+| body | string | | Sim | Texto do comentário, com 1 a 2000 caracteres e não só espaços; guardado sem os espaços das pontas (decisão interna, 2026-11-11). | PN15 |
 | created_at | datetime | | Sim | Mostrado com o nome do autor. | US13 |
 | edited_at | datetime | | Não | Preenchido quando o autor edita. | US13 |
 

@@ -39,6 +39,7 @@ Registadas nos documentos (decisões internas, por validar com o cliente).
 | Título e descrição da tarefa | Mesma regra que no projeto: o título conta e fica guardado sem os espaços das pontas; uma descrição vazia ou só com espaços fica `null` (PN12) | Decidido em 2026-11-10 |
 | Lista de tarefas | Filtros `status` e `priority`; paginação `page` e `pageSize` (20 por omissão, máximo 100); resposta com `total` e `countsByStatus`; o frontend faz um pedido por coluna da vista por estado (PN20, openapi.yaml 0.4.0) | Decidido em 2026-11-10 |
 | Vários responsáveis | Uma tarefa tem zero ou mais responsáveis, sem limite, mostrados por ordem do nome (DE16). Tabela `task_assignee`; a migration copia `task.assignee_id` e remove a coluna. `Task.assignees` na API; `assigneeIds` ao criar; `addTaskAssignee` (`409 ASSIGNEE_ALREADY_ASSIGNED` se repetido) e `removeTaskAssignee` (`404 ASSIGNEE_NOT_FOUND`); `assigneeId` sai de `updateTask`. Substitui a decisão "responsável igual ao atual" de 2026-11-10, que deixa de se aplicar | Decidido em 2026-11-11; openapi.yaml 0.5.0 |
+| Comentários | O texto conta e fica guardado sem os espaços das pontas (1–2000 caracteres, PN15); em falta dá `BODY_INVALID`. A lista vai do mais antigo para o mais recente e desempata pelo `id`. O `201` de `createTaskComment` não leva `Location` (não há `GET /comments/{commentId}`) | Decidido em 2026-11-11 (questão 7) |
 | Pedidos de responsável | Um responsável pede, o Gestor aceita ou recusa, quem pediu cancela (DE13, PN21). Tabela `assignee_request`, com índice único parcial para um pedido pendente por tarefa e pessoa; sem cancelamento automático, condições verificadas outra vez ao aceitar (CL13) | Decidido em 2026-11-11 |
 
 ### 1.2 Propostas deste plano
@@ -61,7 +62,7 @@ Nada disto está decidido. Cada linha precisa de aprovação antes do incremento
 | 3 | Projeto e equipa | US04, US10, US18 | 1 | Por iniciar |
 | 4 | Tarefas, responsáveis, prioridade e filtros | US06, US07, US08, US19 (sem comentários), US22, US23 | 2, 3 (ver a nota do incremento) | Em curso |
 | 5 | Progresso e painel inicial | US05, US09 | 4 | Por iniciar |
-| 6 | Comentários | US13, US19 | 4 | Por iniciar |
+| 6 | Comentários | US13, US19 | 4 | Em curso |
 | 7 | Pedidos de responsável | US31, US19 (pedidos pendentes) | 4 | Por iniciar |
 | 8 | Área de administração | US12, US14, US17 | 2, 3 | Por iniciar |
 | 9 | Verificação final do MVP | Todas (US01–US19, US22, US23, US31) | 1–8 | Por iniciar |
@@ -312,7 +313,13 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 ### Incremento 6 — Comentários
 
-**Estado:** Por iniciar
+**Estado:** Em curso (atualizado em 2026-11-11)
+
+| Parte | Estado |
+|---|---|
+| Backend: `listTaskComments`, `createTaskComment`, `updateComment`, `deleteComment` (`CommentsController` e `CommentsService` no módulo `tasks`) | Feito (2026-11-11); `test/comments.e2e-spec.ts` (39 testes) e `comment-rules.spec.ts`; 225 testes de API e 106 unitários a passar |
+| CL12 com as operações reais de remover membro e desativar conta | Verificado só com dados alterados na base (os incrementos 2 e 3 ainda não existem) |
+| Frontend: lista e formulário de comentários no `TaskDetailView` | Por fazer |
 
 **Objetivo:** os membros comentam as tarefas.
 
@@ -442,7 +449,6 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 | 4 | O Administrador pode nomear-se a si próprio Gestor (CL10)? | 8 |
 | 5 | As propostas da secção 1.2 precisam de aprovação, em particular o cliente SMTP (AGENTS.md). | 2 |
 | 6 | O email no login é comparado tal como foi escrito (só sem espaços nas pontas). Não está decidido se deve ignorar maiúsculas. | 1, 2 |
-| 7 | Comentários: o texto é guardado sem os espaços das pontas, como o título da tarefa? A lista desempata por `id` quando dois comentários têm o mesmo `createdAt`? O `201` de `createTaskComment` leva o cabeçalho `Location`? | 6 |
 
 ## 5. Como manter este plano
 
