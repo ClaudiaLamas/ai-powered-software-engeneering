@@ -460,6 +460,69 @@ describe('Comentários (API)', () => {
     });
   });
 
+  // --------------------------------------------------- outro utilizador
+  /**
+   * Uma conta ativa, sem a permissão de Administrador, que é Gestor de outro
+   * projeto: não lista, não cria, não edita nem apaga comentários numa tarefa
+   * de um projeto de que não é membro (PN02, DE02). Responde 404, sem revelar
+   * se a tarefa ou o comentário existem.
+   */
+  describe('outro utilizador (Gestor de outro projeto, sem ser membro)', () => {
+    let t: Awaited<ReturnType<typeof team>>;
+    let other: Actor;
+
+    beforeAll(async () => {
+      t = await team();
+      other = await accountWithToken('Carla Outro Projeto');
+      await createProject(app, [
+        { accountId: other.account.id, role: 'MANAGER' },
+      ]);
+    });
+
+    it('não lista os comentários da tarefa: 404 TASK_NOT_FOUND', async () => {
+      await addComment(t.task.id, t.member.account.id, 'Só para a equipa');
+      const res = await api(other.token).list(t.task.id).expect(404);
+      expect(res.body.code).toBe('TASK_NOT_FOUND');
+      expect(res.body).not.toHaveProperty('items');
+    });
+
+    it('não comenta na tarefa: 404 TASK_NOT_FOUND e nada é criado', async () => {
+      const res = await api(other.token)
+        .create(t.task.id, { body: 'Comentário intruso' })
+        .expect(404);
+      expect(res.body.code).toBe('TASK_NOT_FOUND');
+      expect(
+        await prisma.comment.count({
+          where: { authorId: other.account.id },
+        }),
+      ).toBe(0);
+    });
+
+    it('não edita nem apaga um comentário da tarefa: 404 COMMENT_NOT_FOUND e o comentário fica igual', async () => {
+      const comment = await addComment(
+        t.task.id,
+        t.member.account.id,
+        'Original',
+      );
+
+      const updated = await api(other.token)
+        .update(comment.id, { body: 'Alterado' })
+        .expect(404);
+      expect(updated.body.code).toBe('COMMENT_NOT_FOUND');
+      const removed = await api(other.token).remove(comment.id).expect(404);
+      expect(removed.body.code).toBe('COMMENT_NOT_FOUND');
+
+      const saved = await prisma.comment.findUniqueOrThrow({
+        where: { id: comment.id },
+      });
+      expect(saved).toMatchObject({
+        body: 'Original',
+        authorId: t.member.account.id,
+        editedAt: null,
+      });
+    });
+  });
+
   // ------------------------------------------------------------- apagar
   describe('DELETE /comments/{commentId} (deleteComment, US13, PN15)', () => {
     it('o autor apaga: 204 e a tarefa deixa de o mostrar', async () => {
