@@ -1,4 +1,4 @@
-import type { Progress, ProjectRole } from '@/api/types'
+import type { Progress, ProjectRole, ProjectStatus } from '@/api/types'
 import { TASK_STATUS_LABELS } from '@/tasks/task-labels'
 
 /*
@@ -9,6 +9,12 @@ import { TASK_STATUS_LABELS } from '@/tasks/task-labels'
 export const PROJECT_ROLE_LABELS: Record<ProjectRole, string> = {
   MANAGER: 'Gestor',
   MEMBER: 'Membro',
+}
+
+/** Estado do projeto (US18, database.md). */
+export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  ACTIVE: 'Ativo',
+  ARCHIVED: 'Arquivado',
 }
 
 /** Indicação de um projeto arquivado (CL3, wireframe, ecrã 1). */

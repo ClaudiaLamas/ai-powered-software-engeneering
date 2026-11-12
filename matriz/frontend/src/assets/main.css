@@ -28,6 +28,21 @@ h1 {
   font-size: 1.75rem;
   line-height: 1.2;
   margin-bottom: 1rem;
+  overflow-wrap: anywhere;
+}
+
+/* Ligações legíveis nos dois temas (a cor por omissão do navegador quase não
+   se vê no tema escuro). */
+a {
+  color: var(--color-accent);
+}
+
+/* Nenhum conteúdo alarga a página para além do ecrã (≈375px num telemóvel). */
+img,
+input,
+select,
+textarea {
+  max-width: 100%;
 }
 
 /* Conteúdo de cada ecrã, com margem lateral em largura de telemóvel. */
@@ -85,7 +100,8 @@ h1 {
 }
 
 .btn:focus-visible,
-.field input:focus-visible {
+.field input:focus-visible,
+[role='alertdialog']:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -215,7 +231,7 @@ h1 {
 
 .task-groups {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   gap: 1rem;
   align-items: start;
 }
@@ -321,4 +337,137 @@ h1 {
   margin: 0.25rem 0 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* Mensagens de erro, estados vazios e carregamento (ErrorMessage.vue,
+   EmptyState.vue, LoadingIndicator.vue) */
+.error-message {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.error-message .alert {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.empty-state,
+.loading {
+  margin: 0;
+}
+
+/* Confirmação (ConfirmDialog.vue) */
+.confirm-dialog p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Caminho (AppBreadcrumbs.vue) */
+.breadcrumbs ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  font-size: 0.95rem;
+}
+
+.breadcrumbs li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.breadcrumbs li + li::before {
+  content: '›';
+  margin-right: 0.25rem;
+  opacity: 0.6;
+}
+
+/* Indicador de progresso (ProgressIndicator.vue) */
+.progress p {
+  margin: 0;
+}
+
+.progress-bar {
+  height: 0.5rem;
+  margin: 0.5rem 0;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar i {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+}
+
+/* Cabeçalho e equipa do projeto (ProjectView.vue) */
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.title-row h1 {
+  margin: 0;
+  min-width: 0;
+}
+
+.team summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.member-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.member-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+/* Seletor de estado nos cartões (TaskGroup.vue) */
+.task-status-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.task-status-field select {
+  padding: 0.25rem 0.5rem;
+}
+
+/* Em ecrãs estreitos, os grupos de tarefas ocupam a largura toda e os botões
+   de ação ficam com uma área de toque maior. */
+@media (max-width: 480px) {
+  .task-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filters > .field {
+    flex: 1 1 10rem;
+  }
+
+  .task-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .task-details dd + dt {
+    margin-top: 0.5rem;
+  }
 }

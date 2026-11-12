@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { COMMENT_BODY_MAX, commentLength, validateCommentBody } from '@/tasks/comment-validation'
 import FormField from './FormField.vue'
+import AppButton from './AppButton.vue'
 
 /**
  * Formulário do texto de um comentário, para comentar e para editar (US13,
@@ -68,9 +69,15 @@ defineExpose({ reset })
       :disabled="submitting"
     />
     <div class="actions">
-      <button type="submit" class="btn btn-primary" :disabled="submitting || disabled">
-        {{ submitting ? submittingLabel : submitLabel }}
-      </button>
+      <AppButton
+        type="submit"
+        variant="primary"
+        :busy="submitting"
+        :busy-label="submittingLabel"
+        :disabled="disabled"
+      >
+        {{ submitLabel }}
+      </AppButton>
       <slot name="actions" />
     </div>
   </form>

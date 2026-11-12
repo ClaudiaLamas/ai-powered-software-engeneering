@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { apiErrorMessage } from '@/api/errors'
 import { ApiError } from '@/api/http'
 import type { AccountSummary, Comment, Project, Task, TaskStatus } from '@/api/types'
 import { ensureAccount } from '@/auth/auth-api'
+import AppBreadcrumbs from '@/components/AppBreadcrumbs.vue'
+import AppButton from '@/components/AppButton.vue'
 import CommentForm from '@/components/CommentForm.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import ErrorMessage from '@/components/ErrorMessage.vue'
+import LoadingIndicator from '@/components/LoadingIndicator.vue'
 import SelectField from '@/components/SelectField.vue'
 import TaskForm from '@/components/TaskForm.vue'
 import TaskPriorityBadge from '@/components/TaskPriorityBadge.vue'
@@ -113,6 +119,11 @@ function isOwnComment(c: Comment) {
 const confirmingDelete = ref(false)
 const deleting = ref(false)
 const deleteError = ref<string | null>(null)
+const deleteQuestion = computed(
+  () =>
+    `Eliminar a tarefa "${task.value?.title}"? Os comentários são eliminados com ela e não é ` +
+    'possível desfazer.',
+)
 
 /**
  * Só uma alteração à tarefa de cada vez: cada resposta substitui a tarefa
@@ -396,12 +407,16 @@ watch(taskId, load, { immediate: true })
 
 <template>
   <main class="page stack">
-    <p v-if="loadError" role="alert" class="alert">{{ loadError }}</p>
-    <p v-else-if="!task || !project" class="muted" role="status">A carregar a tarefa…</p>
+    <ErrorMessage v-if="loadError" :message="loadError" />
+    <LoadingIndicator v-else-if="!task || !project" label="A carregar a tarefa…" />
     <template v-else>
-      <RouterLink :to="{ name: 'project', params: { projectId: project.id } }">
-        ← {{ project.name }}
-      </RouterLink>
+      <AppBreadcrumbs
+        :items="[
+          { label: 'Painel', to: '/' },
+          { label: project.name, to: { name: 'project', params: { projectId: project.id } } },
+          { label: task.title },
+        ]"
+      />
       <p v-if="project.status === 'ARCHIVED'" class="notice">
         Projeto arquivado: a tarefa não pode ser alterada.
       </p>
@@ -423,9 +438,7 @@ watch(taskId, load, { immediate: true })
           @submit="save"
         >
           <template #actions>
-            <button type="button" class="btn" :disabled="saving" @click="editing = false">
-              Cancelar
-            </button>
+            <AppButton :disabled="saving" @click="editing = false">Cancelar</AppButton>
           </template>
         </TaskForm>
       </section>
@@ -443,29 +456,29 @@ watch(taskId, load, { immediate: true })
             <ul v-else class="assignee-list" aria-labelledby="assignees-title">
               <li v-for="assignee in task.assignees" :key="assignee.id">
                 {{ assigneeLabel(assignee) }}
-                <button
+                <AppButton
                   v-if="canManage"
-                  type="button"
-                  class="btn"
                   :disabled="busy"
                   :aria-label="`Remover ${assignee.name} dos responsáveis`"
                   @click="removeAssignee(assignee.id, assignee.name)"
                 >
                   {{ removingId === assignee.id ? 'A remover…' : 'Remover' }}
-                </button>
+                </AppButton>
               </li>
             </ul>
           </dd>
           <dt>Descrição</dt>
           <dd class="task-description">{{ task.description ?? 'Sem descrição' }}</dd>
         </dl>
-        <p v-if="assigneeError" role="alert" class="alert">{{ assigneeError }}</p>
-        <p v-else-if="canManage && !assignable" class="muted" role="status">
-          A carregar quem pode ser responsável…
-        </p>
-        <p v-else-if="canManage && assigneeOptions.length === 1" class="muted">
-          Não há mais membros do projeto que possam ser responsáveis.
-        </p>
+        <ErrorMessage v-if="assigneeError" :message="assigneeError" />
+        <LoadingIndicator
+          v-else-if="canManage && !assignable"
+          label="A carregar quem pode ser responsável…"
+        />
+        <EmptyState
+          v-else-if="canManage && assigneeOptions.length === 1"
+          message="Não há mais membros do projeto que possam ser responsáveis."
+        />
         <form
           v-if="canManage && assignable && assigneeOptions.length > 1"
           class="assignee-add"
@@ -478,41 +491,33 @@ watch(taskId, load, { immediate: true })
             :options="assigneeOptions"
             :disabled="busy"
           />
-          <button type="submit" class="btn" :disabled="busy || !newAssigneeId">
-            {{ assigning ? 'A atribuir…' : 'Atribuir' }}
-          </button>
+          <AppButton
+            type="submit"
+            :busy="assigning"
+            busy-label="A atribuir…"
+            :disabled="busy || !newAssigneeId"
+          >
+            Atribuir
+          </AppButton>
         </form>
         <div v-if="canManage" class="actions">
-          <button type="button" class="btn" @click="startEditing">Editar</button>
-          <button
-            v-if="!confirmingDelete"
-            type="button"
-            class="btn btn-danger"
-            @click="startDeleting"
-          >
+          <AppButton @click="startEditing">Editar</AppButton>
+          <AppButton v-if="!confirmingDelete" variant="danger" @click="startDeleting">
             Eliminar
-          </button>
+          </AppButton>
         </div>
-        <div
+        <ConfirmDialog
           v-if="canManage && confirmingDelete"
-          role="alertdialog"
-          aria-labelledby="delete-question"
-          class="card stack"
-        >
-          <p id="delete-question">
-            Eliminar a tarefa "{{ task.title }}"? Os comentários são eliminados com ela e não é
-            possível desfazer.
-          </p>
-          <p v-if="deleteError" role="alert" class="alert">{{ deleteError }}</p>
-          <div class="actions">
-            <button type="button" class="btn btn-danger" :disabled="busy" @click="confirmDelete">
-              {{ deleting ? 'A eliminar…' : 'Sim, eliminar' }}
-            </button>
-            <button type="button" class="btn" :disabled="deleting" @click="confirmingDelete = false">
-              Cancelar
-            </button>
-          </div>
-        </div>
+          class="card"
+          :question="deleteQuestion"
+          confirm-label="Sim, eliminar"
+          busy-label="A eliminar…"
+          :busy="deleting"
+          :disabled="busy"
+          :error="deleteError"
+          @confirm="confirmDelete"
+          @cancel="confirmingDelete = false"
+        />
       </section>
 
       <section class="card stack" aria-label="Estado da tarefa">
@@ -524,14 +529,14 @@ watch(taskId, load, { immediate: true })
           :error="statusError"
           @update:model-value="onStatusChange"
         />
-        <p v-if="changingStatus" class="muted" role="status">A mudar o estado…</p>
+        <LoadingIndicator v-if="changingStatus" label="A mudar o estado…" />
       </section>
 
       <section class="card stack" aria-labelledby="comments-title">
         <h2 id="comments-title">Comentários</h2>
-        <p v-if="commentsError" role="alert" class="alert">{{ commentsError }}</p>
-        <p v-else-if="!comments" class="muted" role="status">A carregar os comentários…</p>
-        <p v-else-if="comments.length === 0" class="muted">Ainda não há comentários.</p>
+        <ErrorMessage v-if="commentsError" :message="commentsError" />
+        <LoadingIndicator v-else-if="!comments" label="A carregar os comentários…" />
+        <EmptyState v-else-if="comments.length === 0" message="Ainda não há comentários." />
         <ol v-else class="comment-list" aria-labelledby="comments-title">
           <li v-for="comment in comments" :key="comment.id" class="stack">
             <p class="comment-meta">
@@ -552,66 +557,40 @@ watch(taskId, load, { immediate: true })
               @submit="(body) => saveComment(comment.id, body)"
             >
               <template #actions>
-                <button
-                  type="button"
-                  class="btn"
-                  :disabled="savingComment"
-                  @click="editingCommentId = null"
-                >
+                <AppButton :disabled="savingComment" @click="editingCommentId = null">
                   Cancelar
-                </button>
+                </AppButton>
               </template>
             </CommentForm>
             <template v-else>
               <p class="comment-body">{{ comment.body }}</p>
-              <div
+              <ConfirmDialog
                 v-if="isOwnComment(comment) && confirmingDeleteCommentId === comment.id"
-                role="alertdialog"
-                :aria-labelledby="`delete-comment-${comment.id}`"
-                class="stack"
-              >
-                <p :id="`delete-comment-${comment.id}`">
-                  Apagar este comentário? Não é possível desfazer.
-                </p>
-                <p v-if="deleteCommentError" role="alert" class="alert">{{ deleteCommentError }}</p>
-                <div class="actions">
-                  <button
-                    type="button"
-                    class="btn btn-danger"
-                    :disabled="commentBusy"
-                    @click="confirmDeleteComment(comment.id)"
-                  >
-                    {{ deletingComment ? 'A apagar…' : 'Sim, apagar' }}
-                  </button>
-                  <button
-                    type="button"
-                    class="btn"
-                    :disabled="deletingComment"
-                    @click="confirmingDeleteCommentId = null"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
+                question="Apagar este comentário? Não é possível desfazer."
+                confirm-label="Sim, apagar"
+                busy-label="A apagar…"
+                :busy="deletingComment"
+                :disabled="commentBusy"
+                :error="deleteCommentError"
+                @confirm="confirmDeleteComment(comment.id)"
+                @cancel="confirmingDeleteCommentId = null"
+              />
               <div v-else-if="isOwnComment(comment)" class="actions">
-                <button
-                  type="button"
-                  class="btn"
+                <AppButton
                   :disabled="commentBusy"
                   aria-label="Editar o meu comentário"
                   @click="startEditingComment(comment.id)"
                 >
                   Editar
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-danger"
+                </AppButton>
+                <AppButton
+                  variant="danger"
                   :disabled="commentBusy"
                   aria-label="Apagar o meu comentário"
                   @click="startDeletingComment(comment.id)"
                 >
                   Apagar
-                </button>
+                </AppButton>
               </div>
             </template>
           </li>

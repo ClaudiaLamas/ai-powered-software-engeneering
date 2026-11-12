@@ -6,6 +6,8 @@ import { DEFAULT_TASK_PRIORITY, TASK_PRIORITY_OPTIONS } from '@/tasks/task-label
 import { type TaskFormValues, validateTask } from '@/tasks/task-validation'
 import FormField from './FormField.vue'
 import SelectField from './SelectField.vue'
+import AppButton from './AppButton.vue'
+import ErrorMessage from './ErrorMessage.vue'
 
 /**
  * Formulário de tarefa (título, descrição e prioridade), para criar e para
@@ -132,11 +134,17 @@ defineExpose({ reset })
         {{ assigneesError }}
       </p>
     </fieldset>
-    <p v-if="formError" role="alert" class="alert">{{ formError }}</p>
+    <ErrorMessage v-if="formError" :message="formError" />
     <div class="actions">
-      <button type="submit" class="btn btn-primary" :disabled="submitting || disabled">
-        {{ submitting ? submittingLabel : submitLabel }}
-      </button>
+      <AppButton
+        type="submit"
+        variant="primary"
+        :busy="submitting"
+        :busy-label="submittingLabel"
+        :disabled="disabled"
+      >
+        {{ submitLabel }}
+      </AppButton>
       <slot name="actions" />
     </div>
   </form>

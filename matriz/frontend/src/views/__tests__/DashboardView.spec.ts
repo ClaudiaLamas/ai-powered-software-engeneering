@@ -125,7 +125,7 @@ describe('DashboardView: ecrã inicial (US05)', () => {
     const { wrapper } = await mountView()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Ainda não tens projetos.')
+    expect(wrapper.text()).toContain('Ainda não participa em nenhum projeto.')
     expect(wrapper.find('[data-test="project-card"]').exists()).toBe(false)
   })
 

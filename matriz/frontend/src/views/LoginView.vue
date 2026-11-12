@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api/http'
 import { login } from '@/auth/auth-api'
 import { validateLogin } from '@/auth/login-validation'
+import AppButton from '@/components/AppButton.vue'
+import ErrorMessage from '@/components/ErrorMessage.vue'
 import FormField from '@/components/FormField.vue'
 import { safeRedirect } from '@/router/guard'
 
@@ -79,10 +81,10 @@ async function submit() {
         autocomplete="current-password"
         :error="fieldErrors.password"
       />
-      <p v-if="error" role="alert" class="alert">{{ error }}</p>
-      <button type="submit" class="btn btn-primary" :disabled="submitting">
-        {{ submitting ? 'A entrar…' : 'Entrar' }}
-      </button>
+      <ErrorMessage v-if="error" :message="error" />
+      <AppButton type="submit" variant="primary" :busy="submitting" busy-label="A entrar…">
+        Entrar
+      </AppButton>
     </form>
   </main>
 </template>
