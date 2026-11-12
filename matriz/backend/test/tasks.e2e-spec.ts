@@ -1000,6 +1000,33 @@ describe('Tarefas (API)', () => {
       ]);
     });
 
+    it('remover um de três mantém os outros dois, pela mesma ordem, também na base de dados', async () => {
+      const carla = await createAccount(app, { name: 'Carla Membro' });
+      await prisma.projectMember.create({
+        data: { projectId: t.project.id, accountId: carla.id, role: 'MEMBER' },
+      });
+      const task = await createTask(app, t.project.id, {
+        assigneeIds: [t.manager.account.id, t.member.account.id, carla.id],
+      });
+
+      await api(t.manager.token)
+        .removeAssignee(task.id, t.member.account.id)
+        .expect(204);
+
+      const got = await api(t.manager.token).get(task.id).expect(200);
+      expect(got.body.assignees.map((a: { id: string }) => a.id)).toEqual([
+        t.manager.account.id,
+        carla.id,
+      ]);
+      const rows = await prisma.taskAssignee.findMany({
+        where: { taskId: task.id },
+        select: { accountId: true },
+      });
+      expect(rows.map((r) => r.accountId).sort()).toEqual(
+        [t.manager.account.id, carla.id].sort(),
+      );
+    });
+
     it('sem responsáveis, a tarefa fica "Sem responsável"', async () => {
       const task = await createTask(app, t.project.id, {
         assigneeIds: [t.member.account.id],
@@ -1229,6 +1256,44 @@ describe('Tarefas (API)', () => {
           .set('Authorization', `Bearer ${t.member.token}`)
           .expect(200);
         expect(res.body).toEqual(created.body);
+      } finally {
+        await restarted.close();
+      }
+    });
+
+    it('o responsável atribuído pela API fica guardado: GET, lista, base de dados e depois de reiniciar (US06, DE16)', async () => {
+      const t = await team();
+      const task = await createTask(app, t.project.id);
+      const assigned = await api(t.manager.token)
+        .addAssignee(task.id, { accountId: t.member.account.id })
+        .expect(201);
+      expect(assigned.body.assignees).toEqual([
+        {
+          id: t.member.account.id,
+          name: 'Bruno Membro',
+          status: 'ACTIVE',
+          isProjectMember: true,
+        },
+      ]);
+
+      const got = await api(t.member.token).get(task.id).expect(200);
+      expect(got.body).toEqual(assigned.body);
+      const list = await api(t.member.token).list(t.project.id).expect(200);
+      expect(list.body.items).toEqual([assigned.body]);
+      expect(
+        await prisma.taskAssignee.findMany({
+          where: { taskId: task.id },
+          select: { accountId: true },
+        }),
+      ).toEqual([{ accountId: t.member.account.id }]);
+
+      const restarted = await createTestApp();
+      try {
+        const res = await request(restarted.getHttpServer())
+          .get(`/tasks/${task.id}`)
+          .set('Authorization', `Bearer ${t.member.token}`)
+          .expect(200);
+        expect(res.body.assignees).toEqual(assigned.body.assignees);
       } finally {
         await restarted.close();
       }
