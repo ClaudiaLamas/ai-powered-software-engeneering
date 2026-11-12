@@ -623,6 +623,66 @@ describe('ProjectView: projeto, equipa e estado nos cartões (US07, US09, US10, 
     expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
   })
 
+  /**
+   * O primeiro `getProject` responde logo; o segundo (o refresh depois de
+   * mudar um estado) fica pendente até `release`, com o projeto ainda ativo.
+   */
+  function heldRefresh() {
+    let release!: () => void
+    const held = new Promise<Response>((resolve) => {
+      release = () => resolve(json(project({ progress: { todo: 0, inProgress: 1, done: 0, total: 1, percentDone: 0 } })))
+    })
+    let projectRequests = 0
+    const t = task({ title: 'Rever textos' })
+    const routes = {
+      [PROJECT]: () => (++projectRequests === 1 ? json(project()) : held),
+      [TASKS]: tasksByStatus({ TODO: page([t], { todo: 1, inProgress: 0, done: 0 }) }, { todo: 1, inProgress: 0, done: 0 }),
+      [ASSIGNABLE]: () => json({ items: [] }),
+      [`PUT /tasks/${t.id}/status`]: () => json({ ...t, status: 'IN_PROGRESS' }),
+    }
+    return { routes, release: () => release() }
+  }
+
+  it('um refresh antigo do projeto não desfaz o arquivo feito entretanto', async () => {
+    const { routes, release } = heldRefresh()
+    mockApi({ ...routes, [ARCHIVE]: () => json(project({ status: 'ARCHIVED' })) })
+    const wrapper = await mountView()
+
+    await group(wrapper, 'Por fazer').get('select').setValue('IN_PROGRESS')
+    await flushPromises()
+    await button(wrapper, 'Arquivar projeto').trigger('click')
+    await button(wrapper, 'Sim, arquivar').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.title-row').text()).toContain('Arquivado')
+
+    release()
+    await flushPromises()
+
+    expect(wrapper.get('.title-row').text()).toContain('Arquivado')
+    expect(wrapper.text()).not.toContain('Nova tarefa')
+    expect(wrapper.text()).not.toContain('Arquivar projeto')
+  })
+
+  it('um refresh antigo do projeto não repõe o nome de antes da edição', async () => {
+    const { routes, release } = heldRefresh()
+    mockApi({ ...routes, [UPDATE]: () => json(project({ name: 'Site novo' })) })
+    const wrapper = await mountView()
+
+    await group(wrapper, 'Por fazer').get('select').setValue('IN_PROGRESS')
+    await flushPromises()
+    await button(wrapper, 'Editar projeto').trigger('click')
+    const form = wrapper.get('form[aria-label="Editar projeto"]')
+    await form.get('input').setValue('Site novo')
+    await form.trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('Site novo')
+
+    release()
+    await flushPromises()
+
+    expect(wrapper.get('h1').text()).toBe('Site novo')
+  })
+
   it('cancelar a confirmação não arquiva o projeto', async () => {
     const fetchMock = mockApi({
       [PROJECT]: () => json(project()),

@@ -214,6 +214,12 @@ function isUnauthenticated(e: unknown) {
 
 /** Identifica o carregamento mais recente do projeto, para ignorar o de uma rota anterior. */
 let projectLoad = 0
+/**
+ * Muda a cada refresh do projeto e a cada edição ou arquivo bem-sucedidos.
+ * Uma resposta de refresh só substitui o projeto se ainda for a mais recente,
+ * para não repor dados de antes de uma edição ou de um arquivo.
+ */
+let projectRevision = 0
 
 async function loadProject() {
   const load = ++projectLoad
@@ -246,9 +252,10 @@ async function loadProject() {
  */
 async function refreshProject() {
   const load = projectLoad
+  const revision = ++projectRevision
   try {
     const p = await getProject(projectId.value)
-    if (load === projectLoad) project.value = p
+    if (load === projectLoad && revision === projectRevision) project.value = p
   } catch {
     // O próximo carregamento volta a tentar.
   }
@@ -321,6 +328,7 @@ async function saveProject(values: ProjectFormValues) {
   try {
     const updated = await updateProject(projectId.value, values)
     if (load !== projectLoad) return
+    projectRevision += 1
     project.value = updated
     editingProject.value = false
     notice.value = 'Alterações ao projeto guardadas.'
@@ -348,6 +356,7 @@ async function confirmArchive() {
   try {
     const archived = await archiveProject(projectId.value)
     if (load !== projectLoad) return
+    projectRevision += 1
     project.value = archived
     confirmingArchive.value = false
     createdMessage.value = null
