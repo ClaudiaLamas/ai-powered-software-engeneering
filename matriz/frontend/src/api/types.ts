@@ -48,6 +48,20 @@ export interface Progress {
   percentDone: number | null
 }
 
+/** Projeto no painel inicial (`ProjectSummary`, FN05, US05). */
+export interface ProjectSummary {
+  id: string
+  name: string
+  status: ProjectStatus
+  myRole: ProjectRole
+  progress: Progress
+}
+
+/** Resposta de `listMyProjects` (`ProjectSummaryList`). */
+export interface ProjectSummaryList {
+  items: ProjectSummary[]
+}
+
 export interface ProjectMember {
   account: AccountSummary
   role: ProjectRole
