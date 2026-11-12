@@ -110,7 +110,7 @@ describe('LoginView (US01)', () => {
   it('avisa que a sessão expirou quando chega por um 401', async () => {
     const { wrapper } = await mountAt('/entrar?motivo=expirou')
     expect(wrapper.get('[role="status"]').text()).toBe(
-      'A sessão expirou. Inicia sessão novamente.',
+      'A sessão expirou. Inicie sessão novamente.',
     )
   })
 

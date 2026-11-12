@@ -152,7 +152,7 @@ Responde `200 {"status":"ok","database":"up"}` ou, sem acesso à base de dados, 
    - Email desconhecido, palavra-passe errada ou conta pendente: sempre `401 INVALID_CREDENTIALS`, com a mesma mensagem e o mesmo tempo de resposta, para não revelar se o email existe.
    - Conta desativada: `403 ACCOUNT_DEACTIVATED`, só quando a palavra-passe está certa (US01).
 2. **Usar:** todos os pedidos, exceto `POST /auth/login` e `GET /health`, levam o cabeçalho `Authorization: Bearer <accessToken>`. Sem token, ou com um token inválido ou expirado, a resposta é `401 UNAUTHENTICATED`. Em cada pedido o backend lê a conta na base de dados: uma conta desativada recebe `401` mesmo antes de o token expirar, e a permissão de Administrador é sempre a atual.
-3. **Validade:** `JWT_EXPIRES_IN_SECONDS` (por omissão 3600). Não há renovação: quando o token expira, o frontend apaga a sessão e volta ao ecrã de entrada com "A sessão expirou. Entre outra vez."
+3. **Validade:** `JWT_EXPIRES_IN_SECONDS` (por omissão 3600). Não há renovação: quando o token expira, o frontend apaga a sessão e volta ao ecrã de entrada com "A sessão expirou. Inicie sessão novamente."
 4. **Sair:** `POST /auth/logout` responde `204`. O backend não revoga o token: o frontend apaga-o do `sessionStorage` e volta ao ecrã de entrada. Um token copiado antes de sair continua válido até expirar.
 
 ```bash
