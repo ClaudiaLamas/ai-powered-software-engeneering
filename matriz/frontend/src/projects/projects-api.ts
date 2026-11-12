@@ -1,5 +1,13 @@
 import { apiFetch } from '@/api/http'
-import type { Project } from '@/api/types'
+import type { Project, ProjectSummary, ProjectSummaryList } from '@/api/types'
+
+/**
+ * `listMyProjects` (US05): projetos onde a conta é Gestor ou Membro, com o
+ * progresso calculado no servidor sobre todas as tarefas (PN02, PN13).
+ */
+export async function listMyProjects(): Promise<ProjectSummary[]> {
+  return (await apiFetch<ProjectSummaryList>('/projects')).items
+}
 
 /** `getProject` (US09, US18): qualquer membro; `404` a quem não é membro. */
 export function getProject(projectId: string): Promise<Project> {

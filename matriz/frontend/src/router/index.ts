@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import DashboardView from '../views/DashboardView.vue'
 import { authGuard } from './guard'
 
 const router = createRouter({
@@ -14,8 +14,8 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      // Provisório: o DashboardView (ecrã 1 do wireframe) chega com os projetos.
-      component: HomeView,
+      // Ecrã inicial (wireframe, ecrã 1; US05).
+      component: DashboardView,
     },
     {
       path: '/projetos/:projectId',

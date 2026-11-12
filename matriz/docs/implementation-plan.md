@@ -61,7 +61,7 @@ Nada disto está decidido. Cada linha precisa de aprovação antes do incremento
 | 2 | Contas e ativação | US02, US11, US16 | 1 | Por iniciar |
 | 3 | Projeto e equipa | US04, US10, US18 | 1 | Por iniciar |
 | 4 | Tarefas, responsáveis, prioridade e filtros | US06, US07, US08, US19 (sem comentários), US22, US23 | 2, 3 (ver a nota do incremento) | Em curso |
-| 5 | Progresso e painel inicial | US05, US09 | 4 | Por iniciar |
+| 5 | Progresso e painel inicial | US05, US09 | 4 | Em curso |
 | 6 | Comentários | US13, US19 | 4 | Em curso |
 | 7 | Pedidos de responsável | US31, US19 (pedidos pendentes) | 4 | Por iniciar |
 | 8 | Área de administração | US12, US14, US17 | 2, 3 | Por iniciar |
@@ -113,7 +113,7 @@ quando é chamado por um agente de IA.
 | `accounts` (`listAccounts`) | Por fazer |
 | Frontend: cliente HTTP, sessão, guarda de rotas, `LoginView`, botão "Sair" | Feito (2026-11-09) |
 | Frontend: validação do formulário de entrada, componentes e estilos partilhados (`FormField`, `AppHeader`, `main.css`), ecrã inicial provisório com a conta (`GET /me`) | Feito (2026-11-09) |
-| Frontend: `DashboardView`, `ProjectView`, formulário de criação de projeto | Por fazer (o ecrã inicial provisório dá lugar ao `DashboardView`) |
+| Frontend: `DashboardView`, `ProjectView`, formulário de criação de projeto | `DashboardView` feito (2026-11-12): substitui o ecrã inicial provisório (`HomeView`); conta (`GET /me`), projetos (`GET /projects`) com ligação para o detalhe, função, barra, percentagem e contagens por estado de `progress` (total no servidor), "Sem tarefas", "Arquivado (só de leitura)", estados de carregamento, erro (com "Tentar outra vez") e lista vazia ("Ainda não tens projetos.", sem ligação para criar até existir o formulário). `ProjectView` feito no incremento 4. Formulário de criação de projeto por fazer |
 | Base de dados de testes separada | Feito (`matriz_test`, 2026-11-09) |
 | Critérios de aceitação 1–6 | 1 e 2 verificados (testes e navegador, 2026-11-09); 3–5 verificados na API (2026-11-10); 6 por verificar (precisa do frontend) |
 
@@ -242,7 +242,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 | Reação a "membro removido" e a "conta desativada" (PN07, PN08) | À espera dos incrementos 2 e 3 |
 | Frontend: `ProjectView` (`/projetos/:projectId`) com os três grupos por estado, um pedido cada, os totais de `countsByStatus`, "Ver mais", filtros de estado e prioridade e o formulário de criação para o Gestor; `TaskDetailView` (`/tarefas/:taskId`) com edição (título, descrição, prioridade), mudança de estado e eliminação com confirmação; etiquetas num só sítio (`src/tasks/task-labels.ts`); testes de componentes e vistas | Feito (2026-11-11); por verificar no navegador |
 | Frontend: tipos e vistas com `assignees` (lista por ordem do nome, cada um com a sua indicação); atribuir e remover responsáveis no `TaskDetailView` e escolher responsáveis ao criar | Feito (2026-11-11); 111 testes de componentes e vistas a passar; verificado no navegador (criar com dois responsáveis, remover, atribuir, largura de telemóvel) |
-| Frontend: seletor de estado nos cartões do wireframe, ligação a partir do ecrã inicial | Por fazer (precisa do `DashboardView`) |
+| Frontend: seletor de estado nos cartões do wireframe, ligação a partir do ecrã inicial | Ligação a partir do ecrã inicial feita (2026-11-12, `DashboardView`); seletor de estado nos cartões por fazer |
 
 **Objetivo:** gerir as tarefas de cada projeto, os seus responsáveis e a prioridade, e filtrar e paginar a lista.
 
@@ -283,7 +283,13 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 ### Incremento 5 — Progresso e painel inicial
 
-**Estado:** Por iniciar
+**Estado:** Em curso (atualizado em 2026-11-12)
+
+| Parte | Estado |
+|---|---|
+| Backend: contagens por estado de todas as tarefas de cada projeto em `listMyProjects` e `getProject` (`ProgressService`, `groupBy` na base de dados) | Feito no incremento 1; sem alterações ao contrato |
+| Frontend: progresso nos cartões do `DashboardView`, "Sem tarefas", "Arquivado (só de leitura)", lista vazia | Feito (2026-11-12); `DashboardView.spec.ts` e `project-labels.spec.ts`; 159 testes do frontend a passar |
+| Frontend: progresso no `ProjectView`; contagens atualizadas sem recarregar (critério 2) | Por fazer |
 
 **Objetivo:** mostrar o progresso real de cada projeto no ecrã inicial e na vista do projeto.
 
