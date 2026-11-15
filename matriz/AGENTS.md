@@ -4,8 +4,10 @@ Instruções para agentes de IA que trabalhem no repositório Matriz.
 
 ## Estado do projeto
 
-A especificação está concluída e a implementação começou: o incremento 1 está
-em curso (ver o estado em `docs/implementation-plan.md`). A arquitetura está decidida
+A especificação está concluída e a implementação está em curso: os
+incrementos 1, 3, 4, 5, 6 e 9 estão "Em curso" e os 2, 7 e 8 "Por iniciar"
+(estado de cada um em `docs/implementation-plan.md`; operações da API já
+implementadas na descrição do `openapi.yaml`). A arquitetura está decidida
 (monólito modular, decisão interna por validar; ver `docs/architecture.md`). Todas
 as decisões técnicas estão tomadas (D01–D09, decisões internas por validar; ver
 `docs/constraints.md` §4): aplicação web responsiva; TypeScript, NestJS no
@@ -25,6 +27,7 @@ não esteja registada nos documentos.
    - `docs/database.md` — modelo de dados e diagrama ER.
    - `docs/implementation-plan.md` — incrementos do MVP e o estado de cada um.
    - `docs/ui/dashboard-wireframe.html` — wireframe do ecrã inicial e da vista de um projeto.
+     As diferenças aceites face ao wireframe estão em `docs/implementation-plan.md` §1.1.
    - `openapi.yaml` — contrato da API do MVP.
 2. Identifica os IDs (F, P, R, DE, PN, D, FN, US, CL, RNF) a que a tarefa diz respeito.
    Usa os termos do glossário do `README.md` (conta, função, Gestor, Membro,
@@ -48,6 +51,74 @@ não esteja registada nos documentos.
   - os pressupostos que tiveste de fazer;
   - as verificações que fizeste (testes, revisão, critérios de aceitação cumpridos)
     e o que ficou por verificar.
+
+## Arrancar a aplicação
+
+Cada comando corre a partir da pasta `matriz/`, com o Node.js do `.nvmrc`
+(`nvm use` em `backend/` e em `frontend/`). Os passos 1 e 3 só são precisos na primeira vez ou quando as
+dependências, o esquema ou as migrations mudam.
+
+1. Variáveis de ambiente (ficheiros ignorados pelo Git; muda os valores, que
+   são fictícios, e nunca os escrevas em código, documentação ou mensagens):
+
+   ```bash
+   cp .env.example .env
+   cp backend/.env.example backend/.env
+   cp frontend/.env.example frontend/.env
+   ```
+
+2. PostgreSQL (Docker), até `docker compose ps` mostrar `healthy`:
+
+   ```bash
+   docker compose up -d
+   ```
+
+3. Backend: dependências, cliente Prisma e migrations (`npm install` só
+   instala o que está no `package-lock.json`; acrescentar ou mudar
+   dependências pede aprovação):
+
+   ```bash
+   cd backend && nvm use && npm install && npx prisma generate && npx prisma migrate deploy
+   ```
+
+4. Dados de demonstração (só a pedido; idempotente, só cria o que falta; a
+   palavra-passe das contas vem de `SEED_DEMO_PASSWORD` em `backend/.env`):
+
+   ```bash
+   cd backend && npm run db:seed
+   ```
+
+5. Backend em `http://localhost:3000` (`GET /health` confirma a ligação à base
+   de dados):
+
+   ```bash
+   cd backend && npm run start:dev
+   ```
+
+6. Frontend em `http://localhost:5173`, com `/api` encaminhado para o backend
+   (`VITE_API_URL`):
+
+   ```bash
+   cd frontend && nvm use && npm install && npm run dev
+   ```
+
+`npx prisma migrate status` mostra se a base de dados tem todas as migrations.
+Não uses `prisma migrate reset` nem `prisma migrate dev` sem aprovação: mudam
+a estrutura de dados ou apagam dados.
+
+## Verificar
+
+| Onde | Comando | O que faz |
+|---|---|---|
+| `backend/` | `npm run lint` | Lint (oxlint, com tipos) de `src/` e `test/` |
+| `backend/` | `npm run build` | Compila para `dist/` (Nest CLI) |
+| `backend/` | `npm test` | Testes unitários |
+| `backend/` | `npm run test:e2e` | Testes de API (precisa do PostgreSQL) |
+| `frontend/` | `npm run build` | Verifica os tipos (`vue-tsc --build`) e compila para `dist/` (Vite) |
+| `frontend/` | `npm run test:unit -- --run` | Testes de componentes, vistas e cliente |
+
+O frontend não tem lint configurado. `npm run format` no backend reescreve os
+ficheiros com o Prettier: não é uma verificação.
 
 ## Testes
 

@@ -277,13 +277,13 @@ Três exemplos da verificação final do frontend (2026-11-12), feita com o Clau
 
 ## 7. Problemas conhecidos
 
-Limitações e comportamentos conhecidos da versão verificada. Nenhum foi corrigido nesta verificação.
+Limitações e comportamentos conhecidos da versão verificada. Nenhum foi corrigido nesta verificação; as diferenças 3 e 4 face ao wireframe foram depois aceites como decisões.
 
 | Problema | Onde se vê | Situação |
 |---|---|---|
 | Não há pesquisa nem eliminação de projetos | C02 (caso 02 da ficha) | Decisão do MVP: não há pesquisa de projetos, e os projetos retiram-se de uso arquivando-os em vez de os eliminar (implementation-plan.md §1.1) |
 | A área de administração não existe | P7, diferença 1: sem "Administração" no cabeçalho do Administrador | Por fazer no incremento 8 |
-| "+ Nova tarefa" não é um botão: o formulário está sempre visível acima dos grupos | J10, diferença 3 face ao ecrã 2 do wireframe | Diferença face ao wireframe, por decidir se se mantém ou se corrige |
-| O cartão da tarefa mostra a prioridade e não o número de comentários | J10, diferença 4 face ao ecrã 2 do wireframe | Diferença face ao wireframe, por decidir se se mantém ou se corrige |
+| "+ Nova tarefa" não é um botão: o formulário está sempre visível acima dos grupos | J10, diferença 3 face ao ecrã 2 do wireframe | Decidido (2026-11-15): mantém-se (implementation-plan.md §1.1) |
+| O cartão da tarefa mostra a prioridade e não o número de comentários | J10, diferença 4 face ao ecrã 2 do wireframe | Decidido (2026-11-15): mantém-se (implementation-plan.md §1.1) |
 | Alterar `matriz.accessToken` no `sessionStorage` só tem efeito depois de recarregar a página | E8: a navegar dentro da aplicação, os pedidos continuam a usar o token original, que está em memória; o token é lido do `sessionStorage` só ao carregar a página | Comportamento atual; o aviso "A sessão expirou." aparece depois de recarregar ou quando a API responde `401` |
 | A eliminação em cascata não foi verificada diretamente na base de dados | C09, passo 1 | Só se viu que a API deixou de devolver a tarefa e os comentários; as tabelas não foram consultadas |

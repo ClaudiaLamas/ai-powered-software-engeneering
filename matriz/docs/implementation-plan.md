@@ -2,7 +2,7 @@
 
 Este ficheiro define a sequência de incrementos para implementar o MVP (US01–US19, US22, US23, US31) com o contrato de [openapi.yaml](../openapi.yaml). Deriva de [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md), [architecture.md](architecture.md) e [database.md](database.md).
 
-Os incrementos 1, 4, 5 e 6 estão "Em curso" (ver o estado de cada um abaixo); os restantes estão "Por iniciar", com partes adiantadas nos incrementos 3 e 9. A ordem dos incrementos e tudo o que está marcado como **proposta** são sugestões deste plano, por aprovar; o que está marcado como **confirmado** vem dos documentos.
+Estado a 2026-11-15: os incrementos 1, 3, 4, 5, 6 e 9 estão "Em curso" e os 2, 7 e 8 estão "Por iniciar"; nenhum está "Concluído" (ver a secção 2 e o estado de cada um abaixo). A ordem dos incrementos e tudo o que está marcado como **proposta** são sugestões deste plano, por aprovar; o que está marcado como **confirmado** vem dos documentos.
 
 ## 1. Decisões confirmadas e propostas
 
@@ -34,7 +34,9 @@ Registadas nos documentos (decisões internas, por validar com o cliente).
 | Seed | `backend/prisma/seed.ts`, corrido só a pedido (`npm run db:seed`), nunca no arranque. Idempotente: identificadores fixos (contas pelo email); só cria o que falta e nunca altera nem apaga dados. Cria a conta de sistema, a Ana e o Bruno (ativos), uma conta pendente (sem palavra-passe nem token) e uma desativada; três projetos com acessos distintos (a conta de sistema não é membro de nenhum, DE02), tarefas, responsáveis e comentários. Dados fictícios; a palavra-passe comum vem de `SEED_DEMO_PASSWORD` (`.env`, ignorado pelo Git), guardada como hash bcrypt; sem entradas no registo administrativo | Decidido em 2026-11-08 |
 | Contrato da API | 40 operações das user stories em [openapi.yaml](../openapi.yaml), mais `GET /health` (infraestrutura, sem autenticação) | openapi.yaml 0.5.0 (vários responsáveis e pedidos de responsável em 2026-11-11; prioridade, filtros e paginação das tarefas em 2026-11-10); `GET /health` decidido em 2026-11-08 |
 | Âmbito | Só as funcionalidades Must (FN01–FN09, FN12–FN14, FN27–FN29); pesquisa por texto, filtro por responsável (FN30) e prazos ficam fora | requirements.md §5; FN12 e FN13 entraram em 2026-11-10; FN29 em 2026-11-11 |
-| Eliminação de projetos | Não é implementada: os projetos retiram-se de uso arquivando-os (`archiveProject`). A questão "um projeto pode ser eliminado?" continua em aberto (constraints.md §5) | Decidido em 2026-11-09 |
+| Pesquisa e eliminação de projetos | Fora do MVP: não há pesquisa de projetos nem operação para eliminar um projeto; os projetos retiram-se de uso arquivando-os (`archiveProject`). `test/projects.e2e-spec.ts` confirma que não há operação para eliminar (requirements.md §5, constraints.md §5) | Eliminação não implementada desde 2026-11-09; fora do MVP, com a pesquisa, desde 2026-11-15 |
+| Formulário "Nova tarefa" | No `ProjectView`, o formulário de criação está sempre visível ao Gestor, acima dos grupos por estado, em vez do botão "+ Nova tarefa" do ecrã 2 do wireframe (diferença 3 da verificação J10). Mantém-se | Decidido em 2026-11-15 |
+| Cartão da tarefa | No `ProjectView`, cada cartão mostra a prioridade (FN12) e não o número de comentários do ecrã 2 do wireframe (diferença 4 da verificação J10). Mantém-se; a lista de tarefas (`listProjectTasks`) não devolve o número de comentários | Decidido em 2026-11-15 |
 | Nome e descrição do projeto | O nome conta e fica guardado sem os espaços das pontas; uma descrição vazia ou só com espaços fica `null` (PN12) | Decidido em 2026-11-09 |
 | Título e descrição da tarefa | Mesma regra que no projeto: o título conta e fica guardado sem os espaços das pontas; uma descrição vazia ou só com espaços fica `null` (PN12) | Decidido em 2026-11-10 |
 | Lista de tarefas | Filtros `status` e `priority`; paginação `page` e `pageSize` (20 por omissão, máximo 100); resposta com `total` e `countsByStatus`; o frontend faz um pedido por coluna da vista por estado (PN20, openapi.yaml 0.4.0) | Decidido em 2026-11-10 |
@@ -59,13 +61,24 @@ Nada disto está decidido. Cada linha precisa de aprovação antes do incremento
 |---|---|---|---|---|
 | 1 | Base, autenticação e primeiro percurso de projetos | US01, US03, US15; US05, US16 e US18 em parte | — | Em curso |
 | 2 | Contas e ativação | US02, US11, US16 | 1 | Por iniciar |
-| 3 | Projeto e equipa | US04, US10, US18 | 1 | Por iniciar |
+| 3 | Projeto e equipa | US04, US10, US18 | 1 | Em curso |
 | 4 | Tarefas, responsáveis, prioridade e filtros | US06, US07, US08, US19 (sem comentários), US22, US23 | 2, 3 (ver a nota do incremento) | Em curso |
 | 5 | Progresso e painel inicial | US05, US09 | 4 | Em curso |
 | 6 | Comentários | US13, US19 | 4 | Em curso |
 | 7 | Pedidos de responsável | US31, US19 (pedidos pendentes) | 4 | Por iniciar |
 | 8 | Área de administração | US12, US14, US17 | 2, 3 | Por iniciar |
-| 9 | Verificação final do MVP | Todas (US01–US19, US22, US23, US31) | 1–8 | Por iniciar |
+| 9 | Verificação final do MVP | Todas (US01–US19, US22, US23, US31) | 1–8 | Em curso |
+
+O que falta para cada incremento "Em curso" passar a "Concluído" (2026-11-15):
+
+| N.º | Falta |
+|---|---|
+| 1 | `listAccounts` no backend e o formulário de criação de projeto no frontend; critério 6 com o Administrador a criar o projeto pela interface |
+| 3 | Equipa: `listMemberCandidates`, `addProjectMember`, `removeProjectMember`, no backend e no frontend |
+| 4 | Reação a "membro removido" e a "conta desativada" (PN07, PN08, critério 2), que espera pelos incrementos 2 e 3 |
+| 5 | Teste de API do CL7 (o projeto volta a "Sem tarefas" depois de eliminar todas as tarefas) |
+| 6 | CL12 com as operações reais de remover membro e desativar conta (incrementos 2 e 3) |
+| 9 | Os incrementos 1–8 completos; repetir a verificação sobre o MVP inteiro |
 
 Os incrementos 2 e 3 podem ser feitos em qualquer ordem, tal como 5, 6 e 7 depois do 4 (o 7 depois de terminada a parte dos vários responsáveis do 4) e o 8 depois do 2 e do 3.
 
@@ -99,7 +112,7 @@ quando é chamado por um agente de IA.
 
 ### Incremento 1 — Base, autenticação e primeiro percurso de projetos
 
-**Estado:** Em curso (atualizado em 2026-11-09)
+**Estado:** Em curso (atualizado em 2026-11-15)
 
 | Parte | Estado |
 |---|---|
@@ -115,7 +128,7 @@ quando é chamado por um agente de IA.
 | Frontend: validação do formulário de entrada, componentes e estilos partilhados (`FormField`, `AppHeader`, `main.css`), ecrã inicial provisório com a conta (`GET /me`) | Feito (2026-11-09). Alargado em 2026-11-12: `AppButton`, `ErrorMessage`, `EmptyState`, `LoadingIndicator`, `ConfirmDialog`, `ProgressIndicator`, `ProjectStatusBadge` e `AppBreadcrumbs`, usados em todos os ecrãs; "Matriz" no cabeçalho liga ao painel e o projeto e a tarefa mostram o caminho Painel › Projeto › Tarefa; layout revisto para telemóvel (≈375px), tablet e desktop |
 | Frontend: `DashboardView`, `ProjectView`, formulário de criação de projeto | `DashboardView` feito (2026-11-12): substitui o ecrã inicial provisório (`HomeView`); conta (`GET /me`), projetos (`GET /projects`) com ligação para o detalhe, função, barra, percentagem e contagens por estado de `progress` (total no servidor), "Sem tarefas", "Arquivado (só de leitura)", estados de carregamento, erro (com "Tentar outra vez") e lista vazia ("Ainda não participa em nenhum projeto.", registo formal desde 2026-11-12; sem ligação para criar até existir o formulário). `ProjectView` feito no incremento 4. Formulário de criação de projeto por fazer: precisa de escolher o Gestor entre as contas (`listAccounts`), que o backend ainda não tem (incremento 2) |
 | Base de dados de testes separada | Feito (`matriz_test`, 2026-11-09) |
-| Critérios de aceitação 1–6 | 1 e 2 verificados (testes e navegador, 2026-11-09); 3–5 verificados na API (2026-11-10); 6 por verificar (precisa do frontend) |
+| Critérios de aceitação 1–6 | 1 e 2 verificados (testes e navegador, 2026-11-09; outra vez a 2026-11-15, C01 e S1–S5 de verification.md); 3–5 verificados na API (2026-11-10; C02 a 2026-11-15); 6 verificado em parte (2026-11-15, C03 e S4): recarregar a página e reiniciar o backend mantêm a sessão e os dados; falta o Administrador criar o projeto pela interface (precisa de `listAccounts` e do formulário) |
 
 **Objetivo:** pôr a funcionar o primeiro percurso completo entre interface, API e base de dados. Termina quando é possível **iniciar sessão, criar um projeto, vê-lo na listagem e consultá-lo depois de recarregar a página e reiniciar o backend**.
 
@@ -195,7 +208,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 ### Incremento 3 — Projeto e equipa
 
-**Estado:** Por iniciar. Adiantado (2026-11-10): `updateProject` e `archiveProject` no backend, com testes de API (US10). Adiantado (2026-11-12) no frontend: "Editar projeto" e "Arquivar projeto" só para o Gestor num projeto ativo (arquivar pede confirmação), estado do projeto e painel "Membros" só de leitura, com a função e "conta desativada" (US10, US18). Falta a equipa (`listMemberCandidates`, `addProjectMember`, `removeProjectMember`), no backend e no frontend.
+**Estado:** Em curso (atualizado em 2026-11-15). Feito (2026-11-10): `updateProject` e `archiveProject` no backend, com testes de API (US10). Feito (2026-11-12) no frontend: "Editar projeto" e "Arquivar projeto" só para o Gestor num projeto ativo (arquivar pede confirmação), estado do projeto e painel "Membros" só de leitura, com a função e "conta desativada" (US10, US18). Verificado no navegador a 2026-11-15 (C02, J1–J3 e J5 de verification.md). Falta a equipa (`listMemberCandidates`, `addProjectMember`, `removeProjectMember`), no backend e no frontend.
 
 **Objetivo:** o Gestor edita e arquiva o projeto e forma a equipa.
 
@@ -228,7 +241,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 ### Incremento 4 — Tarefas, responsáveis, prioridade e filtros
 
-**Estado:** Em curso
+**Estado:** Em curso (atualizado em 2026-11-15)
 
 | Parte | Estado |
 |---|---|
@@ -240,7 +253,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 | Migration `task_assignees`: tabela `task_assignee`, cópia de `task.assignee_id` e remoção da coluna (DE16). Alteração à estrutura de dados aprovada em 2026-11-11 | Feito (2026-11-11); cópia dos dados verificada numa base de dados temporária; esquema igual às migrations (`prisma migrate diff` vazio) |
 | Backend: vários responsáveis (openapi.yaml 0.5.0): `Task.assignees`, `assigneeIds` em `createProjectTask`, `assigneeId` fora de `updateTask`, `addTaskAssignee`, `removeTaskAssignee`, reabertura por pessoa (PN10); adaptar o código e os testes já feitos com um só responsável, o seed e as fixtures | Feito (2026-11-11); `test/tasks.e2e-spec.ts` com atribuir, remover, repetido (também em simultâneo), conta fora do projeto ou não ativa, reabertura por pessoa e projeto arquivado a meio do pedido; acrescentados (2026-11-11) a persistência do responsável atribuído (GET, lista, base de dados e depois de reiniciar) e remover um de três responsáveis; 186 testes de API e 95 unitários a passar nessa altura (230 e 106 em 2026-11-11, com os comentários) |
 | Reação a "membro removido" e a "conta desativada" (PN07, PN08) | À espera dos incrementos 2 e 3 |
-| Frontend: `ProjectView` (`/projetos/:projectId`) com os três grupos por estado, um pedido cada, os totais de `countsByStatus`, "Ver mais", filtros de estado e prioridade e o formulário de criação para o Gestor; `TaskDetailView` (`/tarefas/:taskId`) com edição (título, descrição, prioridade), mudança de estado e eliminação com confirmação; etiquetas num só sítio (`src/tasks/task-labels.ts`); testes de componentes e vistas | Feito (2026-11-11); por verificar no navegador |
+| Frontend: `ProjectView` (`/projetos/:projectId`) com os três grupos por estado, um pedido cada, os totais de `countsByStatus`, "Ver mais", filtros de estado e prioridade e o formulário de criação para o Gestor; `TaskDetailView` (`/tarefas/:taskId`) com edição (título, descrição, prioridade), mudança de estado e eliminação com confirmação; etiquetas num só sítio (`src/tasks/task-labels.ts`); testes de componentes e vistas | Feito (2026-11-11); verificado no navegador a 2026-11-15 (C03–C06, C09, J4, J6–J10, T1–T5, T9 de verification.md) |
 | Frontend: tipos e vistas com `assignees` (lista por ordem do nome, cada um com a sua indicação); atribuir e remover responsáveis no `TaskDetailView` e escolher responsáveis ao criar | Feito (2026-11-11); 111 testes de componentes e vistas a passar; verificado no navegador (criar com dois responsáveis, remover, atribuir, largura de telemóvel) |
 | Frontend: seletor de estado nos cartões do wireframe, ligação a partir do ecrã inicial | Feito (2026-11-12): ligação a partir do `DashboardView`; seletor de estado em cada cartão para qualquer membro num projeto ativo, que volta a pedir os grupos e o progresso |
 
@@ -283,13 +296,15 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 ### Incremento 5 — Progresso e painel inicial
 
-**Estado:** Em curso (atualizado em 2026-11-12)
+**Estado:** Em curso (atualizado em 2026-11-15)
 
 | Parte | Estado |
 |---|---|
 | Backend: contagens por estado de todas as tarefas de cada projeto em `listMyProjects` e `getProject` (`ProgressService`, `groupBy` na base de dados) | Feito no incremento 1; sem alterações ao contrato |
 | Frontend: progresso nos cartões do `DashboardView`, "Sem tarefas", "Arquivado (só de leitura)", lista vazia | Feito (2026-11-12); `DashboardView.spec.ts` e `project-labels.spec.ts`; 159 testes do frontend a passar |
 | Frontend: progresso no `ProjectView`; contagens atualizadas sem recarregar (critério 2) | Feito (2026-11-12): o `ProjectView` mostra `progress` de `getProject` (todas as tarefas, sem filtros) com o componente `ProgressIndicator`, partilhado com o `DashboardView`, e volta a pedir o projeto depois de criar uma tarefa ou de mudar um estado num cartão. Eliminar ou mudar o estado no `TaskDetailView` volta ao projeto, que é pedido de novo |
+| Verificação manual: comparar o painel com o ecrã 1 do wireframe, também a ≈375px | Feito (2026-11-15, P1–P7 de verification.md); as diferenças 1 (sem "Administração", incremento 8) e 2 (saudação e email no topo) ficam registadas em verification.md |
+| [API] contagens depois de eliminar todas as tarefas (CL7) | Por fazer: o CL7 só está testado no frontend (`project-labels.spec.ts`) |
 
 **Objetivo:** mostrar o progresso real de cada projeto no ecrã inicial e na vista do projeto.
 
@@ -319,13 +334,13 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 ### Incremento 6 — Comentários
 
-**Estado:** Em curso (atualizado em 2026-11-11)
+**Estado:** Em curso (atualizado em 2026-11-15)
 
 | Parte | Estado |
 |---|---|
 | Backend: `listTaskComments`, `createTaskComment`, `updateComment`, `deleteComment` (`CommentsController` e `CommentsService` no módulo `tasks`) | Feito (2026-11-11); `test/comments.e2e-spec.ts` (42 testes, com outro utilizador sem ser membro a listar, comentar, editar e apagar: `404`) e `comment-rules.spec.ts`; 230 testes de API e 106 unitários a passar |
 | CL12 com as operações reais de remover membro e desativar conta | Verificado só com dados alterados na base (os incrementos 2 e 3 ainda não existem) |
-| Frontend: lista e formulário de comentários no `TaskDetailView` | Feito (2026-11-11): listar, comentar, editar e apagar (botões só nos comentários próprios, componente `CommentForm`), com autor, data e hora em pt-PT e contador de caracteres; 151 testes do frontend a passar; verificado à mão no browser |
+| Frontend: lista e formulário de comentários no `TaskDetailView` | Feito (2026-11-11): listar, comentar, editar e apagar (botões só nos comentários próprios, componente `CommentForm`), com autor, data e hora em pt-PT e contador de caracteres; 151 testes do frontend a passar; verificado à mão no browser e outra vez a 2026-11-15 (C07, T6–T8 de verification.md) |
 
 **Objetivo:** os membros comentam as tarefas.
 
@@ -423,7 +438,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 ### Incremento 9 — Verificação final do MVP
 
-**Estado:** Por iniciar. Adiantada (2026-11-12) a verificação do frontend do que já existe (incrementos 1, 4, 5 e 6). A única alteração ao código foi a rota para endereços desconhecidos:
+**Estado:** Em curso (atualizado em 2026-11-15). Feita a verificação do que já existe (incrementos 1, 3, 4, 5 e 6): a do frontend a 2026-11-12 e os cenários manuais a 2026-11-15, registados em [verification.md](verification.md). Na verificação de 2026-11-12, a única alteração ao código foi a rota para endereços desconhecidos; na de 2026-11-15, as correções `45bef4e` (carácter nulo) e `095a411` (erros em Problem Details):
 
 | Verificação | Resultado (2026-11-12) |
 |---|---|
@@ -431,7 +446,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 | `npm run build` (Node.js 26.13.0 do `.nvmrc`) | Sem erros nem avisos: `vue-tsc --build` limpo e `vite build` em 82 módulos |
 | `npm run test:unit -- --run` | 18 ficheiros, 180 testes a passar |
 | Endereços desconhecidos | Rota `not-found` (`/:pathMatch(.*)*`) com o `NotFoundView`: "Página não encontrada" e "Ir para o painel". Não é pública: sem sessão, a guarda manda para a entrada com `redirect`. `src/router/__tests__/not-found.spec.ts` (3 testes); 19 ficheiros e 183 testes do frontend a passar; build sem avisos; sem sessão verificado no navegador |
-| Verificação manual por ecrã | Por executar: cenários abaixo, com os nove casos do Exercício 8 da ficha, em [verification.md](verification.md), onde se registam os resultados |
+| Verificação manual por ecrã | Executada a 2026-11-15: os cenários abaixo e os nove casos do Exercício 8 da ficha, com os resultados em [verification.md](verification.md). Todos passaram, exceto o C02, que passou em parte (sem pesquisa nem eliminação de projetos, fora do MVP, e sem criação de projetos pela interface, incremento 1). Testes nessa data: 106 unitários e 230 de API no backend e 183 no frontend, todos a passar |
 
 **Cenários de verificação manual do frontend** (backend e PostgreSQL a correr, dados de `npm run db:seed` ou criados pela API; repetir os marcados com 📱 a ≈375px):
 

@@ -7,7 +7,7 @@ Este ficheiro reúne as restrições de âmbito, as permissões, os requisitos n
 Decisões nossas, por validar com o cliente.
 
 - **O MVP inclui só as funcionalidades Must: FN01–FN09, FN12–FN14 e FN27–FN29.** A lista completa está em [requirements.md](requirements.md#4-funcionalidades).
-- **Ficam fora do MVP:** prazos (FN10), "as minhas tarefas" (FN11), pesquisa por texto e filtro por responsável (FN30), notificações (FN15), anexos (FN16), subtarefas e dependências (FN17), histórico de alterações das tarefas (FN18), relatórios (FN19), estados configuráveis (FN20), calendário e cronograma (FN21).
+- **Ficam fora do MVP:** prazos (FN10), "as minhas tarefas" (FN11), pesquisa por texto e filtro por responsável (FN30), notificações (FN15), anexos (FN16), subtarefas e dependências (FN17), histórico de alterações das tarefas (FN18), relatórios (FN19), estados configuráveis (FN20), calendário e cronograma (FN21), pesquisa de projetos e eliminação de projetos (os projetos arquivam-se; decisão interna, 2026-11-15).
 - **Excluídos nesta fase:** utilizadores externos (FN22, R4), registo de tempo (FN23), práticas ágeis como sprints e backlog (FN24), integrações e migração de dados (FN25), várias línguas (FN26).
 - **As contas não têm papel próprio:** em cada projeto, uma conta é Gestor ou Membro; Administrador é uma permissão da conta, acumulável com essas funções (DE01, DE02).
 - **Cada projeto tem exatamente um Gestor** (DE06).
@@ -103,7 +103,7 @@ Pontos complementares, decididos na mesma data (decisões internas, por validar)
 |---|---|
 | O Administrador pode nomear-se a si próprio Gestor de um projeto onde não participa? | CL10, PN14 |
 | Como volta a ter acesso uma pessoa cuja conta foi desativada, se a conta não pode ser reativada e o email é único? | CL11, PN11, PN17 |
-| Um projeto arquivado pode voltar a ficar ativo? Um projeto pode ser eliminado? | US10, PN09 |
+| Um projeto arquivado pode voltar a ficar ativo? (A eliminação de projetos fica fora do MVP: os projetos arquivam-se; decisão interna, 2026-11-15, requirements.md §5.) | US10, PN09 |
 | Como se recupera o acesso quando a pessoa se esquece da palavra-passe? Pode usar o mesmo mecanismo de token da ativação (DE15). | D06, DE15, US01 |
 | Uma conta pendente pode receber a permissão de Administrador? | US11, DE15 |
 | Quais são os limites de comprimento do nome e do email de uma conta? | US02, PN11 |
