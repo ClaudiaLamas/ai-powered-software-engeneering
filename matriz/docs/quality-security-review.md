@@ -2,7 +2,19 @@
 
 ## 1. Code Review
 
-(por preencher)
+Revisão do diff do ramo `aula04-testes` face ao `main` (`git diff main...HEAD`), centrada em bugs, validações, tratamento de erros e testes frágeis ou em falta. Não foram encontrados bugs na aplicação; os findings são de testes e da configuração E2E. CR1 veio da revisão humana; CR2–CR7, da revisão com IA (2026-11-15).
+
+| # | Origem | Ficheiro:linha | Finding | Severidade | Estado | Correção ou decisão |
+|---|---|---|---|---|---|---|
+| CR1 | Humana | `backend/src/tasks/task-rules.spec.ts:10-12` | Os testes importavam `TITLE_MIN`, `TITLE_MAX` e `DESCRIPTION_MAX` do código de produção (`task-rules.ts`): se o limite mudasse no código sem mudar o PN12, os testes acompanhavam a mudança e continuavam a passar. | Média | Corrigido (`e25da94`) | Limites definidos no próprio teste a partir do PN12 (3, 150, 2000). |
+| CR2 | IA | `backend/src/tasks/task-rules.spec.ts:37`, `:57-58` | Os casos com `'a'` e `'é'` precomposto não distinguiam pontos de código de unidades UTF-16; com `text.length`, todos os testes passavam (H1 do `test-plan.md`). | Média | Corrigido | Casos com emoji fora do BMP: aceita 150, recusa 2 e 151. Com `text.length` no lugar do `charLength`, os casos de 150 e de 2 falham. |
+| CR3 | IA | `frontend/playwright.config.ts:26` | O reset E2E valida o nome da base (`_test`), mas não o servidor: se o `backend/.env` apontar para um PostgreSQL partilhado ou remoto, cria e esvazia a `<nome>_e2e_test` nesse servidor. Hipótese; hoje aponta para o Docker local. | Baixa | Pendente | Proposta: recusar no config qualquer host que não seja `localhost`, `127.0.0.1` ou `::1`. |
+| CR4 | IA | `backend/test/tasks.e2e-spec.ts:1551`, `:1591` | T08 só verificava a resposta da API; T24 não confirmava que a edição recusada com `403` deixava o título como estava. | Baixa | Corrigido | T08 lê o título gravado na base; T24 confirma que o título continua `'Original'`. |
+| CR5 | IA | `frontend/e2e/create-task.spec.ts:5` | Email, nome e UUID do projeto copiados à mão do `seed.ts`: se o seed mudar, o teste falha com um erro de seletor ou URL em vez da causa real. | Baixa | Pendente | Proposta: comentar a ligação ao `seed.ts` ou deixar de verificar o UUID na URL. |
+| CR6 | IA | `frontend/playwright.config.ts:47` | O comprimento mínimo de `E2E_PASSWORD` (12) só é validado pelo seed, dentro do `webServer`, depois das migrations e do reset; o config exige a variável mesmo em comandos sem testes (hipótese). | Baixa | Pendente | Proposta: validar o comprimento no config, com mensagem clara. |
+| CR7 | IA | `frontend/playwright.config.ts:69` | O backend E2E (`nest start`) compila para o mesmo `backend/dist` do `start:dev`; com os dois a correr, podem colidir. Hipótese; não observado. | Baixa | Pendente | Só se o problema aparecer: pasta de compilação própria ou nota no README. |
+
+Verificações: `npm run lint` sem erros; `npm test` (backend) com 117 testes a passar e `npm run test:e2e` (backend) com 252, depois das correções de CR2 e CR4; `npm run test:e2e` (frontend) a passar antes da revisão.
 
 ## 2. Security Review
 
