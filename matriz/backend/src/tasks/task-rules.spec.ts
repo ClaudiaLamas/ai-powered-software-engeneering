@@ -1,12 +1,15 @@
 import { ProblemException } from '../common/problem.js';
 import {
-  DESCRIPTION_MAX,
-  TITLE_MAX,
-  TITLE_MIN,
   assigneesRemovedOnStatusChange,
   normalizeDescription,
   normalizeTitle,
 } from './task-rules.js';
+
+// Limites vindos do requisito, não do código de produção: se o código mudar
+// sem o requisito mudar, estes testes falham.
+const TITLE_MIN = 3; // PN12
+const TITLE_MAX = 150; // PN12
+const DESCRIPTION_MAX = 2000; // PN12
 
 function problemOf(fn: () => unknown): ProblemException {
   try {
@@ -40,6 +43,13 @@ describe('Regras da tarefa (PN12)', () => {
       ['curto demais', 'ab'],
       ['curto demais depois de aparado', '  ab  '],
       ['longo demais', 'a'.repeat(TITLE_MAX + 1)],
+      // "Só espaços" é qualquer espaço em branco Unicode, como o pattern '\S'
+      // do OpenAPI (docs/test-plan.md, H2).
+      ['só com tabs', '\t\t\t'],
+      ['só com quebras de linha', '\n\n\n'],
+      ['só com espaços não separáveis (NBSP)', '   '],
+      // Contagem em pontos de código (docs/test-plan.md, H1).
+      ['longo demais, com acentos', 'é'.repeat(TITLE_MAX + 1)],
     ])('recusa um título %s com TITLE_INVALID', (_, title) => {
       const problem = problemOf(() => normalizeTitle(title));
       expect(problem.status).toBe(400);
