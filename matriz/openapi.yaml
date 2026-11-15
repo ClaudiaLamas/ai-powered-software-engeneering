@@ -21,7 +21,11 @@ info:
     - Erros no formato Problem Details (RFC 9457), com um campo `code` estável.
     - Erros comuns, não repetidos em cada operação: `400 VALIDATION_ERROR`
       (JSON mal formado, campo desconhecido ou UUID inválido) e
-      `401 UNAUTHENTICATED`.
+      `401 UNAUTHENTICATED`. Também em Problem Details (decisão interna,
+      2026-11-15): `404 NOT_FOUND` para um endereço que não corresponde a
+      nenhuma operação, `413 PAYLOAD_TOO_LARGE` para um corpo maior do que o
+      limite (100 kB) e `500 INTERNAL_ERROR` para um erro inesperado, sem
+      detalhes. O `503` de `getHealth` mantém o seu corpo (`HealthStatus`).
     - Um projeto onde a conta não participa responde `404`, como um projeto
       que não existe, para não revelar que existe (DE02, PN02, RNF02). O mesmo
       vale para as suas tarefas, comentários e pedidos de responsável
@@ -36,6 +40,10 @@ info:
     - A conta que faz o pedido vem sempre do token. O corpo nunca traz
       `authorId`, `ownerId` ou `accountId` da própria conta: um campo que não
       está no esquema dá `400 VALIDATION_ERROR`.
+    - Um texto com o carácter nulo (`\u0000`) no nome ou na descrição do
+      projeto, no título ou na descrição da tarefa ou no texto do comentário
+      dá `400 VALIDATION_ERROR`, com o erro no campo (decisão interna,
+      2026-11-15).
     - Qualquer escrita num projeto arquivado responde `409 PROJECT_ARCHIVED`
       (PN09).
     - Ordem das verificações (decisão interna, 2026-11-09): `401` (sessão) →
@@ -52,8 +60,28 @@ info:
       prioridade (decisão interna, 2026-11-10).
 
     Fora do MVP e fora deste contrato: pesquisa por texto e filtro por
-    responsável (FN30), prazo (FN10), notificações (FN15) e eliminação de
-    projetos (questão em aberto).
+    responsável (FN30), prazo (FN10), notificações (FN15), pesquisa de
+    projetos e eliminação de projetos. Os projetos retiram-se de uso
+    arquivando-os (`archiveProject`); não há `DELETE /projects/{projectId}`
+    (decisão interna, 2026-11-15).
+
+    Estado da implementação (2026-11-15; ver
+    `docs/implementation-plan.md`). Implementadas, com o comportamento
+    descrito aqui: `getHealth`, `login`, `logout`, `getMe`,
+    `listMyProjects`, `createProject`, `getProject`, `updateProject`,
+    `archiveProject`, `listProjectTasks`, `createProjectTask`,
+    `listAssignableAccounts`, `getTask`, `updateTask`, `deleteTask`,
+    `changeTaskStatus`, `addTaskAssignee`, `removeTaskAssignee`,
+    `listTaskComments`, `createTaskComment`, `updateComment` e
+    `deleteComment`. Ainda por implementar (o backend responde
+    `404 NOT_FOUND`): `activateAccount`, `listAccounts`, `createAccount`,
+    `deactivateAccount`, `resendInvite`, `grantAdmin`, `revokeAdmin`
+    (incremento 2); `listMemberCandidates`, `addProjectMember`,
+    `removeProjectMember` (incremento 3); `listTaskAssigneeRequests`,
+    `createAssigneeRequest`, `listProjectAssigneeRequests`,
+    `acceptAssigneeRequest`, `rejectAssigneeRequest`,
+    `cancelAssigneeRequest` (incremento 7); `changeProjectManager`,
+    `listAllProjects`, `listAuditLog` (incremento 8).
 
     Alterações na 0.5.0 (decisão interna, 2026-11-11; quebra a
     compatibilidade): uma tarefa tem zero ou mais responsáveis (DE16).

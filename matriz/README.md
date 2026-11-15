@@ -55,23 +55,35 @@ As funções e a permissão são **decisões internas, por validar com o cliente
 
 ## Execução local
 
-Ainda não é possível entrar na aplicação: o login (US01) faz parte do incremento 1, que está em curso. Por agora, arrancam o PostgreSQL, o backend (com `GET /health`) e o frontend gerado pelo `create-vue`.
+Passos para correr a Matriz numa máquina a partir de um clone limpo. Todos os comandos partem da pasta `matriz/` (onde está este ficheiro), salvo indicação em contrário. O que já funciona na aplicação está em [docs/implementation-plan.md](docs/implementation-plan.md): por agora, entrar e sair, o painel, os projetos (sem criação pela interface nem gestão da equipa), as tarefas, os responsáveis e os comentários.
 
 ### 1. Requisitos
 
-- Node.js na versão de [`.nvmrc`](.nvmrc) (26.13.0 LTS): `nvm install` e depois `nvm use` nesta pasta.
-- Docker com Docker Compose, para o PostgreSQL.
+| Ferramenta | Versão | Notas |
+|---|---|---|
+| Node.js | A de [`.nvmrc`](.nvmrc) (26.13.0), com o npm que a acompanha (11.20.0) | Instalada e escolhida com o [nvm](https://github.com/nvm-sh/nvm): `nvm install` (só da primeira vez) e `nvm use`. O nvm procura o `.nvmrc` na pasta atual e nas de cima, por isso `nvm use` funciona em `matriz/`, `backend/` e `frontend/`. Corre `nvm use` em cada terminal novo |
+| Docker | Docker Engine com o Docker Compose v2 (comando `docker compose`) | Corre o PostgreSQL 18 (`postgres:18-alpine`, ver [`docker-compose.yml`](docker-compose.yml)). Testado com Docker 29.9.3 e Compose 2.40.3 |
+| Git | — | Para clonar o repositório |
+| `curl` e `jq` | — | Opcionais: só para os pedidos diretos à API mais abaixo |
 
-### 2. Instalação
+```bash
+nvm install
+nvm use
+node -v        # tem de mostrar v26.13.0
+```
+
+### 2. Instalação das dependências
 
 ```bash
 cd backend && npm install && cd ..
 cd frontend && npm install && cd ..
 ```
 
-### 3. Configuração do `.env`
+`npm install` instala as versões fixadas em `backend/package-lock.json` e `frontend/package-lock.json`.
 
-Há três ficheiros `.env`, todos ignorados pelo Git. Cria cada um a partir do `.env.example` respetivo e muda os valores fictícios:
+### 3. Configuração (`.env`)
+
+Há três ficheiros `.env`, todos ignorados pelo Git. Cria cada um a partir do `.env.example` respetivo e muda os valores fictícios (em particular as palavras-passe e o `JWT_SECRET`):
 
 ```bash
 cp .env.example .env
@@ -79,74 +91,125 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-| Ficheiro | Variáveis | Para quê |
-|---|---|---|
-| `.env` | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT` | Utilizador, palavra-passe, base de dados e porta do PostgreSQL do `docker-compose.yml` |
-| `backend/.env` | `PORT` | Porta da API (por omissão, 3000) |
-| | `DATABASE_URL` | Ligação ao PostgreSQL. Tem de usar os mesmos valores do `.env` da raiz |
-| | `JWT_SECRET` | Segredo para assinar os JWT (D06). Usa um valor aleatório e longo |
-| | `JWT_EXPIRES_IN_SECONDS` | Validade dos JWT, em segundos. Opcional; por omissão 3600 (1 hora, D06) |
-| | `SEED_DEMO_PASSWORD` | Palavra-passe das contas de demonstração do seed, com pelo menos 12 caracteres |
-| `frontend/.env` | `VITE_API_URL` | Endereço da API, para onde o Vite encaminha os pedidos `/api` em desenvolvimento. Não ponhas segredos aqui |
+| Ficheiro | Variável | Obrigatória | Para quê |
+|---|---|---|---|
+| `.env` | `POSTGRES_USER` | Sim | Utilizador do PostgreSQL criado pelo `docker-compose.yml` |
+| | `POSTGRES_PASSWORD` | Sim | Palavra-passe desse utilizador |
+| | `POSTGRES_DB` | Sim | Nome da base de dados de desenvolvimento (no exemplo, `matriz`) |
+| | `POSTGRES_PORT` | Não (5432) | Porta da máquina onde o PostgreSQL fica disponível, só em `127.0.0.1` |
+| `backend/.env` | `PORT` | Não (3000) | Porta da API |
+| | `DATABASE_URL` | Sim | Ligação ao PostgreSQL, no formato `postgresql://<utilizador>:<palavra-passe>@localhost:<porta>/<base de dados>?schema=public`. Tem de usar os mesmos valores do `.env` da raiz |
+| | `TEST_DATABASE_URL` | Não | Base de dados dos testes de API. Por omissão, a de `DATABASE_URL` com `_test` no fim do nome (`matriz_test`). Tem de terminar em `_test` |
+| | `JWT_SECRET` | Sim | Segredo para assinar os JWT (D06). Usa um valor aleatório e longo. Sem ele, a API não arranca |
+| | `JWT_EXPIRES_IN_SECONDS` | Não (3600) | Validade dos JWT, em segundos (1 hora, D06) |
+| | `SEED_DEMO_PASSWORD` | Para o seed | Palavra-passe das contas de demonstração, com pelo menos 12 caracteres |
+| `frontend/.env` | `VITE_API_URL` | Não (`http://localhost:3000`) | Endereço da API, para onde o Vite encaminha os pedidos `/api` em desenvolvimento. Fica visível no navegador: não ponhas segredos aqui |
 
-O backend carrega `backend/.env` ao arrancar. As variáveis já definidas no ambiente têm prioridade sobre as do ficheiro.
+O backend carrega `backend/.env` ao arrancar (e o Prisma, nas migrations e no seed). As variáveis já definidas no ambiente têm prioridade sobre as do ficheiro.
 
 ### 4. Arranque do PostgreSQL
 
 ```bash
 docker compose up -d
-docker compose ps        # espera pelo estado "healthy"
+docker compose ps        # espera pelo estado "healthy" do contentor matriz-postgres
 ```
 
-O PostgreSQL só aceita ligações da própria máquina (`127.0.0.1`). Os dados ficam no volume `matriz_pgdata`.
+O PostgreSQL só aceita ligações da própria máquina (`127.0.0.1`). Os dados ficam no volume `matriz_pgdata` e mantêm-se quando o contentor para (`docker compose down`).
 
-### 5. Migrations
+### 5. Esquema da base de dados (migrations)
 
 ```bash
 cd backend
 npx prisma generate         # gera o cliente Prisma em src/generated/ (ignorado pelo Git)
-npx prisma migrate deploy   # aplica as migrations de prisma/migrations/
+npx prisma migrate deploy   # aplica as migrations de prisma/migrations/ à base de dados de DATABASE_URL
+npx prisma migrate status   # confirma: "Database schema is up to date!"
 ```
 
-Volta a correr `npx prisma generate` sempre que `prisma/schema.prisma` mudar.
+Volta a correr `npx prisma generate` depois de cada `git pull` que mude `prisma/schema.prisma`, e `npx prisma migrate deploy` quando houver migrations novas.
 
-### 6. Seed
+### 6. Dados de demonstração (seed)
 
 ```bash
 cd backend
 npm run db:seed
 ```
 
-O seed cria os dados de demonstração. Nunca corre no arranque e pode correr várias vezes: só cria o que falta e nunca altera nem apaga dados. Por isso, mudar `SEED_DEMO_PASSWORD` depois do seed não muda a palavra-passe das contas já criadas. Se `SEED_DEMO_PASSWORD` faltar ou tiver menos de 12 caracteres, o seed pára com uma mensagem.
+O seed ([`backend/prisma/seed.ts`](backend/prisma/seed.ts)) cria contas, três projetos, tarefas, responsáveis e comentários fictícios. Nunca corre no arranque e pode correr várias vezes: só cria o que falta e nunca altera nem apaga dados. Por isso, mudar `SEED_DEMO_PASSWORD` depois do seed não muda a palavra-passe das contas já criadas. Se `SEED_DEMO_PASSWORD` faltar ou tiver menos de 12 caracteres, o seed pára com uma mensagem.
 
 ### 7. Contas de demonstração
 
-Todas as contas com palavra-passe usam o valor de `SEED_DEMO_PASSWORD`. Os dados são fictícios.
+As contas com palavra-passe usam todas o valor de `SEED_DEMO_PASSWORD` que estava em `backend/.env` quando o seed as criou. A palavra-passe não está escrita em nenhum ficheiro do repositório. Os dados são fictícios.
 
 | Conta | Estado | Projetos (função) |
 |---|---|---|
 | `admin@matriz.test` (conta de sistema, Administrador) | Ativa | nenhum: o Administrador só vê os projetos onde participa (DE02) |
 | `ana.silva@matriz.test` | Ativa | Campanha de primavera (Gestor), Portal de clientes (Gestor) |
 | `bruno.costa@matriz.test` | Ativa | Renovação do escritório (Gestor), Portal de clientes (Membro) |
-| `carla.mendes@matriz.test` | Pendente, sem palavra-passe | Campanha de primavera (Membro) |
-| `duarte.lopes@matriz.test` | Desativada | nenhum |
+| `carla.mendes@matriz.test` | Pendente, sem palavra-passe: não consegue entrar | Campanha de primavera (Membro) |
+| `duarte.lopes@matriz.test` | Desativada: não consegue entrar | nenhum |
 
 ### 8. Arranque do backend
 
+Num terminal:
+
 ```bash
 cd backend
+nvm use
 npm run start:dev
 ```
 
-A API fica em `http://localhost:3000`. Para confirmar que arrancou e que acede à base de dados:
+A API fica em `http://localhost:3000` (ou na porta de `PORT`) e recarrega ao gravar. Para confirmar que arrancou e que acede à base de dados:
 
 ```bash
 curl -i http://localhost:3000/health
 ```
 
-Responde `200 {"status":"ok","database":"up"}` ou, sem acesso à base de dados, `503 {"status":"error","database":"down"}`. Outros comandos (testes, lint, build) estão em [backend/README.md](backend/README.md).
+Responde `200 {"status":"ok","database":"up"}` ou, sem acesso à base de dados, `503 {"status":"error","database":"down"}`. Outros comandos estão em [backend/README.md](backend/README.md).
 
-### Ciclo do token (D06)
+### 9. Arranque do frontend
+
+Noutro terminal, com o backend a correr:
+
+```bash
+cd frontend
+nvm use
+npm run dev
+```
+
+Abre `http://localhost:5173` (o endereço aparece no terminal) e entra com uma das contas ativas acima. Outros comandos estão em [frontend/README.md](frontend/README.md).
+
+### 10. Testes e outras verificações
+
+| Onde | Comando | O que faz |
+|---|---|---|
+| `backend/` | `npm test` | Testes unitários (Vitest) |
+| `backend/` | `npm run test:e2e` | Testes de API (Vitest + Supertest). Precisam do PostgreSQL a correr |
+| `backend/` | `npm run test:cov` | Testes unitários com cobertura |
+| `backend/` | `npm run lint` | Lint (oxlint) de `src/` e `test/` |
+| `backend/` | `npm run build` | Compila para `dist/` |
+| `frontend/` | `npm run test:unit -- --run` | Testes de componentes, vistas e cliente (Vitest), uma só vez. Sem `-- --run`, fica a observar os ficheiros |
+| `frontend/` | `npm run build` | Verifica os tipos (`vue-tsc`) e compila para `dist/` |
+
+Os testes de API nunca usam a base de dados de desenvolvimento: usam `matriz_test` (ou `TEST_DATABASE_URL`). Antes de cada execução, `backend/test/global-setup.ts` aplica as migrations a essa base, criando-a se não existir, e esvazia todas as tabelas. Recusa qualquer nome que não termine em `_test`. O frontend não tem lint configurado.
+
+### 11. Problemas comuns
+
+| Sintoma | Causa provável | Solução |
+|---|---|---|
+| `npm warn EBADENGINE` no frontend, ou erros estranhos ao instalar, compilar ou testar | Versão errada do Node.js (por exemplo, um terminal novo sem `nvm use`) | `nvm use` e confirma `node -v` = `v26.13.0`. Se mudaste de versão depois de instalar, apaga `node_modules/` e corre `npm install` outra vez |
+| `nvm: command not found` ou `N/A: version "v26.13.0" is not yet installed` | O nvm não está instalado ou não tem esta versão | Instala o nvm e corre `nvm install` na pasta `matriz/` |
+| `docker compose up` falha com "Define POSTGRES_USER no .env" (ou outra variável) | Falta o `.env` da raiz | `cp .env.example .env` e preenche os valores |
+| `docker compose up` falha com a porta 5432 ocupada | Outro PostgreSQL na máquina | Muda `POSTGRES_PORT` no `.env` e a porta em `DATABASE_URL` no `backend/.env` |
+| Migrations ou seed falham com erro de autenticação no PostgreSQL | `DATABASE_URL` não coincide com o `.env` da raiz, ou a palavra-passe mudou depois de o volume ser criado (o PostgreSQL só usa `POSTGRES_PASSWORD` na primeira vez) | Acerta `DATABASE_URL`. Se mudaste `POSTGRES_PASSWORD`, repõe o valor antigo; apagar o volume (`docker compose down -v`) apaga todos os dados |
+| Migrations, seed ou testes de API falham sem conseguir ligar à base de dados | O PostgreSQL não está a correr | `docker compose up -d` e espera por `healthy` |
+| A API ou o seed falham porque não encontram `src/generated/prisma` | O cliente Prisma não foi gerado (a pasta não vem no clone) | `cd backend && npx prisma generate` |
+| A API não arranca: "Define JWT_SECRET no backend/.env" | Falta o `backend/.env` ou o `JWT_SECRET` | `cp backend/.env.example backend/.env` e define `JWT_SECRET` |
+| O seed pára: "Falta a variável de ambiente SEED_DEMO_PASSWORD" ou "tem de ter pelo menos 12 caracteres" | `SEED_DEMO_PASSWORD` em falta ou curta | Define-a em `backend/.env` com pelo menos 12 caracteres |
+| O login das contas de demonstração dá "O email ou a palavra-passe estão errados." | Estás a usar outra palavra-passe, não a de `SEED_DEMO_PASSWORD` quando o seed criou as contas; ou a conta é a da Carla, que está pendente | Usa a palavra-passe da altura do seed. Mudar `SEED_DEMO_PASSWORD` depois não muda as contas já criadas |
+| No frontend, "Não foi possível contactar o servidor. Tente outra vez." | O backend não está a correr ou `VITE_API_URL` aponta para outro endereço (o Vite responde `502` em `/api`) | Arranca o backend e confirma `curl -i http://localhost:3000/health` e o `frontend/.env` |
+| Os testes de API recusam a base de dados: 'tem de terminar em "_test"' | `TEST_DATABASE_URL` aponta para uma base sem `_test` no nome | Corrige `TEST_DATABASE_URL` ou apaga-a, para usar `matriz_test` |
+
+### Pedidos diretos à API: ciclo do token (D06)
 
 1. **Entrar:** `POST /auth/login` com `{ "email", "password" }`. O backend compara a palavra-passe com o hash bcrypt e devolve `{ accessToken, tokenType: "Bearer", expiresIn, account }`, sem o hash.
    - Email desconhecido, palavra-passe errada ou conta pendente: sempre `401 INVALID_CREDENTIALS`, com a mesma mensagem e o mesmo tempo de resposta, para não revelar se o email existe.
@@ -155,21 +218,14 @@ Responde `200 {"status":"ok","database":"up"}` ou, sem acesso à base de dados, 
 3. **Validade:** `JWT_EXPIRES_IN_SECONDS` (por omissão 3600). Não há renovação: quando o token expira, o frontend apaga a sessão e volta ao ecrã de entrada com "A sessão expirou. Inicie sessão novamente."
 4. **Sair:** `POST /auth/logout` responde `204`. O backend não revoga o token: o frontend apaga-o do `sessionStorage` e volta ao ecrã de entrada. Um token copiado antes de sair continua válido até expirar.
 
+Exemplo com `curl` e `jq`, com `SEED_DEMO_PASSWORD` exportada na shell (não escrevas a palavra-passe no comando):
+
 ```bash
 TOKEN=$(curl -s -X POST localhost:3000/auth/login -H 'Content-Type: application/json' \
   -d "{\"email\":\"ana.silva@matriz.test\",\"password\":\"$SEED_DEMO_PASSWORD\"}" | jq -r .accessToken)
 curl -s localhost:3000/me -H "Authorization: Bearer $TOKEN"
 curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:3000/auth/logout -H "Authorization: Bearer $TOKEN"
 ```
-
-### 9. Arranque do frontend
-
-```bash
-cd frontend
-npm run dev
-```
-
-Abre `http://localhost:5173`. Outros comandos estão em [frontend/README.md](frontend/README.md).
 
 ## Documentação
 

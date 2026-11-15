@@ -150,6 +150,7 @@ As pessoas da empresa entram com a sua conta e trabalham nos projetos onde parti
 | Primeiro incremento (Should) | FN10, FN11, FN30 | Tornam o uso diário mais eficiente, mas o MVP já cumpre F3–F5 sem elas. |
 | Incrementos seguintes (Could) | FN15–FN21 | Respondem a pressupostos (P4, P6, P9, P10) ou a perguntas sem resposta (14, 24); nenhuma deriva diretamente do cliente. |
 | Excluídas nesta fase (Won't) | FN22–FN26 | Dependem de respostas que não temos (perguntas 2, 7, 20, 28, 29). |
+| Sem ID de funcionalidade | Pesquisa de projetos e eliminação de projetos | Decisão interna (2026-11-15). Os projetos retiram-se de uso arquivando-os (FN03, US10). |
 
 ## 6. Perguntas ao cliente ainda por responder
 

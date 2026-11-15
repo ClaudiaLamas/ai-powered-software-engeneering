@@ -8,12 +8,12 @@ A tecnologia foi decidida depois (D01–D06, D08 e D09, ver [constraints.md](con
 
 | Fator | O que sabemos | Origem |
 |---|---|---|
-| Âmbito | 14 funcionalidades Must (FN01–FN09, FN12–FN14, FN27, FN28), num único domínio: contas, projetos, tarefas e comentários. | requirements.md §5 |
+| Âmbito | 15 funcionalidades Must (FN01–FN09, FN12–FN14, FN27–FN29), num único domínio: contas, projetos, tarefas, pedidos de responsável e comentários. | requirements.md §5 |
 | Escala | Até cerca de 10 equipas e 100 pessoas no arranque. | RNF01, R3 |
 | Regras de negócio | Muitas regras que atravessam entidades: o responsável tem de ser membro do projeto (PN06), projeto arquivado só de leitura (PN09), um só Gestor por projeto (DE06), o último Administrador não pode ser removido (DE05). | constraints.md §2 |
 | Segurança | Só os membros veem o conteúdo de um projeto; a permissão de Administrador não dá esse acesso. | RNF02, DE02 |
 | Incerteza | Quase tudo são pressupostos e decisões internas por validar; o modelo pode mudar depois de falar com o cliente. | requirements.md §2 |
-| Equipa e estado | A especificação está concluída; ainda não há código. | AGENTS.md |
+| Equipa e estado | Quando esta decisão foi tomada, a especificação estava concluída e ainda não havia código. A implementação segue esta arquitetura; o estado de cada incremento está em implementation-plan.md. | AGENTS.md, implementation-plan.md |
 
 ## 2. Comparação das opções
 
@@ -76,34 +76,36 @@ O nome entre parênteses é o nome do módulo no código, em inglês. As entidad
 
 | Componente | Responsabilidade | Funcionalidades e regras |
 |---|---|---|
-| **Frontend** | Interface em português (RNF03) para entrar na aplicação, ver os projetos, gerir tarefas e comentários, ver o progresso e, para quem tem permissão de Administrador, a área de administração. Mostra ou esconde ações conforme as permissões, mas **não** é a garantia de segurança: todas as regras são verificadas no backend. | FN01–FN09, FN12–FN14, FN27, FN28 |
+| **Frontend** | Interface em português (RNF03) para entrar na aplicação, ver os projetos, gerir tarefas e comentários, ver o progresso e, para quem tem permissão de Administrador, a área de administração. Mostra ou esconde ações conforme as permissões, mas **não** é a garantia de segurança: todas as regras são verificadas no backend. | FN01–FN09, FN12–FN14, FN27–FN29 |
 | **API** | Ponto de entrada único do backend. Recebe os pedidos do frontend, identifica a conta, encaminha para o módulo certo e devolve respostas e mensagens de erro (por exemplo, "o título é obrigatório"). | Todas |
 | **Módulo Autenticação e contas** (`accounts`) | Entrada na aplicação com a conta de cada pessoa; recusa contas pendentes e desativadas. Criar e desativar contas; ativar contas pelo link enviado por email (gerar o token, guardar só o seu hash, validá-lo e invalidá-lo) e reenviar o convite; enviar o email de ativação; dar e retirar a permissão de Administrador; proteger a conta de sistema e o último Administrador ativo. | FN01, FN02; DE03–DE05, DE15, PN16, PN17; US01, US02, US11 |
 | **Módulo Autorização** (`authorization`) | Componente transversal que responde a "esta conta pode fazer esta ação neste projeto?". Usa a permissão de Administrador e a função (Gestor ou Membro) da conta no projeto, e aplica as regras gerais: só membros acedem ao conteúdo (RNF02), projeto arquivado só de leitura (PN09). A API consulta-o antes de encaminhar cada pedido (§4.2). Os identificadores são UUID, mas não substituem esta verificação: saber o UUID de um recurso não dá acesso a ele. | RNF02; DE01, DE02, PN02, PN09; tabela de permissões em constraints.md §2 |
 | **Módulo Projetos e membros** (`projects`) | Criar projetos e atribuir o Gestor (Administrador); editar e arquivar (Gestor); adicionar e remover membros (Gestor); trocar o Gestor (Administrador); listar os projetos de cada conta; área de administração com a lista de todos os projetos. Garante exatamente um Gestor por projeto. | FN03, FN04, FN05, FN27; DE06–DE08; US03, US04, US05, US10, US12 |
-| **Módulo Tarefas e comentários** (`tasks`) | Criar, editar e eliminar tarefas e atribuir e remover responsáveis (Gestor); pedidos de responsável: criar (responsável da tarefa), aceitar e recusar (Gestor), cancelar (quem pediu); mudar o estado entre os três estados fixos (Gestor e Membro); listar tarefas agrupadas por estado; criar, editar e apagar os próprios comentários. Valida que cada responsável é membro do projeto com conta ativa, consultando os módulos Projetos e membros e Autenticação e contas. | FN06, FN07, FN08, FN14, FN29; R7, R8, DE09–DE11, DE13, DE16, PN06, PN21; US06, US07, US08, US13, US31 |
+| **Módulo Tarefas e comentários** (`tasks`) | Criar, editar e eliminar tarefas e atribuir e remover responsáveis (Gestor); pedidos de responsável: criar (responsável da tarefa), aceitar e recusar (Gestor), cancelar (quem pediu); mudar o estado entre os três estados fixos (Gestor e Membro); listar tarefas agrupadas por estado; criar, editar e apagar os próprios comentários. Valida que cada responsável é membro do projeto com conta ativa, lendo as tabelas `project_member` e `account` (§4.2). | FN06, FN07, FN08, FN14, FN29; R7, R8, DE09–DE11, DE13, DE16, PN06, PN21; US06, US07, US08, US13, US31 |
 | **Módulo Progresso** (`progress`) | Calcula, por projeto, o número de tarefas em cada estado e a percentagem de tarefas concluídas; trata o caso "Sem tarefas". Só lê dados; não altera nada. | FN09; R9; US09 |
 | **Módulo Registo administrativo** (`audit`) | Guarda quem fez cada ação administrativa, qual e quando (contas, permissão de Administrador, criação de projetos, troca de Gestor). Os módulos Autenticação e contas e Projetos e membros registam aqui as suas ações. Permite ao Administrador consultar o registo. | FN28; DE12; US14 |
-| **Infraestrutura do backend** (`prisma`, `health`) | Não é um módulo de negócio. `prisma` disponibiliza o cliente Prisma partilhado (`PrismaService`), usado por todos os módulos. `health` expõe `GET /health`, sem autenticação, que confirma que a API está a correr e acede à base de dados (decisão interna, 2026-11-08). | — |
+| **Infraestrutura do backend** (`prisma`, `health`, `common`) | Não é um módulo de negócio. `prisma` disponibiliza o cliente Prisma partilhado (`PrismaService`), usado por todos os módulos. `health` expõe `GET /health`, sem autenticação, que confirma que a API está a correr e acede à base de dados (decisão interna, 2026-11-08). `common` tem o que é partilhado pela API: erros em Problem Details (`ProblemDetailsFilter`, `ProblemException`), a validação dos identificadores do caminho (`@IdParam()`), as regras de texto e o validador `NoNulChar` (decisão interna, 2026-11-15). | — |
 | **Base de dados** | Guarda contas, projetos, funções das contas em cada projeto, tarefas, comentários e o registo administrativo. É única e partilhada pelos módulos, mas cada módulo só escreve nos seus próprios dados. É PostgreSQL (D04). | Todas |
 
 ### 4.2 Regras entre módulos
 
-- Cada módulo expõe uma interface própria; os outros módulos não acedem diretamente aos seus dados.
+- Cada módulo só escreve nas suas próprias tabelas (database.md §1). As leituras de tabelas de outros módulos são feitas diretamente com o `PrismaService` partilhado, por consultas com junções, em vez de chamadas à interface do módulo dono (ver a tabela abaixo). Era o desenho inicial que os módulos não acedessem aos dados uns dos outros; a implementação ficou assim porque a base de dados é única e as leituras com junções evitam vários pedidos (diferença face ao desenho inicial, registada a 2026-11-15 a partir do código; por decidir se se mantém ou se o código passa a usar as interfaces dos módulos).
 - Todas as ações passam pelo módulo `authorization` antes de serem executadas: a API consulta-o antes de encaminhar cada pedido para o módulo responsável.
 - Todas as rotas exigem sessão, exceto as marcadas como públicas (`login`, `activate`, `health`). Em cada pedido, a conta (estado e permissão de Administrador) é lida na base de dados, não no token (D06). Ordem das verificações: `401` → `403 NOT_ADMIN` → `400 VALIDATION_ERROR` (formato) → `404` (não é membro) → `403` (função ou autoria) → `409` (arquivado) → `400` das regras (decisão interna, 2026-11-09).
 - Cada operação de um projeto, tarefa ou comentário usa a conta do token (`@CurrentAccount()`), valida os identificadores do caminho (`@IdParam()`) e chama o `AuthorizationService` antes de fazer a operação: `requireMember`, `requireTask` ou `requireComment` (`404` a quem não é membro, como a um recurso que não existe) → `requireManager` ou `requireCommentAuthor` (`403`) → `requireWritable` (`409`). As verificações ficam no serviço e não num guard porque os guards correm antes da validação do pedido, e o `400` de formato vem antes do `404`. O acesso a uma tarefa, às suas atribuições e aos seus comentários é o acesso ao projeto da tarefa.
-- Um módulo só pode chamar os módulos indicados na tabela abaixo. As dependências não formam ciclos.
+- Um módulo só chama os módulos indicados na tabela abaixo. As dependências não formam ciclos.
 
-| Módulo | Depende de | Para quê |
-|---|---|---|
-| `accounts` | `audit` | Registar criar e desativar contas, reenviar convites e dar e retirar a permissão de Administrador. |
-| `projects` | `accounts` | Validar que a conta a adicionar ou a nomear Gestor existe e não está desativada (`PROJECT_MEMBER.account_id`); contas pendentes são aceites (DE15). |
-| `projects` | `audit` | Registar criar projetos, atribuir e trocar o Gestor e adicionar membros pelo Administrador. |
-| `tasks` | `projects` | Validar que cada responsável (e a pessoa de um pedido) é membro do projeto e que o projeto não está arquivado; saber se cada responsável de uma tarefa ainda é membro, para mostrar "já não é membro" (PN07). |
-| `tasks` | `accounts` | Obter o nome e o estado do responsável e do autor dos comentários (`TASK_ASSIGNEE.account_id`, `ASSIGNEE_REQUEST.account_id`, `COMMENT.author_id`). |
-| `progress` | `tasks` | Contar as tarefas de cada projeto por estado. |
-| `authorization` | `accounts`, `projects` | Ler a permissão de Administrador (`ACCOUNT.is_admin`), a função da conta no projeto (`PROJECT_MEMBER.role`) e o estado do projeto. |
+| Módulo | Depende de (código) | Para quê | Tabelas de outros módulos que lê |
+|---|---|---|---|
+| `accounts` | `authorization` | `@Public()` no login e a conta autenticada (`AuthenticatedAccount`). | — |
+| `authorization` | — | — | `project_member` e `project` (função e estado do projeto), `task` e `comment` (projeto de uma tarefa ou de um comentário). A conta autenticada é lida por `accounts` (`JwtStrategy`). |
+| `projects` | `authorization`, `audit`, `progress` | Verificar o acesso; registar `CREATE_PROJECT` e `ASSIGN_MANAGER`; juntar o progresso aos projetos. | `account` (validar o Gestor ao criar o projeto; nome e estado dos membros) |
+| `tasks` | `authorization` | Verificar o acesso e o projeto ativo, incluindo o bloqueio da linha do projeto nas escritas (`writeInActiveProject`, PN09). | `project` (bloqueio `FOR SHARE`), `project_member` e `account` (validar cada responsável; "já não é membro"; nome e estado dos responsáveis e dos autores) |
+| `progress` | — | — | `task` (contagens por estado) |
+| `audit` | — | Recebe a transação de quem regista. | — |
+| `health` | `authorization` | `@Public()` em `GET /health`. | — (só `SELECT 1`) |
+
+Ainda por implementar: `accounts` → `audit` (registar as ações sobre contas, incremento 2) e as reações a "membro removido" e "conta desativada" (abaixo, incremento 4).
 
 Regras para manter as dependências sem ciclos:
 

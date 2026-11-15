@@ -187,7 +187,7 @@ Regras que o modelo tem de garantir. A coluna "Onde" indica se a regra pode ser 
 | Contas `PENDING` podem ser adicionadas a projetos e nomeadas Gestor, mas não podem ser atribuídas como responsável. | Aplicação (`projects`, `tasks`) | DE15, PN06 |
 | O registo administrativo só aceita inserções. | Aplicação (`audit`); idealmente também permissões na base de dados | PN18 |
 | Eliminar uma tarefa elimina os seus comentários, responsáveis (TASK_ASSIGNEE) e pedidos de responsável. | Base de dados (eliminação em cascata) | US06 (pressuposto, ver §6), PN21 |
-| Contas e projetos nunca são eliminados (só desativados ou arquivados). | Aplicação | US02, US10 (pressuposto, ver §6) |
+| Contas e projetos nunca são eliminados (só desativados ou arquivados). | Aplicação (não há operação para os eliminar) e base de dados (as chaves estrangeiras para ACCOUNT e PROJECT usam `ON DELETE RESTRICT`) | US02, US10; eliminação de projetos fora do MVP (decisão interna, 2026-11-15; ver §6) |
 
 ## 5. Diagrama ER
 
@@ -288,7 +288,7 @@ erDiagram
 |---|---|---|
 | Atributos fora do MVP | Não há urgência, importância nem data limite em TASK. A prioridade (FN12) entrou no MVP como coluna obrigatória com valor por omissão (decisão interna, 2026-11-10). | O prazo (FN10) está fora do MVP; entra num incremento seguinte como coluna opcional, sem mudar as relações. |
 | Eliminar comentários e tarefas | Eliminação definitiva; os comentários de uma tarefa eliminada desaparecem com ela. | US06 e US13 dizem que "deixa de aparecer", mas não dizem se os dados se guardam. Depende da pergunta 25 (retenção). |
-| Contas e projetos nunca são eliminados | Só se desativam (contas) ou arquivam (projetos). | Questão em aberto: um projeto pode ser eliminado? (constraints.md §5) |
+| Contas e projetos nunca são eliminados | Só se desativam (contas) ou arquivam (projetos). A eliminação e a pesquisa de projetos ficam fora do MVP: os projetos retiram-se de uso arquivando-os (decisão interna, 2026-11-15). | A eliminação de contas depende da pergunta 25 (retenção). A eliminação de projetos pode voltar depois do MVP; exige decidir o que acontece às tarefas, aos comentários e ao registo administrativo. |
 | Membros desativados | A conta desativada continua em PROJECT_MEMBER dos projetos onde estava, até o Gestor a remover. | É o que PN08 indica; confirmar com o cliente. |
 | Nome do projeto | Não tem de ser único. | Nenhuma regra o exige. |
 | Histórico de membros | Ao remover um membro, a linha de PROJECT_MEMBER é apagada; não se guarda histórico. As tarefas `DONE` mantêm a linha em TASK_ASSIGNEE, e "já não é membro" deduz-se da falta da linha em PROJECT_MEMBER. | O histórico de alterações (FN18) está fora do MVP; só as adições pelo Administrador vão para o registo (PN18). |
@@ -297,7 +297,30 @@ erDiagram
 | CL10 e CL11 | O modelo não muda com nenhuma das respostas possíveis. | CL11 pode exigir mudar a regra de email único (PN11) ou permitir reativar contas (PN17). |
 | Autenticação | `password_hash` em ACCOUNT, vazio enquanto a conta está pendente; ativação por token em ACCOUNT_ACTIVATION_TOKEN (DE15). | A recuperação do acesso (palavra-passe esquecida) está em aberto (constraints.md §5); pode vir a usar a mesma tabela. |
 
-## 7. Coerência com a arquitetura
+## 7. Estado da implementação
+
+O esquema físico está em `backend/prisma/schema.prisma` e nas migrations de `backend/prisma/migrations/` (verificado a 2026-11-15).
+
+| Migration | O que cria ou muda |
+|---|---|
+| `20261108231548_init` | ACCOUNT, ACCOUNT_ACTIVATION_TOKEN, PROJECT, PROJECT_MEMBER, TASK (ainda com `assignee_id`), COMMENT e ADMIN_AUDIT_LOG, com os enums |
+| `20261110004749_add_task_priority` | Enum `task_priority`, coluna `task.priority` (`MEDIUM` por omissão) e índice `(project_id, priority)` |
+| `20261111120000_task_assignees` | Tabela TASK_ASSIGNEE, cópia de `task.assignee_id` e remoção da coluna (DE16) |
+
+**Ainda não existe:** a tabela ASSIGNEE_REQUEST e o enum `assignee_request_status`. Entram com a migration `assignee_requests` do incremento 7 (implementation-plan.md), já aprovada em 2026-11-11. Até lá, a eliminação em cascata dos pedidos com a tarefa (§4) não se aplica.
+
+Pormenores físicos que o modelo lógico não fixa:
+
+| Tema | Na base de dados |
+|---|---|
+| Tipos | Identificadores `uuid`; datas `timestamptz(3)`; `project.name` `varchar(100)`, `project.description` `varchar(1000)`, `task.title` `varchar(150)`, `task.description` `varchar(2000)`, `comment.body` `varchar(2000)`. As regras de comprimento mínimo e "não só espaços" ficam na aplicação (PN12, PN15). |
+| Tabelas e colunas | Nomes em snake_case (`@@map`/`@map`); no código, os modelos Prisma usam camelCase (`passwordHash` ↔ `password_hash`). |
+| Um Gestor por projeto | Índice único parcial `project_member_one_manager_per_project_key` em `project_id` com `role = 'MANAGER'`. |
+| Alvo do registo | `CHECK` `admin_audit_log_target_check`: `target_account_id` ou `target_project_id` preenchido. |
+| Eliminação | `ON DELETE CASCADE` de TASK para TASK_ASSIGNEE e COMMENT; `ON DELETE RESTRICT` em todas as chaves estrangeiras para ACCOUNT e PROJECT. |
+| Índices | `task (project_id, status)`, `task (project_id, priority)`, `comment (task_id, created_at)`, `admin_audit_log (occurred_at)` e um índice em cada chave estrangeira que não é a primeira coluna de uma chave primária. |
+
+## 8. Coerência com a arquitetura
 
 - Cada tabela pertence a um só módulo (§1), como pede architecture.md §4.2. Os módulos `authorization` e `progress` não têm tabelas próprias: o primeiro lê `ACCOUNT.is_admin` e `PROJECT_MEMBER.role`; o segundo conta TASK por `status`.
 - A base de dados é única (architecture.md §3), por isso as chaves estrangeiras entre tabelas de módulos diferentes são possíveis e garantem a integridade das referências (por exemplo, `TASK_ASSIGNEE.account_id` → ACCOUNT) sem coordenação entre serviços. PN06 e PN21 são verificadas pela aplicação, mas na mesma transação.

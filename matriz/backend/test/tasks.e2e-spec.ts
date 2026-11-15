@@ -213,6 +213,28 @@ describe('Tarefas (API)', () => {
     });
 
     it.each([
+      ['no título', 'title', { title: 'Rever\u0000textos' }],
+      ['na descrição', 'description', { title: 'Rever textos', description: 'a\u0000' }],
+    ])(
+      'recusa o carácter nulo %s com 400 VALIDATION_ERROR, não 500, e não cria nada',
+      async (_, field, body) => {
+        const before = await prisma.task.count({
+          where: { projectId: t.project.id },
+        });
+        const res = await api(t.manager.token)
+          .create(t.project.id, body)
+          .expect(400);
+        expect(res.body.code).toBe('VALIDATION_ERROR');
+        expect(res.body.errors).toEqual([
+          { field, message: 'O texto tem um carácter inválido.' },
+        ]);
+        expect(
+          await prisma.task.count({ where: { projectId: t.project.id } }),
+        ).toBe(before);
+      },
+    );
+
+    it.each([
       ['em falta', {}],
       ['só com espaços', { title: '     ' }],
       ['curto demais depois de aparado', { title: '  ab  ' }],
@@ -540,6 +562,25 @@ describe('Tarefas (API)', () => {
         assignees: [{ id: t.member.account.id }],
       });
     });
+
+    it.each([
+      ['no título', { title: 'Novo\u0000' }],
+      ['na descrição', { description: '\u0000' }],
+    ])(
+      'recusa o carácter nulo %s com 400 VALIDATION_ERROR, não 500, e não muda a tarefa',
+      async (_, body) => {
+        const task = await createTask(app, t.project.id, {
+          title: 'Rever textos',
+        });
+        const res = await api(t.manager.token)
+          .update(task.id, body)
+          .expect(400);
+        expect(res.body.code).toBe('VALIDATION_ERROR');
+        expect(
+          await prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
+        ).toMatchObject({ title: 'Rever textos', description: null });
+      },
+    );
 
     it('muda a prioridade e limpa a descrição, sem mexer nos responsáveis', async () => {
       const task = await createTask(app, t.project.id, {

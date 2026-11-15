@@ -209,6 +209,24 @@ describe('Projetos (API)', () => {
       expect(res.body.code).toBe('VALIDATION_ERROR');
     });
 
+    it.each([
+      ['no nome', 'name', { name: 'Site \u0000 novo' }],
+      ['na descrição', 'description', { name: 'Site', description: 'a\u0000b' }],
+    ])(
+      'recusa o carácter nulo %s com 400 VALIDATION_ERROR, não 500, e não cria nada',
+      async (_, field, body) => {
+        const before = await prisma.project.count();
+        const res = await api(admin.token)
+          .create({ ...body, managerId: manager.id })
+          .expect(400);
+        expect(res.body.code).toBe('VALIDATION_ERROR');
+        expect(res.body.errors).toEqual([
+          { field, message: 'O texto tem um carácter inválido.' },
+        ]);
+        expect(await prisma.project.count()).toBe(before);
+      },
+    );
+
     it('recusa uma conta sem permissão de Administrador com 403 NOT_ADMIN, antes da validação', async () => {
       const { token } = await accountWithToken();
       const before = await prisma.project.count();
@@ -490,6 +508,33 @@ describe('Projetos (API)', () => {
         .expect(400);
       expect(res.body.code).toBe('VALIDATION_ERROR');
     });
+
+    it('recusa um corpo que não é objeto com 400 VALIDATION_ERROR e a mensagem em português', async () => {
+      const res = await api(outsiderAdminToken)
+        .update(randomUUID(), [])
+        .expect(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.errors).toEqual([
+        { field: 'body', message: 'O corpo do pedido tem de ser um objeto.' },
+      ]);
+    });
+
+    it.each([
+      ['no nome', { name: 'Site\u0000' }],
+      ['na descrição', { description: '\u0000' }],
+    ])(
+      'recusa o carácter nulo %s com 400 VALIDATION_ERROR, não 500, e não muda o projeto',
+      async (_, body) => {
+        const project = await newProject();
+        const res = await api(managerToken)
+          .update(project.id, body)
+          .expect(400);
+        expect(res.body.code).toBe('VALIDATION_ERROR');
+        expect(
+          await prisma.project.findUnique({ where: { id: project.id } }),
+        ).toMatchObject({ name: 'Site', description: 'Antiga' });
+      },
+    );
 
     it('recusa um Membro, com ou sem permissão de Administrador, com 403 NOT_PROJECT_MANAGER', async () => {
       const project = await newProject();
