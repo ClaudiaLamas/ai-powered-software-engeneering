@@ -189,8 +189,25 @@ Abre `http://localhost:5173` (o endereço aparece no terminal) e entra com uma d
 | `backend/` | `npm run build` | Compila para `dist/` |
 | `frontend/` | `npm run test:unit -- --run` | Testes de componentes, vistas e cliente (Vitest), uma só vez. Sem `-- --run`, fica a observar os ficheiros |
 | `frontend/` | `npm run build` | Verifica os tipos (`vue-tsc`) e compila para `dist/` |
+| `frontend/` | `E2E_PASSWORD=… npm run test:e2e` | Testes E2E de browser (Playwright, Chromium): entrar, abrir um projeto, criar uma tarefa e vê-la na listagem |
 
 Os testes de API nunca usam a base de dados de desenvolvimento: usam `matriz_test` (ou `TEST_DATABASE_URL`). Antes de cada execução, `backend/test/global-setup.ts` aplica as migrations a essa base, criando-a se não existir, e esvazia todas as tabelas. Recusa qualquer nome que não termine em `_test`. O frontend não tem lint configurado.
+
+Testes E2E de browser (`frontend/e2e/`, configuração em `frontend/playwright.config.ts`):
+
+- Pré-requisitos:
+  - o PostgreSQL a correr (`docker compose up -d`);
+  - o `backend/.env` criado (passo 3) e as dependências do backend instaladas (passo 2);
+  - o Chromium do Playwright, uma vez: `cd frontend && npx playwright install chromium`;
+  - a variável `E2E_PASSWORD`, com pelo menos 12 caracteres. É a palavra-passe das contas de demonstração na base dos testes E2E; escolhe uma só para a máquina local e não a escrevas em ficheiros do repositório.
+- Comando, a partir de `frontend/`:
+
+  ```bash
+  E2E_PASSWORD='<palavra-passe local>' npm run test:e2e
+  ```
+
+- O Playwright arranca um backend (porta 3100) e um frontend (porta 5180) próprios, sem reutilizar os de desenvolvimento. Usam a base `<nome>_e2e_test` (`matriz_e2e_test`), derivada do `DATABASE_URL` do `backend/.env`. Em cada execução, aplica as migrations, esvazia todas as tabelas (`frontend/e2e/reset-database.sql`) e corre o `db:seed` com `SEED_DEMO_PASSWORD=$E2E_PASSWORD`. A configuração aborta antes de esvaziar se o nome da base não terminar em `_test`, e o SQL volta a confirmá-lo.
+- Em caso de falha, o trace e a captura de ecrã ficam em `frontend/test-results/` (`npx playwright show-trace <ficheiro>.zip`).
 
 ### 11. Problemas comuns
 
