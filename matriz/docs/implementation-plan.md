@@ -128,7 +128,7 @@ quando é chamado por um agente de IA.
 | Camada | Ficheiros ou componentes |
 |---|---|
 | Infraestrutura | `docker-compose.yml` com o PostgreSQL; `.env.example` sem valores reais; `.gitignore` com `.env` |
-| Base de dados | `backend/prisma/schema.prisma` com ACCOUNT, PROJECT, PROJECT_MEMBER, TASK e ADMIN_AUDIT_LOG (database.md); primeira migration; `backend/prisma/seed.ts` |
+| Base de dados | `backend/prisma/schema.prisma` com ACCOUNT, PROJECT, PROJECT_MEMBER, TASK e ADMIN_AUDIT_LOG (database.md); primeira migration; `backend/prisma/seed.ts`. A migration `init` (2026-11-08) criou também as tabelas `account_activation_token` e `comment`, que só são usadas nos incrementos 2 e 6 |
 | `accounts` | Controlador de autenticação (`/auth/login`, `/auth/logout`, `/me`), estratégia JWT, serviço de palavras-passe (hash), listagem de contas |
 | `authorization` | Guards: conta autenticada, permissão de Administrador, membro do projeto (com `404` para quem não é membro) |
 | `projects` | Criar projeto com o Gestor na mesma transação; listar os projetos da conta; consultar um projeto |
@@ -171,7 +171,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 | Camada | Ficheiros ou componentes |
 |---|---|
 | Infraestrutura | Serviço Mailpit no `docker-compose.yml` (D09) |
-| Base de dados | Migration com ACCOUNT_ACTIVATION_TOKEN (database.md) |
+| Base de dados | Nenhuma migration: a tabela `account_activation_token` (ACCOUNT_ACTIVATION_TOKEN, database.md) já foi criada pela migration `init` (2026-11-08) |
 | `accounts` | Criar conta `PENDING`; gerar o token, guardar só o hash e enviar o email; ativar e invalidar o token; reenviar o convite; desativar (incluindo contas pendentes); dar e retirar a permissão de Administrador, com a proteção da conta de sistema e do último Administrador ativo |
 | `audit` | Entradas `CREATE_ACCOUNT`, `RESEND_INVITE`, `DEACTIVATE_ACCOUNT`, `GRANT_ADMIN` e `REVOKE_ADMIN` |
 | Frontend | `AccountsView` (lista de contas com o estado; criar, desativar, reenviar o convite, dar e retirar a permissão); `ActivateView` (definir a palavra-passe a partir do link) |

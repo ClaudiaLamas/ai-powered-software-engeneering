@@ -139,7 +139,7 @@ Os testes usam Vitest e, nos testes de API, Supertest (D08). Os testes de API us
 | `src/accounts/jwt.strategy.spec.ts` | 3 | Validação do token e da conta (D06) |
 | `src/authorization/authorization.service.spec.ts` | 12 | `requireMember`, `requireManager`, `requireWritable` (RNF02, PN02, PN05) |
 | `src/authorization/guards.spec.ts` | 5 | `AdminGuard` e `JwtAuthGuard` (FN02, PN02) |
-| `src/common/problem-details.filter.spec.ts` | 3 | Formato dos erros (Problem Details com `code`) |
+| `src/common/problem-details.filter.spec.ts` | 7 | Formato dos erros (Problem Details com `code`), incluindo `404 NOT_FOUND`, `413 PAYLOAD_TOO_LARGE`, `500 INTERNAL_ERROR` e o `503` de `/health` |
 | `src/health/health.controller.spec.ts` | 4 | `GET /health` com a base de dados a responder, sem responder e no tempo limite (`503`) |
 | `src/progress/progress.spec.ts` | 6 | Percentagem de conclusão e contagens (PN13), incluindo `null` sem tarefas |
 | `src/projects/project-rules.spec.ts` | 7 | Nome e descrição do projeto (PN12) |
@@ -153,10 +153,11 @@ Os testes usam Vitest e, nos testes de API, Supertest (D08). Os testes de API us
 | `test/auth.e2e-spec.ts` | 10 | `POST /auth/login` (US01): credenciais certas e erradas, conta pendente e desativada, email com espaços |
 | `test/session.e2e-spec.ts` | 9 | `GET /me`, `POST /auth/logout` e o JWT (D06, US15) |
 | `test/authorization.e2e-spec.ts` | 24 | Sem sessão: `401` em todas as operações; Gestor, Membro, Administrador não membro e projeto arquivado em projetos, tarefas e comentários; ordem das verificações |
-| `test/projects.e2e-spec.ts` | 28 | Criar (US03), listar os próprios (US05), ver, editar e arquivar (US10) |
-| `test/tasks.e2e-spec.ts` | 71 | Criar, listar com filtros e paginação, editar, mudar o estado, eliminar, responsáveis (US06, US07, US08, US22, US23, DE16), corridas com o arquivo |
-| `test/comments.e2e-spec.ts` | 30 | Listar, comentar, editar e apagar, só o autor (US13, US19, PN15); `404` para quem não é membro |
+| `test/projects.e2e-spec.ts` | 31 | Criar (US03), listar os próprios (US05), ver, editar e arquivar (US10) |
+| `test/tasks.e2e-spec.ts` | 73 | Criar, listar com filtros e paginação, editar, mudar o estado, eliminar, responsáveis (US06, US07, US08, US22, US23, DE16), corridas com o arquivo |
+| `test/comments.e2e-spec.ts` | 32 | Listar, comentar, editar e apagar, só o autor (US13, US19, PN15); `404` para quem não é membro |
 | `test/health.e2e-spec.ts` | 1 | `GET /health` com a base de dados |
+| `test/errors.e2e-spec.ts` | 2 | Rota que não existe (`404 NOT_FOUND`) e corpo maior do que o limite (`413 PAYLOAD_TOO_LARGE`), em Problem Details |
 
 **Frontend (`npm run test:unit -- --run`)**
 
@@ -237,7 +238,6 @@ Sobre o commit `53f11b9` (ramo `feat/dashboard`, sem alterações por commitar),
 | Emails com o Mailpit (D09) | Só entram no incremento 2 |
 | Persistência depois de reiniciar o backend | Não há teste automático; só o cenário manual C03 |
 | Percursos completos no navegador | Não há testes automáticos de ponta a ponta no navegador; os testes do frontend correm em jsdom com a API simulada |
-| "Página não encontrada" com sessão, no navegador | Coberta pelo teste automático; no navegador só foi visto o caso sem sessão (redireciona para `/entrar?redirect=/qualquer-coisa`) |
 
 ## 5. Bugs encontrados
 
