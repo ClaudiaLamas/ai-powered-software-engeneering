@@ -112,8 +112,8 @@ quando é chamado por um agente de IA.
 | `projects` (`createProject`, `listMyProjects`, `getProject`), `progress` (contagens e PN13), `audit` (escrita de `CREATE_PROJECT` e `ASSIGN_MANAGER`) | Feito (2026-11-10), com testes de API (`test/projects.e2e-spec.ts`) e unitários |
 | `accounts` (`listAccounts`) | Por fazer |
 | Frontend: cliente HTTP, sessão, guarda de rotas, `LoginView`, botão "Sair" | Feito (2026-11-09) |
-| Frontend: validação do formulário de entrada, componentes e estilos partilhados (`FormField`, `AppHeader`, `main.css`), ecrã inicial provisório com a conta (`GET /me`) | Feito (2026-11-09) |
-| Frontend: `DashboardView`, `ProjectView`, formulário de criação de projeto | `DashboardView` feito (2026-11-12): substitui o ecrã inicial provisório (`HomeView`); conta (`GET /me`), projetos (`GET /projects`) com ligação para o detalhe, função, barra, percentagem e contagens por estado de `progress` (total no servidor), "Sem tarefas", "Arquivado (só de leitura)", estados de carregamento, erro (com "Tentar outra vez") e lista vazia ("Ainda não tens projetos.", sem ligação para criar até existir o formulário). `ProjectView` feito no incremento 4. Formulário de criação de projeto por fazer |
+| Frontend: validação do formulário de entrada, componentes e estilos partilhados (`FormField`, `AppHeader`, `main.css`), ecrã inicial provisório com a conta (`GET /me`) | Feito (2026-11-09). Alargado em 2026-11-12: `AppButton`, `ErrorMessage`, `EmptyState`, `LoadingIndicator`, `ConfirmDialog`, `ProgressIndicator`, `ProjectStatusBadge` e `AppBreadcrumbs`, usados em todos os ecrãs; "Matriz" no cabeçalho liga ao painel e o projeto e a tarefa mostram o caminho Painel › Projeto › Tarefa; layout revisto para telemóvel (≈375px), tablet e desktop |
+| Frontend: `DashboardView`, `ProjectView`, formulário de criação de projeto | `DashboardView` feito (2026-11-12): substitui o ecrã inicial provisório (`HomeView`); conta (`GET /me`), projetos (`GET /projects`) com ligação para o detalhe, função, barra, percentagem e contagens por estado de `progress` (total no servidor), "Sem tarefas", "Arquivado (só de leitura)", estados de carregamento, erro (com "Tentar outra vez") e lista vazia ("Ainda não participa em nenhum projeto.", registo formal desde 2026-11-12; sem ligação para criar até existir o formulário). `ProjectView` feito no incremento 4. Formulário de criação de projeto por fazer: precisa de escolher o Gestor entre as contas (`listAccounts`), que o backend ainda não tem (incremento 2) |
 | Base de dados de testes separada | Feito (`matriz_test`, 2026-11-09) |
 | Critérios de aceitação 1–6 | 1 e 2 verificados (testes e navegador, 2026-11-09); 3–5 verificados na API (2026-11-10); 6 por verificar (precisa do frontend) |
 
@@ -195,7 +195,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 ### Incremento 3 — Projeto e equipa
 
-**Estado:** Por iniciar. Adiantado (2026-11-10): `updateProject` e `archiveProject` no backend, com testes de API (US10). Falta a equipa (`listMemberCandidates`, `addProjectMember`, `removeProjectMember`) e o frontend.
+**Estado:** Por iniciar. Adiantado (2026-11-10): `updateProject` e `archiveProject` no backend, com testes de API (US10). Adiantado (2026-11-12) no frontend: "Editar projeto" e "Arquivar projeto" só para o Gestor num projeto ativo (arquivar pede confirmação), estado do projeto e painel "Membros" só de leitura, com a função e "conta desativada" (US10, US18). Falta a equipa (`listMemberCandidates`, `addProjectMember`, `removeProjectMember`), no backend e no frontend.
 
 **Objetivo:** o Gestor edita e arquiva o projeto e forma a equipa.
 
@@ -242,7 +242,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 | Reação a "membro removido" e a "conta desativada" (PN07, PN08) | À espera dos incrementos 2 e 3 |
 | Frontend: `ProjectView` (`/projetos/:projectId`) com os três grupos por estado, um pedido cada, os totais de `countsByStatus`, "Ver mais", filtros de estado e prioridade e o formulário de criação para o Gestor; `TaskDetailView` (`/tarefas/:taskId`) com edição (título, descrição, prioridade), mudança de estado e eliminação com confirmação; etiquetas num só sítio (`src/tasks/task-labels.ts`); testes de componentes e vistas | Feito (2026-11-11); por verificar no navegador |
 | Frontend: tipos e vistas com `assignees` (lista por ordem do nome, cada um com a sua indicação); atribuir e remover responsáveis no `TaskDetailView` e escolher responsáveis ao criar | Feito (2026-11-11); 111 testes de componentes e vistas a passar; verificado no navegador (criar com dois responsáveis, remover, atribuir, largura de telemóvel) |
-| Frontend: seletor de estado nos cartões do wireframe, ligação a partir do ecrã inicial | Ligação a partir do ecrã inicial feita (2026-11-12, `DashboardView`); seletor de estado nos cartões por fazer |
+| Frontend: seletor de estado nos cartões do wireframe, ligação a partir do ecrã inicial | Feito (2026-11-12): ligação a partir do `DashboardView`; seletor de estado em cada cartão para qualquer membro num projeto ativo, que volta a pedir os grupos e o progresso |
 
 **Objetivo:** gerir as tarefas de cada projeto, os seus responsáveis e a prioridade, e filtrar e paginar a lista.
 
@@ -289,7 +289,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 |---|---|
 | Backend: contagens por estado de todas as tarefas de cada projeto em `listMyProjects` e `getProject` (`ProgressService`, `groupBy` na base de dados) | Feito no incremento 1; sem alterações ao contrato |
 | Frontend: progresso nos cartões do `DashboardView`, "Sem tarefas", "Arquivado (só de leitura)", lista vazia | Feito (2026-11-12); `DashboardView.spec.ts` e `project-labels.spec.ts`; 159 testes do frontend a passar |
-| Frontend: progresso no `ProjectView`; contagens atualizadas sem recarregar (critério 2) | Por fazer |
+| Frontend: progresso no `ProjectView`; contagens atualizadas sem recarregar (critério 2) | Feito (2026-11-12): o `ProjectView` mostra `progress` de `getProject` (todas as tarefas, sem filtros) com o componente `ProgressIndicator`, partilhado com o `DashboardView`, e volta a pedir o projeto depois de criar uma tarefa ou de mudar um estado num cartão. Eliminar ou mudar o estado no `TaskDetailView` volta ao projeto, que é pedido de novo |
 
 **Objetivo:** mostrar o progresso real de cada projeto no ecrã inicial e na vista do projeto.
 

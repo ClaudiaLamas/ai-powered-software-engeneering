@@ -60,7 +60,8 @@ describe('ProjectView (US08, US23, US06)', () => {
     const counts = { todo: 25, inProgress: 0, done: 1 }
     const todo = Array.from({ length: 20 }, () => task())
     mockApi({
-      [`GET /projects/${PROJECT_ID}`]: () => json(project()),
+      [`GET /projects/${PROJECT_ID}`]: () =>
+        json(project({ progress: { todo: 25, inProgress: 0, done: 1, total: 26, percentDone: 4 } })),
       [TASKS]: tasksByStatus(
         {
           TODO: page(todo, counts, { total: 25 }),
@@ -74,7 +75,8 @@ describe('ProjectView (US08, US23, US06)', () => {
 
     expect(wrapper.get('h1').text()).toBe('Site')
     expect(wrapper.text()).toContain('Novo site da empresa.')
-    expect(wrapper.get('[aria-label="Tarefas por estado"]').text()).toBe(
+    expect(wrapper.get('[data-test="progress-percent"]').text()).toBe('4% concluído')
+    expect(wrapper.get('[data-test="progress-counts"]').text()).toBe(
       'Por fazer: 25, Em curso: 0, Concluída: 1',
     )
     expect(group(wrapper, 'Por fazer').get('h2').text()).toBe('Por fazer (25)')
@@ -127,10 +129,11 @@ describe('ProjectView (US08, US23, US06)', () => {
     expect(group(wrapper, 'Concluída').get('h2').text()).toBe('Concluída (1)')
   })
 
-  it('o filtro de estado mostra só esse grupo, e as contagens continuam reais', async () => {
+  it('o filtro de estado mostra só esse grupo, e o progresso continua a contar todas as tarefas', async () => {
     const counts = { todo: 3, inProgress: 2, done: 1 }
     mockApi({
-      [`GET /projects/${PROJECT_ID}`]: () => json(project()),
+      [`GET /projects/${PROJECT_ID}`]: () =>
+        json(project({ progress: { todo: 3, inProgress: 2, done: 1, total: 6, percentDone: 17 } })),
       [TASKS]: tasksByStatus({ IN_PROGRESS: page([task({ status: 'IN_PROGRESS' })], counts, { total: 2 }) }, counts),
     })
     const wrapper = await mountView()
@@ -140,7 +143,7 @@ describe('ProjectView (US08, US23, US06)', () => {
 
     expect(wrapper.findAll('.task-group')).toHaveLength(1)
     expect(group(wrapper, 'Em curso').get('h2').text()).toBe('Em curso (2)')
-    expect(wrapper.get('[aria-label="Tarefas por estado"]').text()).toBe(
+    expect(wrapper.get('[data-test="progress-counts"]').text()).toBe(
       'Por fazer: 3, Em curso: 2, Concluída: 1',
     )
   })
@@ -174,9 +177,6 @@ describe('ProjectView (US08, US23, US06)', () => {
     releaseTodo()
     await flushPromises()
 
-    expect(wrapper.get('[aria-label="Tarefas por estado"]').text()).toBe(
-      'Por fazer: 1, Em curso: 1, Concluída: 0',
-    )
     expect(group(wrapper, 'Em curso').get('h2').text()).toBe('Em curso (1)')
     expect(group(wrapper, 'Em curso').text()).not.toContain('Ver mais')
   })
@@ -205,7 +205,14 @@ describe('ProjectView (US08, US23, US06)', () => {
     let created = false
     const newTask = task({ title: 'Rever textos', priority: 'HIGH' })
     const fetchMock = mockApi({
-      [`GET /projects/${PROJECT_ID}`]: () => json(project()),
+      [`GET /projects/${PROJECT_ID}`]: () =>
+        json(
+          project({
+            progress: created
+              ? { todo: 1, inProgress: 0, done: 0, total: 1, percentDone: 0 }
+              : { todo: 0, inProgress: 0, done: 0, total: 0, percentDone: null },
+          }),
+        ),
       [TASKS]: (url) => {
         const counts = { todo: created ? 1 : 0, inProgress: 0, done: 0 }
         const items = created && url.searchParams.get('status') === 'TODO' ? [newTask] : []
@@ -218,6 +225,7 @@ describe('ProjectView (US08, US23, US06)', () => {
     })
     const wrapper = await mountView()
     expect(group(wrapper, 'Por fazer').get('h2').text()).toBe('Por fazer (0)')
+    expect(wrapper.get('[data-test="progress-percent"]').text()).toBe('Sem tarefas')
 
     const form = wrapper.get('form')
     await form.get('input').setValue('  Rever textos ')
@@ -229,6 +237,10 @@ describe('ProjectView (US08, US23, US06)', () => {
     expect(wrapper.text()).toContain('Tarefa "Rever textos" criada.')
     expect(group(wrapper, 'Por fazer').get('h2').text()).toBe('Por fazer (1)')
     expect(group(wrapper, 'Por fazer').text()).toContain('Rever textos')
+    expect(wrapper.get('[data-test="progress-percent"]').text()).toBe('0% concluído')
+    expect(wrapper.get('[data-test="progress-counts"]').text()).toBe(
+      'Por fazer: 1, Em curso: 0, Concluída: 0',
+    )
     expect((form.get('input').element as HTMLInputElement).value).toBe('')
   })
 
@@ -361,9 +373,7 @@ describe('ProjectView (US08, US23, US06)', () => {
     releaseFirst()
     await flushPromises()
     expect(wrapper.get('h1').text()).toBe('Loja')
-    expect(wrapper.get('[aria-label="Tarefas por estado"]').text()).toBe(
-      'Por fazer: 2, Em curso: 0, Concluída: 0',
-    )
+    expect(group(wrapper, 'Por fazer').get('h2').text()).toBe('Por fazer (2)')
   })
 
   it('ao mudar de projeto, não mostra as tarefas do anterior, mesmo que a lista falhe', async () => {
@@ -422,8 +432,269 @@ describe('ProjectView (US08, US23, US06)', () => {
     )
 
     fail = false
-    await group(wrapper, 'Por fazer').get('[role="alert"] button').trigger('click')
+    await group(wrapper, 'Por fazer').get('.error-message button').trigger('click')
     await flushPromises()
     expect(group(wrapper, 'Por fazer').text()).toContain('Rever')
+  })
+})
+
+describe('ProjectView: projeto, equipa e estado nos cartões (US07, US09, US10, US18)', () => {
+  const PROJECT = `GET /projects/${PROJECT_ID}`
+  const UPDATE = `PATCH /projects/${PROJECT_ID}`
+  const ARCHIVE = `POST /projects/${PROJECT_ID}/archive`
+  const noTasks = { todo: 0, inProgress: 0, done: 0 }
+
+  beforeEach(() => {
+    clearSession()
+    setSession('token-de-teste', ana)
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  function button(wrapper: Awaited<ReturnType<typeof mountView>>, text: string) {
+    const found = wrapper.findAll('button').find((b) => b.text() === text)
+    if (!found) throw new Error(`Sem botão "${text}"`)
+    return found
+  }
+
+  it('mostra o caminho, o estado do projeto e a equipa com a função e "conta desativada" (US18)', async () => {
+    mockApi({
+      [PROJECT]: () =>
+        json(
+          project({
+            members: [
+              { account: { id: ana.id, name: ana.name, status: 'ACTIVE' }, role: 'MANAGER', addedAt: ana.createdAt },
+              { account: { id: bruno.id, name: 'Rui Costa', status: 'DEACTIVATED' }, role: 'MEMBER', addedAt: ana.createdAt },
+            ],
+          }),
+        ),
+      [TASKS]: () => json(page([], noTasks)),
+      [ASSIGNABLE]: () => json({ items: [] }),
+    })
+    const wrapper = await mountView()
+
+    const crumbs = wrapper.get('nav[aria-label="Caminho"]')
+    expect(crumbs.get('a').text()).toBe('Painel')
+    expect(crumbs.get('[aria-current="page"]').text()).toBe('Site')
+    expect(wrapper.get('.title-row').text()).toContain('Ativo')
+    expect(wrapper.get('summary').text()).toBe('Membros (2)')
+    const members = wrapper.get('[aria-label="Membros do projeto"]').findAll('li').map((li) => li.text())
+    expect(members).toEqual(['Ana GestoraGestor', 'Rui Costa (conta desativada)Membro'])
+  })
+
+  it('um Membro muda o estado no cartão: a tarefa muda de grupo e o progresso atualiza (US07, US09)', async () => {
+    setSession('token-de-teste', bruno)
+    const t = task({ title: 'Rever textos' })
+    let moved = false
+    const fetchMock = mockApi({
+      [PROJECT]: () =>
+        json(
+          project({
+            progress: moved
+              ? { todo: 0, inProgress: 1, done: 0, total: 1, percentDone: 0 }
+              : { todo: 1, inProgress: 0, done: 0, total: 1, percentDone: 0 },
+          }),
+        ),
+      [TASKS]: (url) => {
+        const counts = moved ? { todo: 0, inProgress: 1, done: 0 } : { todo: 1, inProgress: 0, done: 0 }
+        const status = url.searchParams.get('status')
+        const here = moved ? 'IN_PROGRESS' : 'TODO'
+        return json(page(status === here ? [{ ...t, status: here }] : [], counts))
+      },
+      [`PUT /tasks/${t.id}/status`]: () => {
+        moved = true
+        return json({ ...t, status: 'IN_PROGRESS' })
+      },
+    })
+    const wrapper = await mountView()
+
+    const select = group(wrapper, 'Por fazer').get('select')
+    expect(select.attributes('aria-label')).toBe('Estado de Rever textos')
+    await select.setValue('IN_PROGRESS')
+    await flushPromises()
+
+    expect(bodyOf(fetchMock, `PUT /tasks/${t.id}/status`)).toEqual({ status: 'IN_PROGRESS' })
+    expect(wrapper.text()).toContain('Estado de "Rever textos" alterado para "Em curso".')
+    expect(group(wrapper, 'Por fazer').text()).not.toContain('Rever textos')
+    expect(group(wrapper, 'Em curso').text()).toContain('Rever textos')
+    expect(wrapper.get('[data-test="progress-counts"]').text()).toBe(
+      'Por fazer: 0, Em curso: 1, Concluída: 0',
+    )
+  })
+
+  it('se a mudança de estado falhar, o cartão volta ao estado real e aparece o erro', async () => {
+    const t = task({ title: 'Rever textos' })
+    mockApi({
+      [PROJECT]: () => json(project()),
+      [TASKS]: tasksByStatus({ TODO: page([t], { todo: 1, inProgress: 0, done: 0 }) }, { todo: 1, inProgress: 0, done: 0 }),
+      [ASSIGNABLE]: () => json({ items: [] }),
+      [`PUT /tasks/${t.id}/status`]: () => problem(409, 'PROJECT_ARCHIVED', 'Arquivado.'),
+    })
+    const wrapper = await mountView()
+
+    await group(wrapper, 'Por fazer').get('select').setValue('DONE')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('O projeto está arquivado e não pode ser alterado.')
+    expect((group(wrapper, 'Por fazer').get('select').element as HTMLSelectElement).value).toBe('TODO')
+  })
+
+  it('num projeto arquivado, os cartões não têm seletor de estado e o Gestor não pode editar nem arquivar', async () => {
+    mockApi({
+      [PROJECT]: () => json(project({ status: 'ARCHIVED' })),
+      [TASKS]: tasksByStatus({ TODO: page([task()], { todo: 1, inProgress: 0, done: 0 }) }, { todo: 1, inProgress: 0, done: 0 }),
+    })
+    const wrapper = await mountView()
+
+    expect(group(wrapper, 'Por fazer').find('select').exists()).toBe(false)
+    expect(wrapper.get('.title-row').text()).toContain('Arquivado')
+    expect(wrapper.text()).not.toContain('Editar projeto')
+    expect(wrapper.text()).not.toContain('Arquivar projeto')
+  })
+
+  it('o Membro não pode editar nem arquivar o projeto (US10)', async () => {
+    setSession('token-de-teste', bruno)
+    mockApi({ [PROJECT]: () => json(project()), [TASKS]: () => json(page([], noTasks)) })
+    const wrapper = await mountView()
+    expect(wrapper.text()).not.toContain('Editar projeto')
+    expect(wrapper.text()).not.toContain('Arquivar projeto')
+  })
+
+  it('o Gestor edita o nome e a descrição do projeto (US10)', async () => {
+    const fetchMock = mockApi({
+      [PROJECT]: () => json(project()),
+      [TASKS]: () => json(page([], noTasks)),
+      [ASSIGNABLE]: () => json({ items: [] }),
+      [UPDATE]: () => json(project({ name: 'Site novo', description: null })),
+    })
+    const wrapper = await mountView()
+
+    await button(wrapper, 'Editar projeto').trigger('click')
+    const form = wrapper.get('form[aria-label="Editar projeto"]')
+    await form.get('input').setValue('  Site novo ')
+    await form.get('textarea').setValue('   ')
+    await form.trigger('submit')
+    await flushPromises()
+
+    expect(bodyOf(fetchMock, UPDATE)).toEqual({ name: 'Site novo', description: null })
+    expect(wrapper.get('h1').text()).toBe('Site novo')
+    expect(wrapper.text()).toContain('Alterações ao projeto guardadas.')
+    expect(wrapper.find('form[aria-label="Editar projeto"]').exists()).toBe(false)
+  })
+
+  it('o nome curto não é enviado e mostra o erro (PN12)', async () => {
+    const fetchMock = mockApi({
+      [PROJECT]: () => json(project()),
+      [TASKS]: () => json(page([], noTasks)),
+      [ASSIGNABLE]: () => json({ items: [] }),
+    })
+    const wrapper = await mountView()
+
+    await button(wrapper, 'Editar projeto').trigger('click')
+    const form = wrapper.get('form[aria-label="Editar projeto"]')
+    await form.get('input').setValue('ab')
+    await form.trigger('submit')
+    await flushPromises()
+
+    expect(form.get('.field-error').text()).toContain('O nome é obrigatório')
+    expect(calls(fetchMock)).not.toContain(UPDATE)
+  })
+
+  it('o Gestor arquiva o projeto depois de confirmar e o projeto fica só de leitura (US10, CL3)', async () => {
+    const fetchMock = mockApi({
+      [PROJECT]: () => json(project()),
+      [TASKS]: () => json(page([], noTasks)),
+      [ASSIGNABLE]: () => json({ items: [] }),
+      [ARCHIVE]: () => json(project({ status: 'ARCHIVED' })),
+    })
+    const wrapper = await mountView()
+
+    await button(wrapper, 'Arquivar projeto').trigger('click')
+    expect(wrapper.get('[role="alertdialog"]').text()).toContain('Arquivar o projeto "Site"?')
+    expect(calls(fetchMock)).not.toContain(`POST /projects/${PROJECT_ID}/archive`)
+
+    await button(wrapper, 'Sim, arquivar').trigger('click')
+    await flushPromises()
+
+    expect(calls(fetchMock)).toContain(`POST /projects/${PROJECT_ID}/archive`)
+    expect(wrapper.text()).toContain('O projeto foi arquivado e ficou só de leitura.')
+    expect(wrapper.get('.title-row').text()).toContain('Arquivado')
+    expect(wrapper.text()).not.toContain('Nova tarefa')
+    expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
+  })
+
+  /**
+   * O primeiro `getProject` responde logo; o segundo (o refresh depois de
+   * mudar um estado) fica pendente até `release`, com o projeto ainda ativo.
+   */
+  function heldRefresh() {
+    let release!: () => void
+    const held = new Promise<Response>((resolve) => {
+      release = () => resolve(json(project({ progress: { todo: 0, inProgress: 1, done: 0, total: 1, percentDone: 0 } })))
+    })
+    let projectRequests = 0
+    const t = task({ title: 'Rever textos' })
+    const routes = {
+      [PROJECT]: () => (++projectRequests === 1 ? json(project()) : held),
+      [TASKS]: tasksByStatus({ TODO: page([t], { todo: 1, inProgress: 0, done: 0 }) }, { todo: 1, inProgress: 0, done: 0 }),
+      [ASSIGNABLE]: () => json({ items: [] }),
+      [`PUT /tasks/${t.id}/status`]: () => json({ ...t, status: 'IN_PROGRESS' }),
+    }
+    return { routes, release: () => release() }
+  }
+
+  it('um refresh antigo do projeto não desfaz o arquivo feito entretanto', async () => {
+    const { routes, release } = heldRefresh()
+    mockApi({ ...routes, [ARCHIVE]: () => json(project({ status: 'ARCHIVED' })) })
+    const wrapper = await mountView()
+
+    await group(wrapper, 'Por fazer').get('select').setValue('IN_PROGRESS')
+    await flushPromises()
+    await button(wrapper, 'Arquivar projeto').trigger('click')
+    await button(wrapper, 'Sim, arquivar').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.title-row').text()).toContain('Arquivado')
+
+    release()
+    await flushPromises()
+
+    expect(wrapper.get('.title-row').text()).toContain('Arquivado')
+    expect(wrapper.text()).not.toContain('Nova tarefa')
+    expect(wrapper.text()).not.toContain('Arquivar projeto')
+  })
+
+  it('um refresh antigo do projeto não repõe o nome de antes da edição', async () => {
+    const { routes, release } = heldRefresh()
+    mockApi({ ...routes, [UPDATE]: () => json(project({ name: 'Site novo' })) })
+    const wrapper = await mountView()
+
+    await group(wrapper, 'Por fazer').get('select').setValue('IN_PROGRESS')
+    await flushPromises()
+    await button(wrapper, 'Editar projeto').trigger('click')
+    const form = wrapper.get('form[aria-label="Editar projeto"]')
+    await form.get('input').setValue('Site novo')
+    await form.trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('Site novo')
+
+    release()
+    await flushPromises()
+
+    expect(wrapper.get('h1').text()).toBe('Site novo')
+  })
+
+  it('cancelar a confirmação não arquiva o projeto', async () => {
+    const fetchMock = mockApi({
+      [PROJECT]: () => json(project()),
+      [TASKS]: () => json(page([], noTasks)),
+      [ASSIGNABLE]: () => json({ items: [] }),
+    })
+    const wrapper = await mountView()
+
+    await button(wrapper, 'Arquivar projeto').trigger('click')
+    await button(wrapper, 'Cancelar').trigger('click')
+
+    expect(wrapper.find('[role="alertdialog"]').exists()).toBe(false)
+    expect(calls(fetchMock).some((c) => c.includes('/archive'))).toBe(false)
   })
 })

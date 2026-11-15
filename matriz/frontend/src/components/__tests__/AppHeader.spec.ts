@@ -32,6 +32,8 @@ describe('AppHeader: Sair (US15)', () => {
     await router.push('/')
     const wrapper = mount(AppHeader, { global: { plugins: [router] } })
     expect(wrapper.text()).toContain('Ana Teste')
+    expect(wrapper.get('a').text()).toBe('Matriz')
+    expect(wrapper.get('a').attributes('href')).toBe('/')
 
     await wrapper.get('button').trigger('click')
     await flushPromises()

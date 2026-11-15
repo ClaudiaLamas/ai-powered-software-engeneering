@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { logout } from '@/auth/auth-api'
 import { session } from '@/auth/session'
+import AppButton from './AppButton.vue'
 
 const router = useRouter()
 
@@ -14,10 +15,10 @@ async function signOut() {
 
 <template>
   <header class="topbar">
-    <strong>Matriz</strong>
+    <RouterLink to="/" class="topbar-brand" aria-label="Matriz: ir para o painel">Matriz</RouterLink>
     <span class="topbar-account">
       <span class="muted topbar-name">{{ session.account?.name }}</span>
-      <button type="button" class="btn" @click="signOut">Sair</button>
+      <AppButton @click="signOut">Sair</AppButton>
     </span>
   </header>
 </template>
@@ -30,6 +31,11 @@ async function signOut() {
   gap: 1rem;
   padding: 0.75rem var(--gutter);
   border-bottom: 1px solid var(--color-border);
+}
+.topbar-brand {
+  font-weight: 700;
+  color: var(--color-heading);
+  text-decoration: none;
 }
 .topbar-account {
   display: flex;

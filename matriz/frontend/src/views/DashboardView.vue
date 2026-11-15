@@ -5,12 +5,11 @@ import { ApiError } from '@/api/http'
 import type { Account, ProjectSummary } from '@/api/types'
 import { loadMe } from '@/auth/auth-api'
 import { listMyProjects } from '@/projects/projects-api'
-import {
-  ARCHIVED_LABEL,
-  PROJECT_ROLE_LABELS,
-  progressCountsLabel,
-  progressPercentLabel,
-} from '@/projects/project-labels'
+import EmptyState from '@/components/EmptyState.vue'
+import ErrorMessage from '@/components/ErrorMessage.vue'
+import LoadingIndicator from '@/components/LoadingIndicator.vue'
+import ProgressIndicator from '@/components/ProgressIndicator.vue'
+import { ARCHIVED_LABEL, PROJECT_ROLE_LABELS } from '@/projects/project-labels'
 
 /**
  * Ecrã inicial (wireframe, ecrã 1; FN05, US05): a conta autenticada
@@ -43,11 +42,8 @@ onMounted(load)
 
 <template>
   <main class="page stack">
-    <p v-if="loading" class="muted" role="status">A carregar…</p>
-    <div v-else-if="error" class="stack">
-      <p role="alert" class="alert">{{ error }}</p>
-      <p><button type="button" class="btn" @click="load">Tentar outra vez</button></p>
-    </div>
+    <LoadingIndicator v-if="loading" />
+    <ErrorMessage v-else-if="error" :message="error" retryable @retry="load" />
     <template v-else-if="account && projects">
       <header>
         <h1>Olá, {{ account.name }}</h1>
@@ -58,7 +54,11 @@ onMounted(load)
 
       <section class="stack" aria-labelledby="projects-title">
         <h2 id="projects-title">Os meus projetos</h2>
-        <p v-if="projects.length === 0" class="card muted empty">Ainda não tens projetos.</p>
+        <EmptyState
+          v-if="projects.length === 0"
+          class="card"
+          message="Ainda não participa em nenhum projeto."
+        />
         <ul v-else class="projects">
           <li v-for="p in projects" :key="p.id" class="card project" data-test="project-card">
             <div class="project-head">
@@ -67,22 +67,7 @@ onMounted(load)
               </RouterLink>
               <span class="muted">{{ PROJECT_ROLE_LABELS[p.myRole] }}</span>
             </div>
-            <div
-              v-if="p.progress.total > 0"
-              class="bar"
-              role="progressbar"
-              :aria-label="`Progresso de ${p.name}`"
-              aria-valuemin="0"
-              aria-valuemax="100"
-              :aria-valuenow="p.progress.percentDone ?? 0"
-            >
-              <i :style="{ width: `${p.progress.percentDone ?? 0}%` }" />
-            </div>
-            <div v-else class="bar" aria-hidden="true" />
-            <p class="muted" data-test="progress-percent">{{ progressPercentLabel(p.progress) }}</p>
-            <p v-if="p.progress.total > 0" class="muted" data-test="progress-counts">
-              {{ progressCountsLabel(p.progress) }}
-            </p>
+            <ProgressIndicator :progress="p.progress" :project-name="p.name" />
             <p v-if="p.status === 'ARCHIVED'" class="muted" data-test="archived">{{ ARCHIVED_LABEL }}</p>
           </li>
         </ul>
@@ -109,9 +94,6 @@ h2 {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
   gap: 1rem;
 }
-.project p {
-  margin: 0;
-}
 .project-head {
   display: flex;
   justify-content: space-between;
@@ -123,17 +105,5 @@ h2 {
   font-weight: 600;
   min-width: 0;
   overflow-wrap: anywhere;
-}
-.bar {
-  height: 0.5rem;
-  margin: 0.5rem 0;
-  border: 1px solid var(--color-border);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.bar i {
-  display: block;
-  height: 100%;
-  background: var(--color-accent);
 }
 </style>

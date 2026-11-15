@@ -7,6 +7,8 @@ defineProps<{
   options: { value: T; label: string }[]
   disabled?: boolean
   error?: string | null
+  /** Nome acessível mais completo do que a etiqueta visível (por exemplo, com o título da tarefa). */
+  accessibleLabel?: string
 }>()
 
 const model = defineModel<T>({ required: true })
@@ -20,6 +22,7 @@ const id = useId()
       :id="id"
       v-model="model"
       :disabled="disabled"
+      :aria-label="accessibleLabel"
       :aria-invalid="error ? 'true' : 'false'"
       :aria-describedby="error ? `${id}-error` : undefined"
     >

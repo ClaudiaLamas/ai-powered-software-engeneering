@@ -110,6 +110,17 @@ describe('TaskDetailView (US19, US06, US07, US22)', () => {
     expect(wrapper.text()).toContain('Site')
   })
 
+  it('mostra o caminho Painel › projeto › tarefa, com ligações para os ecrãs anteriores', async () => {
+    routes()
+    const { wrapper } = await mountView(current)
+    const crumbs = wrapper.get('nav[aria-label="Caminho"]')
+    const links = crumbs.findAll('a')
+    expect(links.map((l) => l.text())).toEqual(['Painel', 'Site'])
+    expect(links[0]!.attributes('href')).toBe('/')
+    expect(links[1]!.attributes('href')).toBe(`/projetos/${PROJECT_ID}`)
+    expect(crumbs.get('[aria-current="page"]').text()).toBe('Rever textos')
+  })
+
   it('mostra "Sem responsável"', async () => {
     current = { ...current, assignees: [] }
     routes()
