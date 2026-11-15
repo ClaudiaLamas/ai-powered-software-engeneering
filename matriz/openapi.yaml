@@ -21,7 +21,11 @@ info:
     - Erros no formato Problem Details (RFC 9457), com um campo `code` estável.
     - Erros comuns, não repetidos em cada operação: `400 VALIDATION_ERROR`
       (JSON mal formado, campo desconhecido ou UUID inválido) e
-      `401 UNAUTHENTICATED`.
+      `401 UNAUTHENTICATED`. Também em Problem Details (decisão interna,
+      2026-11-15): `404 NOT_FOUND` para um endereço que não corresponde a
+      nenhuma operação, `413 PAYLOAD_TOO_LARGE` para um corpo maior do que o
+      limite (100 kB) e `500 INTERNAL_ERROR` para um erro inesperado, sem
+      detalhes. O `503` de `getHealth` mantém o seu corpo (`HealthStatus`).
     - Um projeto onde a conta não participa responde `404`, como um projeto
       que não existe, para não revelar que existe (DE02, PN02, RNF02). O mesmo
       vale para as suas tarefas, comentários e pedidos de responsável

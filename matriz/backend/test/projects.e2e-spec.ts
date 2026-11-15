@@ -509,6 +509,16 @@ describe('Projetos (API)', () => {
       expect(res.body.code).toBe('VALIDATION_ERROR');
     });
 
+    it('recusa um corpo que não é objeto com 400 VALIDATION_ERROR e a mensagem em português', async () => {
+      const res = await api(outsiderAdminToken)
+        .update(randomUUID(), [])
+        .expect(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.errors).toEqual([
+        { field: 'body', message: 'O corpo do pedido tem de ser um objeto.' },
+      ]);
+    });
+
     it.each([
       ['no nome', { name: 'Site\u0000' }],
       ['na descrição', { description: '\u0000' }],

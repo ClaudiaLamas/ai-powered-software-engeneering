@@ -2,14 +2,21 @@ import { INestApplication, ValidationError, ValidationPipe } from '@nestjs/commo
 import { FieldError, validationError } from './common/problem.js';
 import { ProblemDetailsFilter } from './common/problem-details.filter.js';
 
+/** Mensagens do ValidationPipe do Nest, em português, pela regra. */
+const NEST_MESSAGES: Record<string, string> = {
+  whitelistValidation: 'Campo desconhecido.',
+  isObject: 'O corpo do pedido tem de ser um objeto.',
+};
+
 function toFieldErrors(errors: ValidationError[], parent = ''): FieldError[] {
   return errors.flatMap((error) => {
     const field = parent ? `${parent}.${error.property}` : error.property;
-    // Com stopAtFirstError há no máximo uma mensagem por campo. A mensagem de
-    // campo desconhecido vem do Nest em inglês: é traduzida aqui.
+    // Com stopAtFirstError há no máximo uma mensagem por campo. As mensagens
+    // de campo desconhecido e de corpo que não é objeto (por exemplo, `[]`)
+    // vêm do Nest em inglês: são traduzidas aqui.
     const own = Object.entries(error.constraints ?? {}).map(([rule, message]) => ({
       field,
-      message: rule === 'whitelistValidation' ? 'Campo desconhecido.' : message,
+      message: NEST_MESSAGES[rule] ?? message,
     }));
     return [...own, ...toFieldErrors(error.children ?? [], field)];
   });
