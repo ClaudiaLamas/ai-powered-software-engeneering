@@ -257,7 +257,13 @@ Bugs corrigidos durante a implementação, tirados das mensagens dos commits e d
 | `093d74d` (2026-11-11) | Mudar de projeto ou de filtros com a lista nova a falhar: continuavam as tarefas anteriores | Invalidar os pedidos não esvaziava as tarefas já carregadas | Os grupos são esvaziados antes de carregar, exceto depois de criar uma tarefa | `ProjectView.spec.ts`: "ao mudar de projeto, não mostra as tarefas do anterior, mesmo que a lista falhe" e o mesmo para os filtros |
 | `23372b5` (2026-11-12) | Criar uma tarefa ou mudar um estado e logo a seguir arquivar ou editar o projeto: o projeto voltava a aparecer ativo ou com o nome antigo | Uma atualização do projeto iniciada antes respondia depois da edição ou do arquivo e repunha a versão antiga | Cada atualização tem uma revisão; editar e arquivar avançam-na e só a mais recente é aplicada | `ProjectView.spec.ts`: "um refresh antigo do projeto não desfaz o arquivo feito entretanto" e "um refresh antigo do projeto não repõe o nome de antes da edição" |
 
-Bugs encontrados nesta verificação: nenhum por agora. Acrescentar aqui os que surgirem ao executar os cenários, com a reprodução, a evidência, a causa, a correção e o teste de regressão.
+Bugs encontrados nesta verificação, com a reprodução, a causa, a correção e o teste de regressão:
+
+| Commit | Reprodução | Causa | Correção | Teste de regressão |
+|---|---|---|---|---|
+| Por commitar (2026-11-15) | Encontrado na revisão do código (2026-11-15). Como Ana, `PATCH /projects/…0103` com `{"description":"Descricao com \u0000 nulo"}`: a API respondeu `500` com `{"statusCode":500,"message":"Internal server error"}`, sem o formato Problem Details. A descrição não mudou. O mesmo acontecia no nome do projeto, no título e na descrição da tarefa e no texto do comentário, ao criar e ao editar | O PostgreSQL não aceita o carácter nulo (`\u0000`) em colunas de texto. A validação dos pedidos só verificava o tipo e as regras de comprimento, por isso o texto chegava à base de dados. O erro do Prisma não era tratado e o Nest respondia `500` | Novo validador `NoNulChar` (`backend/src/common/no-nul-char.ts`) nos campos de texto de `CreateProjectRequest`, `UpdateProjectRequest`, `CreateTaskRequest`, `UpdateTaskRequest` e `CommentBodyRequest`. Responde `400 VALIDATION_ERROR` com "O texto tem um carácter inválido." no campo, antes do `404`. Regra acrescentada ao `openapi.yaml` (decisão interna, 2026-11-15) | 10 testes de API, todos com "recusa o carácter nulo…" no nome, que confirmam o `400` e que nada é guardado: `projects.e2e-spec.ts` (criar e editar o nome e a descrição), `tasks.e2e-spec.ts` (criar e editar o título e a descrição) e `comments.e2e-spec.ts` (comentar e editar). Antes da correção, os 10 falhavam com "expected 400, got 500" |
+
+Acrescentar aqui os que surgirem ao executar os cenários.
 
 ## 6. Uso da IA
 

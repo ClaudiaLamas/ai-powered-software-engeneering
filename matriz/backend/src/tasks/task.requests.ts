@@ -11,6 +11,7 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
+import { NoNulChar } from '../common/no-nul-char.js';
 import type { TaskPriority, TaskStatus } from '../generated/prisma/client.js';
 
 /**
@@ -51,10 +52,12 @@ class TaskFields {
   /** Em falta dá `TITLE_INVALID` no serviço (ao criar); `null` ou outro tipo é erro de formato. */
   @ValidateIf((body: TaskFields) => body.title !== undefined)
   @IsString({ message: 'O título tem de ser texto.' })
+  @NoNulChar()
   title?: string;
 
   @IsOptional()
   @IsString({ message: 'A descrição tem de ser texto.' })
+  @NoNulChar()
   description?: string | null;
 
   /** Não aceita `null`: a prioridade é obrigatória na tarefa (PN19). */

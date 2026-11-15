@@ -36,6 +36,10 @@ info:
     - A conta que faz o pedido vem sempre do token. O corpo nunca traz
       `authorId`, `ownerId` ou `accountId` da própria conta: um campo que não
       está no esquema dá `400 VALIDATION_ERROR`.
+    - Um texto com o carácter nulo (`\u0000`) no nome ou na descrição do
+      projeto, no título ou na descrição da tarefa ou no texto do comentário
+      dá `400 VALIDATION_ERROR`, com o erro no campo (decisão interna,
+      2026-11-15).
     - Qualquer escrita num projeto arquivado responde `409 PROJECT_ARCHIVED`
       (PN09).
     - Ordem das verificações (decisão interna, 2026-11-09): `401` (sessão) →

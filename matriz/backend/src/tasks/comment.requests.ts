@@ -1,4 +1,5 @@
 import { IsString, ValidateIf } from 'class-validator';
+import { NoNulChar } from '../common/no-nul-char.js';
 
 /**
  * Corpo de `POST /tasks/{taskId}/comments` e de `PATCH /comments/{commentId}`
@@ -12,5 +13,6 @@ export class CommentBodyRequest {
   /** Em falta dá `BODY_INVALID` no serviço; `null` ou outro tipo é erro de formato. */
   @ValidateIf((request: CommentBodyRequest) => request.body !== undefined)
   @IsString({ message: 'O comentário tem de ser texto.' })
+  @NoNulChar()
   body?: string;
 }

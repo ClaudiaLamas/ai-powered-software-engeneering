@@ -1,4 +1,5 @@
 import { IsOptional, IsString, IsUUID, ValidateIf } from 'class-validator';
+import { NoNulChar } from '../common/no-nul-char.js';
 
 /**
  * Corpos dos pedidos de projetos (openapi.yaml). Aqui só se valida o formato
@@ -12,10 +13,12 @@ export class CreateProjectRequest {
   /** Em falta dá `NAME_INVALID` no serviço; `null` ou outro tipo é erro de formato. */
   @ValidateIf((body: CreateProjectRequest) => body.name !== undefined)
   @IsString()
+  @NoNulChar()
   name?: string;
 
   @IsOptional()
   @IsString()
+  @NoNulChar()
   description?: string | null;
 
   /** Em falta dá `MANAGER_REQUIRED` no serviço; `null` ou um valor que não é UUID é erro de formato. */
@@ -28,9 +31,11 @@ export class CreateProjectRequest {
 export class UpdateProjectRequest {
   @ValidateIf((body: UpdateProjectRequest) => body.name !== undefined)
   @IsString()
+  @NoNulChar()
   name?: string;
 
   @IsOptional()
   @IsString()
+  @NoNulChar()
   description?: string | null;
 }

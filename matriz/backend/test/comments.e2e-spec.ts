@@ -323,6 +323,18 @@ describe('Comentários (API)', () => {
       expect(res.body.code).toBe('VALIDATION_ERROR');
     });
 
+    it('recusa o carácter nulo com 400 VALIDATION_ERROR, não 500, e não cria nada', async () => {
+      const before = await countOf(t.task.id);
+      const res = await api(t.member.token)
+        .create(t.task.id, { body: 'Olá\u0000' })
+        .expect(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.errors).toEqual([
+        { field: 'body', message: 'O texto tem um carácter inválido.' },
+      ]);
+      expect(await countOf(t.task.id)).toBe(before);
+    });
+
     it('a quem não é membro (mesmo Administrador) responde 404 TASK_NOT_FOUND', async () => {
       const before = await countOf(t.task.id);
       const res = await api(t.outsiderAdmin.token)
@@ -408,6 +420,22 @@ describe('Comentários (API)', () => {
         body: 'Original',
         authorId: t.member.account.id,
       });
+    });
+
+    it('recusa o carácter nulo com 400 VALIDATION_ERROR, não 500, e não muda o comentário', async () => {
+      const t = await team();
+      const comment = await addComment(
+        t.task.id,
+        t.member.account.id,
+        'Original',
+      );
+      const res = await api(t.member.token)
+        .update(comment.id, { body: 'Novo\u0000' })
+        .expect(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(
+        await prisma.comment.findUniqueOrThrow({ where: { id: comment.id } }),
+      ).toMatchObject({ body: 'Original', editedAt: null });
     });
 
     it('recusa um texto só com espaços com 400 BODY_INVALID', async () => {
