@@ -1553,6 +1553,10 @@ describe('Tarefas (API)', () => {
         .create(t.project.id, { title })
         .expect(201);
       expect(res.body.title).toBe(stored);
+      const saved = await prisma.task.findUniqueOrThrow({
+        where: { id: res.body.id },
+      });
+      expect(saved.title).toBe(stored);
     });
 
     it('T20: um não-membro sem a permissão de Administrador não lista as tarefas: 404 PROJECT_NOT_FOUND', async () => {
@@ -1601,6 +1605,10 @@ describe('Tarefas (API)', () => {
       expect(
         await prisma.task.count({ where: { projectId: archived.project.id } }),
       ).toBe(1);
+      const saved = await prisma.task.findUniqueOrThrow({
+        where: { id: task.id },
+      });
+      expect(saved.title).toBe('Original');
     });
   });
 });

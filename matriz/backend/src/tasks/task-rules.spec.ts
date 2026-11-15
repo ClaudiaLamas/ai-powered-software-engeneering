@@ -32,6 +32,9 @@ describe('Regras da tarefa (PN12)', () => {
       ['no máximo', 'a'.repeat(TITLE_MAX)],
       ['no máximo, com espaços nas pontas', `  ${'a'.repeat(TITLE_MAX)}  `],
       ['no máximo, com acentos', 'é'.repeat(TITLE_MAX)],
+      // Um emoji fora do BMP conta 1 (ponto de código), não 2 (unidades
+      // UTF-16): com text.length, este caso seria recusado (H1).
+      ['no máximo, com emojis fora do BMP', '\u{1F600}'.repeat(TITLE_MAX)],
     ])('aceita um título com o comprimento %s', (_, title) => {
       expect(() => normalizeTitle(title)).not.toThrow();
     });
@@ -50,6 +53,9 @@ describe('Regras da tarefa (PN12)', () => {
       ['só com espaços não separáveis (NBSP)', '   '],
       // Contagem em pontos de código (docs/test-plan.md, H1).
       ['longo demais, com acentos', 'é'.repeat(TITLE_MAX + 1)],
+      // Com text.length, dois emojis contariam 4 e seriam aceites (H1).
+      ['curto demais, com emojis fora do BMP', '\u{1F600}'.repeat(TITLE_MIN - 1)],
+      ['longo demais, com emojis fora do BMP', '\u{1F600}'.repeat(TITLE_MAX + 1)],
     ])('recusa um título %s com TITLE_INVALID', (_, title) => {
       const problem = problemOf(() => normalizeTitle(title));
       expect(problem.status).toBe(400);
