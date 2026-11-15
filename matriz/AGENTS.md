@@ -122,8 +122,8 @@ ficheiros com o Prettier: não é uma verificação.
 
 ## Testes
 
-Os testes usam Vitest no backend e no frontend e Supertest nos testes de API
-(D08). Não uses Jest.
+Os testes usam Vitest no backend e no frontend, Supertest nos testes de API e
+Playwright (só Chromium) nos testes E2E de browser do frontend (D08). Não uses Jest.
 
 Comandos (Node.js do `.nvmrc`, com `nvm use`):
 
@@ -132,6 +132,7 @@ Comandos (Node.js do `.nvmrc`, com `nvm use`):
 | `backend/` | `npm test` | Testes unitários (Vitest) |
 | `backend/` | `npm run test:e2e` | Testes de API (Vitest + Supertest), incluindo a autenticação (`test/auth.e2e-spec.ts`, `test/session.e2e-spec.ts`) |
 | `frontend/` | `npm run test:unit -- --run` | Testes de componentes e do cliente (Vitest) |
+| `frontend/` | `E2E_PASSWORD=… npm run test:e2e` | Testes E2E de browser (Playwright): arranca backend e frontend próprios sobre `matriz_e2e_test`, esvaziada e semeada em cada execução |
 
 Os testes de API usam uma base de dados própria, nunca a de desenvolvimento:
 a de `DATABASE_URL` com o nome terminado em `_test` (`matriz_test`), ou
