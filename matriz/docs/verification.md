@@ -135,7 +135,7 @@ Os testes usam Vitest e, nos testes de API, Supertest (D08). Os testes de API us
 | Ficheiro | Testes | O que verifica |
 |---|---|---|
 | `src/accounts/auth.service.spec.ts` | 10 | Entrada (US01): credenciais, conta pendente e desativada; arranque do serviço |
-| `src/accounts/jwt-config.spec.ts` | 3 | Duração do token a partir de `JWT_EXPIRES_IN_SECONDS` (D06) |
+| `src/accounts/jwt-config.spec.ts` | 7 | Segredo dos JWT (recusa a falta, o valor de exemplo e menos de 32 caracteres) e duração do token a partir de `JWT_EXPIRES_IN_SECONDS` (D06) |
 | `src/accounts/jwt.strategy.spec.ts` | 3 | Validação do token e da conta (D06) |
 | `src/authorization/authorization.service.spec.ts` | 12 | `requireMember`, `requireManager`, `requireWritable` (RNF02, PN02, PN05) |
 | `src/authorization/guards.spec.ts` | 5 | `AdminGuard` e `JwtAuthGuard` (FN02, PN02) |

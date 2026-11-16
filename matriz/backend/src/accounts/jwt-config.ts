@@ -9,11 +9,31 @@ export const JWT_TTL_SECONDS = Symbol('JWT_TTL_SECONDS');
 /** Validade por omissão: 1 hora (D06). */
 export const DEFAULT_TOKEN_TTL_SECONDS = 3600;
 
-/** Lê JWT_SECRET; a API não arranca sem ele. */
+/** Comprimento mínimo do segredo (`openssl rand -hex 32` dá 64 caracteres). */
+export const JWT_SECRET_MIN_LENGTH = 32;
+
+/** Valor de exemplo do backend/.env.example: é público, nunca serve de segredo. */
+const EXAMPLE_SECRET = 'muda-este-segredo';
+
+/**
+ * Lê JWT_SECRET. A API não arranca sem ele, com o valor de exemplo ou com
+ * menos de 32 caracteres: com um segredo conhecido ou fraco, qualquer pessoa
+ * pode forjar o token de qualquer conta.
+ */
 export function jwtSecret(env: NodeJS.ProcessEnv = process.env): string {
   const secret = env.JWT_SECRET;
   if (!secret) {
     throw new Error('Define JWT_SECRET no backend/.env (ver .env.example).');
+  }
+  if (secret === EXAMPLE_SECRET) {
+    throw new Error(
+      'JWT_SECRET tem o valor de exemplo do .env.example. Gera um segredo novo (por exemplo, openssl rand -hex 32).',
+    );
+  }
+  if (secret.length < JWT_SECRET_MIN_LENGTH) {
+    throw new Error(
+      `JWT_SECRET tem de ter pelo menos ${JWT_SECRET_MIN_LENGTH} caracteres. Gera um segredo novo (por exemplo, openssl rand -hex 32).`,
+    );
   }
   return secret;
 }

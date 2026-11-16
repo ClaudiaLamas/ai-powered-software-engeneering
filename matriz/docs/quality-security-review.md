@@ -18,7 +18,15 @@ Verificações: `npm run lint` sem erros; `npm test` (backend) com 117 testes a 
 
 ## 2. Security Review
 
-(por preencher)
+Revisão com IA (2026-11-16) das regras de autorização (`authorization.service.ts`, controladores de projetos, tarefas e comentários, `jwt.strategy.ts`) e de secrets. Não foram encontrados IDOR nem dados sensíveis nas respostas: os controladores usam a conta do token e chamam `requireMember`, `requireTask` ou `requireComment` antes de qualquer acesso; quem não é membro recebe `404`; nenhum DTO inclui o `passwordHash`; nenhum `.env` esteve alguma vez em commit.
+
+| # | Ficheiro:linha | Finding | Severidade | Estado | Correção ou decisão |
+|---|---|---|---|---|---|
+| S1 | `backend/src/accounts/jwt-config.ts:13` | O `jwtSecret()` só recusava um segredo vazio. O `JWT_SECRET` local era o valor público do `.env.example`, e um token forjado com ele para outra conta foi aceite por `GET /me` (facto, testado localmente). Como os ids das contas aparecem nas respostas a qualquer membro, um Membro podia fazer-se passar pelo Gestor. | Alta | Corrigido no código; falta rodar o segredo local | A API não arranca com o valor de exemplo nem com menos de 32 caracteres. Rodar o `JWT_SECRET` do `backend/.env` é ação da pessoa que tem o ambiente. |
+| S2 | `backend/src/accounts/auth.controller.ts:18` | O login não tem limite de tentativas; a documentação é omissa. Impacto (hipótese, não medido): força bruta e consumo de CPU (bcrypt de custo 12). | Baixa | Pendente | Decisão: limite só no `POST /auth/login` (por exemplo, `@nestjs/throttler`, que é uma dependência nova). |
+| S3 | `backend/src/tasks/task.requests.ts:72` | `assigneeIds` não tem limite de elementos: uma consulta por elemento dentro da transação com `FOR SHARE`. Impacto (hipótese): um Gestor atrasa as escritas no projeto. | Baixa | Pendente | Decisão: `maxItems` no `openapi.yaml` e `@ArrayMaxSize` no pedido. |
+
+Verificações: leitura do código; `git log --all`, `git ls-files` e `git grep` à procura de secrets; token forjado em `GET /me` (só leitura); `npm audit` no backend sem vulnerabilidades. Por validar: acesso à porta 3000 a partir de outra máquina (o backend escuta em todas as interfaces), efeito real de S2 e S3, XSS e CSP no frontend.
 
 ## 3. Teste manual de autorização (duas contas)
 
@@ -30,7 +38,9 @@ Verificações: `npm run lint` sem erros; `npm test` (backend) com 117 testes a 
 
 ## 5. Correções e testes de regressão
 
-(por preencher)
+| Finding | Correção | Teste de regressão | Resultado |
+|---|---|---|---|
+| S1 | `jwtSecret()` recusa o valor de exemplo do `.env.example` e segredos com menos de 32 caracteres; a API não arranca e a mensagem indica `openssl rand -hex 32`. | `backend/src/accounts/jwt-config.spec.ts`: recusa o valor de exemplo, recusa 31 caracteres, aceita `randomBytes(32)` em hexadecimal. | Os 2 testes de recusa falhavam antes da correção e passam depois; `npm test` com 121 testes e `npm run test:e2e` com 252 a passar (com um `JWT_SECRET` aleatório no ambiente). |
 
 ## 6. Verificações não executadas e problemas pendentes
 
