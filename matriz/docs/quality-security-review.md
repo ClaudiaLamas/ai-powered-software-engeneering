@@ -79,5 +79,5 @@ Não há Semgrep nem SonarQube configurados. Nenhum aviso da análise estática 
 
 ## 7. Referência
 
-- Branch: `aula04-testes` · Commit final: (por preencher) · PR: (por preencher)
+- Branch: `aula04-testes` · Commit final: `37e1c95` · PR: [#27](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/pull/27)
 - Testes não executados: os guardas `_test` com uma base de outro nome (pendente 1); o comportamento de S2 e S3 sob carga.
