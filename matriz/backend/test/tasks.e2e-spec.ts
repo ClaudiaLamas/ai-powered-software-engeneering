@@ -1523,6 +1523,9 @@ describe('Tarefas (API)', () => {
         .create(t.project.id, { title: '' })
         .expect(400);
       expect(res.body.code).toBe('TITLE_INVALID');
+      expect(res.body.errors).toEqual(
+        expect.arrayContaining([expect.objectContaining({ field: 'title' })]),
+      );
       expect(
         await prisma.task.count({ where: { projectId: t.project.id } }),
       ).toBe(before);
@@ -1534,6 +1537,9 @@ describe('Tarefas (API)', () => {
         .update(task.id, { title: 'a'.repeat(151) })
         .expect(400);
       expect(res.body.code).toBe('TITLE_INVALID');
+      expect(res.body.errors).toEqual(
+        expect.arrayContaining([expect.objectContaining({ field: 'title' })]),
+      );
       const saved = await prisma.task.findUniqueOrThrow({
         where: { id: task.id },
       });
@@ -1547,6 +1553,12 @@ describe('Tarefas (API)', () => {
         '150 caracteres com espaços nas pontas',
         `  ${'a'.repeat(150)}  `,
         'a'.repeat(150),
+      ],
+      // H1: um emoji fora do BMP conta 1; o VARCHAR(150) também aceita os 150.
+      [
+        '150 emojis fora do BMP',
+        '\u{1F600}'.repeat(150),
+        '\u{1F600}'.repeat(150),
       ],
     ])('T08: aceita um título com %s', async (_, title, stored) => {
       const res = await api(t.manager.token)

@@ -12,7 +12,9 @@ try {
 // Os testes de API usam uma base de dados própria (`<nome>_test`), recriada
 // pelas migrations antes de cada execução (test/global-setup.ts).
 process.env.DATABASE_URL = testDatabaseUrl(process.env);
-process.env.JWT_SECRET ??= randomBytes(32).toString('hex');
+// Segredo próprio e aleatório em cada execução: os testes nunca usam o
+// JWT_SECRET do backend/.env, que a API recusa se for o valor de exemplo.
+process.env.JWT_SECRET = randomBytes(32).toString('hex');
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },

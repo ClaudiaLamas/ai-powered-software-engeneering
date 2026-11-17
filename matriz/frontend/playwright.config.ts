@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { parseEnv } from 'node:util'
@@ -79,6 +80,8 @@ export default defineConfig({
         PORT: String(BACKEND_PORT),
         DATABASE_URL: databaseUrl,
         SEED_DEMO_PASSWORD: password,
+        // Segredo próprio e aleatório: nunca o JWT_SECRET do backend/.env.
+        JWT_SECRET: randomBytes(32).toString('hex'),
       },
     },
     {
