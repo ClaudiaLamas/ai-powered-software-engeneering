@@ -100,7 +100,7 @@ cp frontend/.env.example frontend/.env
 | `backend/.env` | `PORT` | Não (3000) | Porta da API |
 | | `DATABASE_URL` | Sim | Ligação ao PostgreSQL, no formato `postgresql://<utilizador>:<palavra-passe>@localhost:<porta>/<base de dados>?schema=public`. Tem de usar os mesmos valores do `.env` da raiz |
 | | `TEST_DATABASE_URL` | Não | Base de dados dos testes de API. Por omissão, a de `DATABASE_URL` com `_test` no fim do nome (`matriz_test`). Tem de terminar em `_test` |
-| | `JWT_SECRET` | Sim | Segredo para assinar os JWT (D06). Usa um valor aleatório e longo. Sem ele, a API não arranca |
+| | `JWT_SECRET` | Sim | Segredo para assinar os JWT (D06). Usa um valor aleatório e longo (`openssl rand -hex 32`). A API não arranca sem ele, com o valor do `.env.example` ou com menos de 32 caracteres |
 | | `JWT_EXPIRES_IN_SECONDS` | Não (3600) | Validade dos JWT, em segundos (1 hora, D06) |
 | | `SEED_DEMO_PASSWORD` | Para o seed | Palavra-passe das contas de demonstração, com pelo menos 12 caracteres |
 | `frontend/.env` | `VITE_API_URL` | Não (`http://localhost:3000`) | Endereço da API, para onde o Vite encaminha os pedidos `/api` em desenvolvimento. Fica visível no navegador: não ponhas segredos aqui |
@@ -189,8 +189,25 @@ Abre `http://localhost:5173` (o endereço aparece no terminal) e entra com uma d
 | `backend/` | `npm run build` | Compila para `dist/` |
 | `frontend/` | `npm run test:unit -- --run` | Testes de componentes, vistas e cliente (Vitest), uma só vez. Sem `-- --run`, fica a observar os ficheiros |
 | `frontend/` | `npm run build` | Verifica os tipos (`vue-tsc`) e compila para `dist/` |
+| `frontend/` | `E2E_PASSWORD=… npm run test:e2e` | Testes E2E de browser (Playwright, Chromium): entrar, abrir um projeto, criar uma tarefa e vê-la na listagem |
 
 Os testes de API nunca usam a base de dados de desenvolvimento: usam `matriz_test` (ou `TEST_DATABASE_URL`). Antes de cada execução, `backend/test/global-setup.ts` aplica as migrations a essa base, criando-a se não existir, e esvazia todas as tabelas. Recusa qualquer nome que não termine em `_test`. O frontend não tem lint configurado.
+
+Testes E2E de browser (`frontend/e2e/`, configuração em `frontend/playwright.config.ts`):
+
+- Pré-requisitos:
+  - o PostgreSQL a correr (`docker compose up -d`);
+  - o `backend/.env` criado (passo 3) e as dependências do backend instaladas (passo 2);
+  - o Chromium do Playwright, uma vez: `cd frontend && npx playwright install chromium`;
+  - a variável `E2E_PASSWORD`, com pelo menos 12 caracteres. É a palavra-passe das contas de demonstração na base dos testes E2E; escolhe uma só para a máquina local e não a escrevas em ficheiros do repositório.
+- Comando, a partir de `frontend/`:
+
+  ```bash
+  E2E_PASSWORD='<palavra-passe local>' npm run test:e2e
+  ```
+
+- O Playwright arranca um backend (porta 3100) e um frontend (porta 5180) próprios, sem reutilizar os de desenvolvimento. Usam a base `<nome>_e2e_test` (`matriz_e2e_test`), derivada do `DATABASE_URL` do `backend/.env`. Em cada execução, aplica as migrations, esvazia todas as tabelas (`frontend/e2e/reset-database.sql`) e corre o `db:seed` com `SEED_DEMO_PASSWORD=$E2E_PASSWORD`. A configuração aborta antes de esvaziar se o nome da base não terminar em `_test`, e o SQL volta a confirmá-lo.
+- Em caso de falha, o trace e a captura de ecrã ficam em `frontend/test-results/` (`npx playwright show-trace <ficheiro>.zip`).
 
 ### 11. Problemas comuns
 
@@ -204,6 +221,7 @@ Os testes de API nunca usam a base de dados de desenvolvimento: usam `matriz_tes
 | Migrations, seed ou testes de API falham sem conseguir ligar à base de dados | O PostgreSQL não está a correr | `docker compose up -d` e espera por `healthy` |
 | A API ou o seed falham porque não encontram `src/generated/prisma` | O cliente Prisma não foi gerado (a pasta não vem no clone) | `cd backend && npx prisma generate` |
 | A API não arranca: "Define JWT_SECRET no backend/.env" | Falta o `backend/.env` ou o `JWT_SECRET` | `cp backend/.env.example backend/.env` e define `JWT_SECRET` |
+| A API não arranca: "JWT_SECRET tem o valor de exemplo" ou "tem de ter pelo menos 32 caracteres" | `JWT_SECRET` ficou com o valor do `.env.example` ou é curto | Gera um segredo novo com `openssl rand -hex 32` e põe-no em `backend/.env` |
 | O seed pára: "Falta a variável de ambiente SEED_DEMO_PASSWORD" ou "tem de ter pelo menos 12 caracteres" | `SEED_DEMO_PASSWORD` em falta ou curta | Define-a em `backend/.env` com pelo menos 12 caracteres |
 | O login das contas de demonstração dá "O email ou a palavra-passe estão errados." | Estás a usar outra palavra-passe, não a de `SEED_DEMO_PASSWORD` quando o seed criou as contas; ou a conta é a da Carla, que está pendente | Usa a palavra-passe da altura do seed. Mudar `SEED_DEMO_PASSWORD` depois não muda as contas já criadas |
 | No frontend, "Não foi possível contactar o servidor. Tente outra vez." | O backend não está a correr ou `VITE_API_URL` aponta para outro endereço (o Vite responde `502` em `/api`) | Arranca o backend e confirma `curl -i http://localhost:3000/health` e o `frontend/.env` |

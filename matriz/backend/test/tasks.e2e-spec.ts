@@ -1469,4 +1469,158 @@ describe('Tarefas (API)', () => {
       expect(stored.map((t) => t.title)).toEqual(['Tarefa antiga']);
     });
   });
+
+  // ------------------------------------- lacunas do plano de testes
+  describe('lacunas de docs/test-plan.md (T02, T04, T07, T08, T20, T23, T24)', () => {
+    let t: Awaited<ReturnType<typeof team>>;
+
+    beforeAll(async () => {
+      t = await team();
+    });
+
+    it('T02: o Gestor cria a tarefa e consulta-a com o seu token; a base de dados tem os mesmos valores', async () => {
+      const created = await api(t.manager.token)
+        .create(t.project.id, {
+          title: '  Rever textos  ',
+          description: 'Rever os textos da página inicial.',
+          priority: 'HIGH',
+          assigneeIds: [t.member.account.id],
+        })
+        .expect(201);
+
+      const got = await api(t.manager.token).get(created.body.id).expect(200);
+      expect(got.body).toEqual(created.body);
+      expect(got.body).toMatchObject({
+        projectId: t.project.id,
+        title: 'Rever textos',
+        description: 'Rever os textos da página inicial.',
+        status: 'TODO',
+        priority: 'HIGH',
+        assignees: [{ id: t.member.account.id, isProjectMember: true }],
+      });
+
+      const saved = await prisma.task.findUniqueOrThrow({
+        where: { id: created.body.id },
+        include: { assignees: true },
+      });
+      expect(saved).toMatchObject({
+        projectId: t.project.id,
+        title: 'Rever textos',
+        description: 'Rever os textos da página inicial.',
+        status: 'TODO',
+        priority: 'HIGH',
+      });
+      expect(saved.assignees.map((a) => a.accountId)).toEqual([
+        t.member.account.id,
+      ]);
+    });
+
+    it('T04: recusa um título vazio com 400 TITLE_INVALID e não cria nada', async () => {
+      const before = await prisma.task.count({
+        where: { projectId: t.project.id },
+      });
+      const res = await api(t.manager.token)
+        .create(t.project.id, { title: '' })
+        .expect(400);
+      expect(res.body.code).toBe('TITLE_INVALID');
+      expect(res.body.errors).toEqual(
+        expect.arrayContaining([expect.objectContaining({ field: 'title' })]),
+      );
+      expect(
+        await prisma.task.count({ where: { projectId: t.project.id } }),
+      ).toBe(before);
+    });
+
+    it('T07: ao editar, recusa um título com 151 caracteres e mantém o título guardado', async () => {
+      const task = await createTask(app, t.project.id, { title: 'Original' });
+      const res = await api(t.manager.token)
+        .update(task.id, { title: 'a'.repeat(151) })
+        .expect(400);
+      expect(res.body.code).toBe('TITLE_INVALID');
+      expect(res.body.errors).toEqual(
+        expect.arrayContaining([expect.objectContaining({ field: 'title' })]),
+      );
+      const saved = await prisma.task.findUniqueOrThrow({
+        where: { id: task.id },
+      });
+      expect(saved.title).toBe('Original');
+    });
+
+    it.each([
+      ['3 caracteres', 'abc', 'abc'],
+      ['150 caracteres', 'a'.repeat(150), 'a'.repeat(150)],
+      [
+        '150 caracteres com espaços nas pontas',
+        `  ${'a'.repeat(150)}  `,
+        'a'.repeat(150),
+      ],
+      // H1: um emoji fora do BMP conta 1; o VARCHAR(150) também aceita os 150.
+      [
+        '150 emojis fora do BMP',
+        '\u{1F600}'.repeat(150),
+        '\u{1F600}'.repeat(150),
+      ],
+    ])('T08: aceita um título com %s', async (_, title, stored) => {
+      const res = await api(t.manager.token)
+        .create(t.project.id, { title })
+        .expect(201);
+      expect(res.body.title).toBe(stored);
+      const saved = await prisma.task.findUniqueOrThrow({
+        where: { id: res.body.id },
+      });
+      expect(saved.title).toBe(stored);
+    });
+
+    it('T20: um não-membro sem a permissão de Administrador não lista as tarefas: 404 PROJECT_NOT_FOUND', async () => {
+      const outsider = await accountWithToken({ name: 'Carla de Fora' });
+      const res = await api(outsider.token).list(t.project.id).expect(404);
+      expect(res.body.code).toBe('PROJECT_NOT_FOUND');
+    });
+
+    it('T23: para um não-membro, o 400 de formato vem antes do 404 e o 404 antes do 400 das regras', async () => {
+      const outsider = await accountWithToken({ name: 'Duarte de Fora' });
+      const task = await createTask(app, t.project.id, { title: 'Original' });
+
+      const format = await api(outsider.token)
+        .create(t.project.id, { title: 'Tarefa', campoDesconhecido: 1 })
+        .expect(400);
+      expect(format.body.code).toBe('VALIDATION_ERROR');
+      const formatOnUpdate = await api(outsider.token)
+        .update(task.id, { campoDesconhecido: 1 })
+        .expect(400);
+      expect(formatOnUpdate.body.code).toBe('VALIDATION_ERROR');
+
+      const rule = await api(outsider.token)
+        .create(t.project.id, { title: '   ' })
+        .expect(404);
+      expect(rule.body.code).toBe('PROJECT_NOT_FOUND');
+      const ruleOnUpdate = await api(outsider.token)
+        .update(task.id, { title: '   ' })
+        .expect(404);
+      expect(ruleOnUpdate.body.code).toBe('TASK_NOT_FOUND');
+    });
+
+    it('T24: o Membro num projeto arquivado recebe 403 antes de 409, ao criar e ao editar', async () => {
+      const archived = await team('ARCHIVED');
+      const task = await createTask(app, archived.project.id, {
+        title: 'Original',
+      });
+
+      const created = await api(archived.member.token)
+        .create(archived.project.id, { title: 'Tarefa' })
+        .expect(403);
+      expect(created.body.code).toBe('NOT_PROJECT_MANAGER');
+      const updated = await api(archived.member.token)
+        .update(task.id, { title: 'Alterado' })
+        .expect(403);
+      expect(updated.body.code).toBe('NOT_PROJECT_MANAGER');
+      expect(
+        await prisma.task.count({ where: { projectId: archived.project.id } }),
+      ).toBe(1);
+      const saved = await prisma.task.findUniqueOrThrow({
+        where: { id: task.id },
+      });
+      expect(saved.title).toBe('Original');
+    });
+  });
 });
