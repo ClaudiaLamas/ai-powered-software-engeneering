@@ -36,7 +36,7 @@ Estado: ✅ coberto; 🟡 coberto em parte; ❌ não coberto. Os nomes dos teste
 | T05 | Título só com espaços (criar e editar) | idem; tarefa existe para editar | `{title:"     "}` | `400 TITLE_INVALID` | Unit + Integração | PN12 | ✅ | `tasks.e2e` › "recusa um título só com espaços com 400 TITLE_INVALID" (criar); updateTask › "recusa um título só com espaços com TITLE_INVALID"; `task-rules.spec` › "recusa um título só com espaços com TITLE_INVALID" | |
 | T06 | Título curto depois de tirar os espaços | idem | `{title:"  ab  "}` | `400 TITLE_INVALID` | Unit + Integração | PN12 | ✅ | `tasks.e2e` › "recusa um título curto demais depois de aparado com 400 TITLE_INVALID"; `task-rules.spec` › "recusa um título curto demais depois de aparado com TITLE_INVALID" | |
 | T07 | Título acima do limite (criar e editar) | idem | 151 caracteres | `400 TITLE_INVALID` | Unit + Integração | PN12 | ✅ | Criar: `tasks.e2e` › "recusa um título longo demais com 400 TITLE_INVALID"; `task-rules.spec` › "recusa um título longo demais com TITLE_INVALID". Editar: `tasks.e2e` › lacunas › "T07: ao editar, recusa um título com 151 caracteres e mantém o título guardado" | |
-| T08 | Títulos nos limites são aceites | idem | 3 caracteres; 150; 150 com espaços nas pontas | `201` | Unit + Integração | PN12 | ✅ | `task-rules.spec` › "aceita um título com o comprimento no mínimo / no máximo / no máximo, com espaços nas pontas / no máximo, com acentos"; `tasks.e2e` › lacunas › "T08: aceita um título com 3 caracteres / 150 caracteres / 150 caracteres com espaços nas pontas" | |
+| T08 | Títulos nos limites são aceites | idem | 3 caracteres; 150; 150 com espaços nas pontas; 150 emojis fora do BMP | `201` | Unit + Integração | PN12 | ✅ | `task-rules.spec` › "aceita um título com o comprimento no mínimo / no máximo / no máximo, com espaços nas pontas / no máximo, com acentos / no máximo, com emojis fora do BMP"; `tasks.e2e` › lacunas › "T08: aceita um título com 3 caracteres / 150 caracteres / 150 caracteres com espaços nas pontas / 150 emojis fora do BMP" | |
 | T09 | Título com tipo errado | idem | `{title:123}`; `PATCH {title:null}` | `400 VALIDATION_ERROR` | Integração | OpenAPI (tipo errado) | ✅ | `tasks.e2e` › "recusa um título que não é texto com 400 VALIDATION_ERROR"; updateTask › "recusa um título null com 400 VALIDATION_ERROR" | |
 | T10 | Título vazio na interface | Gestor no ecrã do projeto | submeter sem título | mensagem de título obrigatório; nenhum pedido enviado | E2E | US06 (erro) | 🟡 | Só Componente: `TaskForm.spec` › "com o título vazio, mostra o erro e não envia (US06)"; `ProjectView.spec` › "com o título vazio, não chama a API" | |
 | T11 | Membro cria tarefa | Membro (não Gestor), projeto ativo | `POST …/tasks` | `403 NOT_PROJECT_MANAGER`; nada criado | Integração | US06, PN05 | ✅ | `tasks.e2e` › "recusa o Membro com 403 NOT_PROJECT_MANAGER, mesmo com dados inválidos pelas regras" | |
@@ -117,8 +117,8 @@ Preencher depois de correr os testes. Os comandos estão no [AGENTS.md](../AGENT
 
 | Data | Comando | Resultado (passaram / falharam / ignorados) | Notas |
 |---|---|---|---|
-| | `cd backend && npm test` | | |
-| | `cd backend && npm run test:e2e` | | |
-| | `cd frontend && npm run test:unit -- --run` | | |
-| | E2E (Playwright) | | |
+| 2026-11-17 | `cd backend && npm test` | 121 / 0 / 0 | 11 ficheiros |
+| 2026-11-17 | `cd backend && npm run test:e2e` | 253 / 0 / 0 | 8 ficheiros; com o `JWT_SECRET` de exemplo simulado na shell e com o `backend/.env` tal como está (CR8) |
+| 2026-11-17 | `cd frontend && npm run test:unit -- --run` | 183 / 0 / 0 | 19 ficheiros |
+| 2026-11-17 | E2E (Playwright) | 1 / 0 / 0 | Duas execuções seguidas, com `E2E_PASSWORD` aleatória e o `JWT_SECRET` de exemplo simulado na shell |
 | | Verificação manual N12 | | |

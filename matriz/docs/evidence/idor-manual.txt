@@ -1,0 +1,33 @@
+== Bruno → Campanha de primavera (não é membro) ==
+Bruno  GET    /projects/5eed0000-0000-4000-8000-000000000101   esperado 404  obtido 404 PROJECT_NOT_FOUND      OK
+Bruno  GET    /projects/5eed0000-0000-4000-8000-000000000101/tasks esperado 404  obtido 404 PROJECT_NOT_FOUND      OK
+Bruno  POST   /projects/5eed0000-0000-4000-8000-000000000101/tasks esperado 404  obtido 404 PROJECT_NOT_FOUND      OK
+Bruno  GET    /tasks/5eed0000-0000-4000-8000-000000000203      esperado 404  obtido 404 TASK_NOT_FOUND         OK
+Bruno  PATCH  /tasks/5eed0000-0000-4000-8000-000000000203      esperado 404  obtido 404 TASK_NOT_FOUND         OK
+Bruno  PUT    /tasks/5eed0000-0000-4000-8000-000000000203/status esperado 404  obtido 404 TASK_NOT_FOUND         OK
+Bruno  DELETE /tasks/5eed0000-0000-4000-8000-000000000203      esperado 404  obtido 404 TASK_NOT_FOUND         OK
+Bruno  GET    /tasks/5eed0000-0000-4000-8000-000000000203/comments esperado 404  obtido 404 TASK_NOT_FOUND         OK
+Bruno  PATCH  /comments/5eed0000-0000-4000-8000-000000000301   esperado 404  obtido 404 COMMENT_NOT_FOUND      OK
+== Ana → Renovação do escritório (não é membro) ==
+Ana    GET    /tasks/5eed0000-0000-4000-8000-000000000204      esperado 404  obtido 404 TASK_NOT_FOUND         OK
+Ana    PATCH  /tasks/5eed0000-0000-4000-8000-000000000204      esperado 404  obtido 404 TASK_NOT_FOUND         OK
+Ana    DELETE /tasks/5eed0000-0000-4000-8000-000000000204      esperado 404  obtido 404 TASK_NOT_FOUND         OK
+Ana    GET    /tasks/5eed0000-0000-4000-8000-000000000204/comments esperado 404  obtido 404 TASK_NOT_FOUND         OK
+Ana    DELETE /comments/5eed0000-0000-4000-8000-000000000302   esperado 404  obtido 404 COMMENT_NOT_FOUND      OK
+== Admin → Campanha (Administrador, não membro) ==
+Admin  GET    /tasks/5eed0000-0000-4000-8000-000000000203      esperado 404  obtido 404 TASK_NOT_FOUND         OK
+Admin  PATCH  /tasks/5eed0000-0000-4000-8000-000000000203      esperado 404  obtido 404 TASK_NOT_FOUND         OK
+== Bruno → Portal (Membro, não Gestor) ==
+Bruno  PATCH  /tasks/5eed0000-0000-4000-8000-000000000206      esperado 403  obtido 403 NOT_PROJECT_MANAGER    OK
+Bruno  DELETE /tasks/5eed0000-0000-4000-8000-000000000206      esperado 403  obtido 403 NOT_PROJECT_MANAGER    OK
+== Controlo: os donos continuam a ver os seus recursos intactos ==
+Ana    GET    /tasks/5eed0000-0000-4000-8000-000000000203      esperado 200  obtido 200                        OK
+Bruno  GET    /tasks/5eed0000-0000-4000-8000-000000000204      esperado 200  obtido 200                        OK
+{
+  "title": "Aprovar o orçamento",
+  "status": "IN_PROGRESS"
+}
+{
+  "title": "Pedir três orçamentos de obras",
+  "status": "IN_PROGRESS"
+}
