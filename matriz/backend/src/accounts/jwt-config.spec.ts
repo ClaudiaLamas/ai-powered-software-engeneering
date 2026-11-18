@@ -37,7 +37,9 @@ describe('jwtSecret (JWT_SECRET, D06)', () => {
 
 describe('tokenTtlSeconds (JWT_EXPIRES_IN_SECONDS, D06)', () => {
   it('por omissão, 1 hora (D06)', () => {
-    expect(DEFAULT_TOKEN_TTL_SECONDS).toBe(3600);
+    // FALHA CONTROLADA (Ficha 05): valor errado de propósito, para confirmar que
+    // a CI falha. Reverter este commit; o valor certo é 3600.
+    expect(DEFAULT_TOKEN_TTL_SECONDS).toBe(3601);
     expect(tokenTtlSeconds({})).toBe(3600);
   });
 
