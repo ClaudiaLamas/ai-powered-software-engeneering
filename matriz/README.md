@@ -116,7 +116,7 @@ O workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (na raiz do
 | Job | O que corre |
 |---|---|
 | `backend` | `npm ci`, `prisma generate`, `npm run lint`, `npm run build`, `npm test` e `npm run test:e2e` (PostgreSQL 18 como serviço do job) |
-| `frontend` | `npm ci`, `npm run build` (tipos e build) e `npm run test:unit -- --run` |
+| `frontend` | `npm ci`, `npm run type-check`, `npm run build-only` e `npm run test:unit -- --run` (os dois primeiros são o `npm run build`, em passos separados) |
 | `e2e-browser` | Testes Playwright (Chromium), com uma `E2E_PASSWORD` aleatória; guarda os traces se falharem |
 | `docker` | Só depois dos três anteriores: `docker compose config -q`, `build`, `up -d`, `GET /api/health` através do nginx, seed e entrada com uma conta de demonstração; no fim, `down -v` |
 

@@ -89,8 +89,12 @@ jobs:
           cache: npm
           cache-dependency-path: matriz/frontend/package-lock.json
       - run: npm ci
-      - name: Verificação de tipos e build
-        run: npm run build
+      # Os mesmos dois passos do `npm run build`, separados para o passo que falha
+      # dizer se foi um erro de tipos (vue-tsc) ou da compilação (Vite).
+      - name: Verificação de tipos
+        run: npm run type-check
+      - name: Build
+        run: npm run build-only
       - name: Testes unitários
         run: npm run test:unit -- --run
 

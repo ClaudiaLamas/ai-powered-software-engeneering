@@ -97,7 +97,7 @@ Ficheiro `.github/workflows/ci.yml`, na raiz do repositório.
 | Job | Passos | Depende de |
 |---|---|---|
 | `backend` | `npm ci`, `prisma generate`, `lint`, `build`, `npm test` e `test:e2e`, com o PostgreSQL 18 como serviço | — |
-| `frontend` | `npm ci`, `npm run build` e `test:unit -- --run` | — |
+| `frontend` | `npm ci`, `npm run type-check`, `npm run build-only` e `test:unit -- --run`. Até 2026-11-18 era um só passo, `npm run build`; foi separado para o passo que falha dizer se foi um erro de tipos ou do Vite | — |
 | `e2e-browser` | Backend e frontend com `npm ci`, `backend/.env` só com `DATABASE_URL`, `E2E_PASSWORD` aleatória e Chromium do Playwright; guarda os traces se falhar | — |
 | `docker` | `.env` gerado, `compose config -q`, `build`, `up -d`, `GET /api/health` através do nginx, seed e `POST /api/auth/login`, logs e `down -v` | `backend`, `frontend` e `e2e-browser` |
 
