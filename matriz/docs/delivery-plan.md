@@ -162,7 +162,6 @@ Nenhuma destas questões foi decidida:
 - **11 vulnerabilidades de severidade alta** reportadas pelo `npm ci` do backend na CI. Corrigi-las implica atualizar dependências, o que exige aprovação.
 - **Deploy, HTTPS e publicação das imagens num registo**, como o GitHub Container Registry do Desafio C: continuam fora do âmbito (D05).
 - **Mailpit:** entra com o incremento 2.
-- **PostgreSQL da CI:** o `ci.yml` continua com `postgres:18-alpine` nos jobs `backend` e `e2e-browser` (ver secção 7).
 
 ## 7. Revisão das imagens base e dos `.dockerignore` (2026-11-18)
 
@@ -172,6 +171,7 @@ Revisão aprovada pela programadora depois da entrega das secções anteriores. 
 |---|---|---|
 | `frontend/Dockerfile` | `nginxinc/nginx-unprivileged:1.30-alpine` | `nginxinc/nginx-unprivileged:1.30.6-alpine` |
 | `compose.yaml` (serviço `postgres`) | `postgres:18-alpine` | `postgres:18.6-alpine` |
+| `../.github/workflows/ci.yml` (serviços dos jobs `backend` e `e2e-browser`) | `postgres:18-alpine` | `postgres:18.6-alpine`, num commit próprio a seguir ao do `compose.yaml` |
 | `backend/.dockerignore` | — | Acrescenta `test-results` e `playwright-report`, como no do frontend |
 | `backend/Dockerfile` | `node:26.13.0-alpine` | Sem alteração (já era uma versão exata) |
 
