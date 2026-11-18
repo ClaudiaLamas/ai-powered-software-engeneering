@@ -350,11 +350,25 @@ Validação feita a 2026-11-18 sobre o ramo `aula05-entrega`, com as alteraçõe
 - **Mais informação:** a análise completa está em [delivery-plan.md §5.1](delivery-plan.md#51-primeira-execução-da-pipeline-no-github-falhou).
 - **Resultado colateral:** a primeira falha da pipeline mostra que um passo com erro faz falhar o job e impede o build Docker (`needs`). Não substitui a falha controlada num teste pedida pela ficha.
 
-**Execução 2:** por fazer, depende do push do `60cda3b`.
+**Execução 2** ([44210281487](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44210281487), `push` do commit `749c52c`, que inclui a correção `60cda3b`, 2026-11-18 00:44–00:48 UTC): **passou**.
+
+| Job | Resultado | Duração |
+|---|---|---|
+| Backend (lint, build, testes unitários e de API) | Passou | 00:44:30 → 00:45:41 |
+| Frontend (tipos, build e testes unitários) | Passou | 00:44:30 → 00:45:14 |
+| Testes E2E de browser (Playwright, Chromium) | Passou | 00:44:30 → 00:46:01 |
+| Imagens Docker e arranque com Docker Compose | Passou; começou só depois dos três anteriores | 00:46:03 → 00:48:21 |
+
+Evidências do job `docker`, tiradas do log:
+
+- `GET /api/health` através do nginx: `{"status":"ok","database":"up"}`.
+- `docker compose ps`: `backend` e `postgres` com `healthy`. O `frontend` ainda estava em `health: starting`, apesar de já ter respondido a `/` e a `/api/health`.
+- Seed: "Seed concluído: 27 criados, 0 já existiam."
+- `POST /api/auth/login → 200` com uma conta de demonstração.
 
 ### 8.5 Por verificar
 
-- **Pipeline verde no GitHub:** a execução 2, depois do push do `60cda3b`. O job `docker` nunca correu no GitHub.
+- **Healthcheck do frontend na CI:** o passo de verificação só espera que `/api/health` responda. Não espera que o container do frontend fique `healthy`.
 - **Falha controlada num teste:** introduzir uma falha, confirmar que a pipeline falha e depois corrigir.
 - **Diagrama Mermaid do `architecture.md` §6:** a forma como aparece no GitHub ainda não foi vista.
 - **Entrada no navegador com uma conta de demonstração** na aplicação em containers: a entrada foi verificada pela API, através do nginx.

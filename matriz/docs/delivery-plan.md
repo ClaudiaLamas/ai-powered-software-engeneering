@@ -108,9 +108,9 @@ Ficheiro `.github/workflows/ci.yml`, na raiz do repositório.
 | 1 | Imagem do backend: `docker build` e `docker run` com `/health` | Feita. Sem base de dados, a API arranca como `node` e responde `503 database down`, como esperado |
 | 2 | Imagem do frontend | Feita. `nginx -t` sem erros; o build não inclui as devtools do Vue |
 | 3 | `compose.yaml` e `.env.example`: `config`, `build`, `up`, `ps`, `logs`; entrar, criar uma tarefa, recriar os containers | Feita. **Imprevisto:** a porta 8080 da máquina estava ocupada, por isso a validação usou `FRONTEND_PORT=8088`. A tarefa manteve-se depois de `down` e `up` e foi apagada no fim. Também desliguei o aviso de atualização do npm (`NPM_CONFIG_UPDATE_NOTIFIER=false`) |
-| 4 | `ci.yml`, push com aprovação e verificação no GitHub | O workflow está criado. **Imprevisto (actionlint):** dois erros, o contexto `env` no `env` de um job e uma variável de ciclo sem uso; foram corrigidos. A programadora aprovou o push. **Imprevisto (GitHub):** a [primeira execução](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44208738418) falhou no `e2e-browser`, por um defeito do workflow (ver 5.1). A correção está no commit `60cda3b`, ainda **sem push** |
+| 4 | `ci.yml`, push com aprovação e verificação no GitHub | O workflow está criado. **Imprevisto (actionlint):** dois erros, o contexto `env` no `env` de um job e uma variável de ciclo sem uso; foram corrigidos. A programadora aprovou o push. **Imprevisto (GitHub):** a [primeira execução](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44208738418) falhou no `e2e-browser`, por um defeito do workflow (ver 5.1). A correção está no commit `60cda3b`. A [segunda execução](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44210281487), sobre `749c52c`, **passou nos quatro jobs**, incluindo o `docker` ([verification.md §8.4](verification.md#84-pipeline-no-github-actions)) |
 | 5 | Documentação, CHANGELOG e notas da versão | Feita |
-| 6 | Validação final e relatório (exercício 6) | Parcial: a validação local está em [verification.md §8](verification.md#8-entrega-com-docker-docker-compose-e-github-actions-ficha-05). Falta a pipeline verde no GitHub e a falha controlada |
+| 6 | Validação final e relatório (exercício 6) | Parcial: a validação local e a pipeline verde no GitHub estão em [verification.md §8](verification.md#8-entrega-com-docker-docker-compose-e-github-actions-ficha-05). Falta a falha controlada |
 
 ### 5.1 Primeira execução da pipeline no GitHub (falhou)
 
@@ -141,13 +141,14 @@ Ficheiro `.github/workflows/ci.yml`, na raiz do repositório.
   - sem `DATABASE_URL`, o `npx prisma generate` dá a mesma mensagem e o código 1;
   - com `DATABASE_URL` definida (um valor fictício), gera o cliente;
   - o `ci.yml` corrigido passa no actionlint.
-- **Por verificar:** a nova execução no GitHub, que depende do push do `60cda3b`. Só essa execução vai mostrar se o resto do `e2e-browser` e o job `docker` passam: este job nunca chegou a correr no GitHub.
+- **Verificada no GitHub:** a [execução 44210281487](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44210281487), sobre `749c52c`, passou nos quatro jobs. O `docker` correu pela primeira vez e passou.
 
 **Commits** no ramo `aula05-entrega`:
 - `7513503` ci;
 - `ddb2015` docs;
 - `7035da0` build;
-- `60cda3b` fix(ci), só local.
+- `60cda3b` fix(ci);
+- `749c52c` docs (este plano e a análise da falha).
 
 A ordem dos commits não é a planeada. O primeiro commit (build) falhou e a mudança de nome do ficheiro Compose, que já estava preparada, entrou no commit da CI. O histórico não foi reescrito.
 
@@ -155,7 +156,6 @@ A ordem dos commits não é a planeada. O primeiro commit (build) falhou e a mud
 
 Nenhuma destas questões foi decidida:
 
-- **Push do `60cda3b`** e nova execução da pipeline.
 - **Falha controlada** num teste para confirmar que a pipeline falha (pedida na ficha).
 - **Pull request** do `aula05-entrega` para o `main`.
 - **Versão nos `package.json`** (`0.0.1` e `0.0.0`): não mudou. A versão `0.1.0-rc.1` só existe no CHANGELOG e nas notas. Não foi criada nenhuma tag nem release.
