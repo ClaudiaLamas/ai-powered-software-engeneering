@@ -123,6 +123,9 @@ jobs:
             matriz/frontend/package-lock.json
       - name: Dependências e cliente Prisma do backend
         working-directory: matriz/backend
+        # O prisma.config.ts exige DATABASE_URL, mesmo no `prisma generate`.
+        env:
+          DATABASE_URL: ${{ env.CI_DATABASE_URL }}
         run: npm ci && npx prisma generate
       - name: backend/.env só com DATABASE_URL (o playwright.config.ts deriva dele a base matriz_e2e_test)
         working-directory: matriz/backend
