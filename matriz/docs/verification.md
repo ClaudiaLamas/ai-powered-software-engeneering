@@ -330,9 +330,31 @@ Validação feita a 2026-11-18 sobre o ramo `aula05-entrega`, com as alteraçõe
 | `frontend/` | `npm run test:e2e` (com uma `E2E_PASSWORD` aleatória) | 1 teste: passou |
 | raiz do repositório | `actionlint` 1.7.8 sobre o `ci.yml` | A primeira execução deu dois erros: o contexto `env` usado no `env` de um job e uma variável de ciclo sem uso. Depois de corrigidos, ficou sem erros |
 
-### 8.4 Por verificar
+### 8.4 Pipeline no GitHub Actions
 
-- **Execução da pipeline no GitHub:** exige um push, que ainda não foi feito.
+**Execução 1** ([44208738418](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44208738418), `push` do commit `7035da0`, 2026-11-18 00:33 UTC): **falhou**.
+
+| Job | Resultado |
+|---|---|
+| Backend (lint, build, testes unitários e de API) | Passou |
+| Frontend (tipos, build e testes unitários) | Passou |
+| Testes E2E de browser (Playwright, Chromium) | **Falhou** no passo "Dependências e cliente Prisma do backend" |
+| Imagens Docker e arranque com Docker Compose | Não correu (`skipped`): depende dos três jobs anteriores |
+
+- **Erro:** `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL.` no `npx prisma generate`, com o código de saída 1.
+- **Classificação: defeito do workflow.** O passo não tinha `DATABASE_URL`, que o `prisma.config.ts` exige mesmo para gerar o cliente. No job `backend` a variável estava definida para o job inteiro. Não foi um defeito do código nem do ambiente da CI.
+- **Correção:** o commit `60cda3b` acrescenta `DATABASE_URL: ${{ env.CI_DATABASE_URL }}` ao `env` desse passo. Só muda o `ci.yml`.
+- **Reprodução local** (`backend/`, com `DOTENV_CONFIG_PATH=/nonexistent` para não ler o `backend/.env`):
+  - sem `DATABASE_URL`, deu a mesma mensagem e o código 1;
+  - com a variável definida, gerou o cliente.
+- **Mais informação:** a análise completa está em [delivery-plan.md §5.1](delivery-plan.md#51-primeira-execução-da-pipeline-no-github-falhou).
+- **Resultado colateral:** a primeira falha da pipeline mostra que um passo com erro faz falhar o job e impede o build Docker (`needs`). Não substitui a falha controlada num teste pedida pela ficha.
+
+**Execução 2:** por fazer, depende do push do `60cda3b`.
+
+### 8.5 Por verificar
+
+- **Pipeline verde no GitHub:** a execução 2, depois do push do `60cda3b`. O job `docker` nunca correu no GitHub.
 - **Falha controlada num teste:** introduzir uma falha, confirmar que a pipeline falha e depois corrigir.
 - **Diagrama Mermaid do `architecture.md` §6:** a forma como aparece no GitHub ainda não foi vista.
 - **Entrada no navegador com uma conta de demonstração** na aplicação em containers: a entrada foi verificada pela API, através do nginx.
