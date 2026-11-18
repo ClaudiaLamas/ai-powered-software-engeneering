@@ -70,7 +70,7 @@ A forma mais simples de pôr a Matriz a correr: só precisa do Docker Engine com
 
 | Serviço | Imagem | O que faz | Porta |
 |---|---|---|---|
-| `postgres` | `postgres:18-alpine` | Base de dados; os dados ficam no volume `matriz_pgdata` | `127.0.0.1:${POSTGRES_PORT}` (5432) |
+| `postgres` | `postgres:18.6-alpine` | Base de dados; os dados ficam no volume `matriz_pgdata` | `127.0.0.1:${POSTGRES_PORT}` (5432) |
 | `migrate` | `backend/Dockerfile` (fase `tools`) | Aplica as migrations (`prisma migrate deploy`) e termina; o backend só arranca depois | — |
 | `backend` | `backend/Dockerfile` (fase `runtime`) | API NestJS; healthcheck em `GET /health` | só na rede interna (3000) |
 | `frontend` | `frontend/Dockerfile` | nginx com a aplicação web; encaminha `/api/...` para o backend sem o prefixo `/api` | `127.0.0.1:${FRONTEND_PORT}` (8080) |
@@ -131,7 +131,7 @@ Passos para correr a Matriz numa máquina a partir de um clone limpo. Todos os c
 | Ferramenta | Versão | Notas |
 |---|---|---|
 | Node.js | A de [`.nvmrc`](.nvmrc) (26.13.0), com o npm que a acompanha (11.20.0) | Instalada e escolhida com o [nvm](https://github.com/nvm-sh/nvm): `nvm install` (só da primeira vez) e `nvm use`. O nvm procura o `.nvmrc` na pasta atual e nas de cima, por isso `nvm use` funciona em `matriz/`, `backend/` e `frontend/`. Corre `nvm use` em cada terminal novo |
-| Docker | Docker Engine com o Docker Compose v2 (comando `docker compose`) | Corre o PostgreSQL 18 (`postgres:18-alpine`, ver [`compose.yaml`](compose.yaml)). Testado com Docker 29.9.3 e Compose 2.40.3 |
+| Docker | Docker Engine com o Docker Compose v2 (comando `docker compose`) | Corre o PostgreSQL 18.6 (`postgres:18.6-alpine`, ver [`compose.yaml`](compose.yaml)). Testado com Docker 29.9.3 e Compose 2.40.3 |
 | Git | — | Para clonar o repositório |
 | `curl` e `jq` | — | Opcionais: só para os pedidos diretos à API mais abaixo |
 

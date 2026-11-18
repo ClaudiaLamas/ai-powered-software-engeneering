@@ -162,3 +162,76 @@ Nenhuma destas questões foi decidida:
 - **11 vulnerabilidades de severidade alta** reportadas pelo `npm ci` do backend na CI. Corrigi-las implica atualizar dependências, o que exige aprovação.
 - **Deploy, HTTPS e publicação das imagens num registo**, como o GitHub Container Registry do Desafio C: continuam fora do âmbito (D05).
 - **Mailpit:** entra com o incremento 2.
+- **PostgreSQL da CI:** o `ci.yml` continua com `postgres:18-alpine` nos jobs `backend` e `e2e-browser` (ver secção 7).
+
+## 7. Revisão das imagens base e dos `.dockerignore` (2026-11-18)
+
+Revisão aprovada pela programadora depois da entrega das secções anteriores. Commit `build: fixar versões das imagens base e completar .dockerignore`.
+
+| Ficheiro | Antes | Depois |
+|---|---|---|
+| `frontend/Dockerfile` | `nginxinc/nginx-unprivileged:1.30-alpine` | `nginxinc/nginx-unprivileged:1.30.6-alpine` |
+| `compose.yaml` (serviço `postgres`) | `postgres:18-alpine` | `postgres:18.6-alpine` |
+| `backend/.dockerignore` | — | Acrescenta `test-results` e `playwright-report`, como no do frontend |
+| `backend/Dockerfile` | `node:26.13.0-alpine` | Sem alteração (já era uma versão exata) |
+
+- **Como confirmei as etiquetas:** `1.30-alpine` corria o nginx 1.30.6 e `18-alpine` o PostgreSQL 18.6 (`nginx -v` e `postgres --version` nos containers). `docker manifest inspect` confirmou que `1.30.6-alpine` e `18.6-alpine` existem.
+- **Também atualizado:** `README.md` e `architecture.md` §6, que descrevem as imagens atuais. As secções 1 e 3 deste ficheiro ficam como estão, porque registam o estado do projeto nessa altura.
+- **Verificação:** `docker build` das imagens `runtime` do backend e do frontend, `docker compose config -q` sem erros. O `docker compose up` com as novas versões fica para a programadora validar.
+
+### 7.1 Decisão: etiquetas exatas em vez de digest
+
+**Decisão interna, por validar.** As imagens base ficam fixadas por etiqueta exata (`node:26.13.0-alpine`, `nginxinc/nginx-unprivileged:1.30.6-alpine`, `postgres:18.6-alpine`) e não por digest (`@sha256:…`).
+
+- **Porquê:**
+  - a etiqueta exata fixa a versão do Node.js, do nginx e do PostgreSQL, que é o que pode mudar o comportamento da aplicação;
+  - lê-se e revê-se sem ferramentas: um digest não diz que versão é;
+  - os mantenedores voltam a publicar a mesma etiqueta quando corrigem vulnerabilidades da base Alpine, e as imagens recebem essas correções no build seguinte.
+- **O que se perde:**
+  - o build não é idêntico bit a bit: a mesma etiqueta pode apontar para outro digest, com outros pacotes do Alpine;
+  - uma etiqueta pode ser republicada de forma maliciosa, e o digest protegeria contra isso.
+- **Alternativa preterida:** a etiqueta com digest (`imagem:versão@sha256:…`), que exige atualizar o digest à mão ou com uma ferramenta como o Dependabot. Faz mais sentido quando houver publicação das imagens num registo, que está fora do âmbito (D05).
+- **Mudar de versão:** sempre à mão, no Dockerfile ou no `compose.yaml`. A versão do Node.js tem de continuar igual à do `.nvmrc`.
+
+### 7.2 O `DATABASE_URL` fictício no build do backend não é uma credencial
+
+A fase `build` do `backend/Dockerfile` corre:
+
+```
+RUN DATABASE_URL="postgresql://build@localhost:5432/build" npx prisma generate && npm run build
+```
+
+O `prisma.config.ts` recusa carregar sem `DATABASE_URL`, mesmo no `prisma generate`, que não liga à base de dados (é a mesma causa da falha da CI na secção 5.1). O valor existe só para satisfazer essa leitura:
+
+- **Não dá acesso a nada:** não tem palavra-passe, o utilizador e a base de dados (`build`) não existem, e aponta para `localhost` dentro do container de build, onde não há nenhum PostgreSQL.
+- **Não fica no ambiente das imagens:** é uma variável só desse `RUN`, não um `ARG` nem um `ENV`. O `docker inspect` das imagens não a mostra.
+- **Não chega à imagem da API:** a fase `runtime` parte de uma imagem `node` nova e só copia o `dist/`. O `docker history` de `matriz-backend:local` não tem a linha. Aparece no da imagem `tools` (serviço `migrate`), que parte da fase `build`, mas é o mesmo valor fictício.
+- **O `DATABASE_URL` real** e o `JWT_SECRET` chegam só em runtime, pelo `compose.yaml` e pelo `.env`, que os `.dockerignore` deixam fora das imagens.
+
+### 7.3 Limitação aceite: tamanho da imagem do backend
+
+**Aceite pela programadora em 2026-11-18.** Não foi otimizada nesta entrega.
+
+Medido com `docker images` e `du -sh` dentro do container, sobre as imagens construídas a 2026-11-18:
+
+| Imagem | Tamanho |
+|---|---|
+| `matriz-backend:local` (fase `runtime`) | **571 MB** |
+| `matriz-backend-tools:local` (fase `tools`, serviço `migrate`) | 896 MB |
+| `matriz-frontend:local` | 60,3 MB |
+
+Na imagem `runtime` do backend, `node_modules` ocupa **405,5 MB**. As maiores pastas:
+
+| Pasta | Tamanho |
+|---|---|
+| `@prisma` | 166,7 MB |
+| `prisma` | 40,2 MB |
+| `effect` | 33,8 MB |
+| `@electric-sql` | 25,4 MB |
+| `typescript` | 23,6 MB |
+| `libphonenumber-js` | 12,3 MB |
+| `rxjs` | 11,4 MB |
+
+- **Causa principal:** o `@prisma/client` (dependência de produção) declara o `prisma` (CLI) e o `typescript` como dependências opcionais. O `npm ci --omit=dev` não as exclui, e é o que mostra `npm ls typescript --omit=dev`. Não verifiquei de onde vêm o `effect` e o `@electric-sql`.
+- **Porque fica assim:** reduzir o tamanho implica mudar dependências ou apagar pacotes de `node_modules` à mão na imagem final, e ambas as coisas exigem aprovação. A imagem funciona, corre sem root e não tem o código-fonte nem as `devDependencies` do `package.json`.
+- **Como se pode reduzir mais tarde:** retirar da fase `runtime` os pacotes que só o build usa, ou rever as dependências do Prisma. Qualquer das duas precisa de aprovação e de voltar a correr os testes de API e o job `docker` da CI.

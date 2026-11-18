@@ -160,10 +160,10 @@ O `backend` está nas duas redes: é o único serviço que liga o frontend à ba
 
 | Serviço | Imagem | Arranca depois de | Healthcheck |
 |---|---|---|---|
-| `postgres` | `postgres:18-alpine` | — | `pg_isready` |
+| `postgres` | `postgres:18.6-alpine` | — | `pg_isready` |
 | `migrate` | `backend/Dockerfile`, fase `tools` (com a CLI do Prisma e o `tsx`) | `postgres` saudável | — (termina com o código 0) |
 | `backend` | `backend/Dockerfile`, fase `runtime` (`node:26.13.0-alpine`, só `dist/` e as dependências de produção, utilizador `node`) | `postgres` saudável e `migrate` terminado sem erros | `GET /health` (confirma o acesso à base de dados) |
-| `frontend` | `frontend/Dockerfile` (build com Node.js; `nginxinc/nginx-unprivileged:1.30-alpine`) | `backend` saudável | `GET /` |
+| `frontend` | `frontend/Dockerfile` (build com Node.js; `nginxinc/nginx-unprivileged:1.30.6-alpine`) | `backend` saudável | `GET /` |
 
 Decisões e razões:
 

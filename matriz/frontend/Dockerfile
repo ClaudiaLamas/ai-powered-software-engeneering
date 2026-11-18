@@ -7,7 +7,7 @@
 
 # Mesma versão do .nvmrc.
 ARG NODE_IMAGE=node:26.13.0-alpine
-ARG NGINX_IMAGE=nginxinc/nginx-unprivileged:1.30-alpine
+ARG NGINX_IMAGE=nginxinc/nginx-unprivileged:1.30.6-alpine
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
