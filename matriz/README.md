@@ -53,6 +53,75 @@ Prazos, pesquisa, notificações e relatórios ficam **fora do MVP** (FN10, FN11
 
 As funções e a permissão são **decisões internas, por validar com o cliente** (DE01–DE16).
 
+## Tecnologias
+
+| Camada | Tecnologia | Decisão |
+|---|---|---|
+| Frontend | Vue.js 3 com vue-router e Vite, em TypeScript; servido em containers por nginx | D01–D03, D05 |
+| Backend | NestJS 12 em TypeScript (Node.js 26), monólito modular | D02, D03, D07 |
+| Dados | PostgreSQL 18 com Prisma 7 (migrations e seed); identificadores UUID | D04 |
+| Autenticação | JWT (`@nestjs/jwt` e Passport), palavras-passe com bcrypt (`bcryptjs`) | D06 |
+| Testes | Vitest (backend e frontend), Supertest (API), Playwright com Chromium (E2E de browser) | D08 |
+| Execução e CI | Docker e Docker Compose ([`compose.yaml`](compose.yaml)); GitHub Actions ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) | D05 |
+
+## Execução com Docker Compose
+
+A forma mais simples de pôr a Matriz a correr: só precisa do Docker Engine com o Docker Compose v2 (testado com Docker 29.9.3 e Compose 2.40.3). Os comandos partem da pasta `matriz/`.
+
+| Serviço | Imagem | O que faz | Porta |
+|---|---|---|---|
+| `postgres` | `postgres:18-alpine` | Base de dados; os dados ficam no volume `matriz_pgdata` | `127.0.0.1:${POSTGRES_PORT}` (5432) |
+| `migrate` | `backend/Dockerfile` (fase `tools`) | Aplica as migrations (`prisma migrate deploy`) e termina; o backend só arranca depois | — |
+| `backend` | `backend/Dockerfile` (fase `runtime`) | API NestJS; healthcheck em `GET /health` | só na rede interna (3000) |
+| `frontend` | `frontend/Dockerfile` | nginx com a aplicação web; encaminha `/api/...` para o backend sem o prefixo `/api` | `127.0.0.1:${FRONTEND_PORT}` (8080) |
+
+O frontend e o backend partilham a rede `web`; o backend, as migrations e o PostgreSQL partilham a rede `data`. O frontend não chega à base de dados. As imagens correm com um utilizador sem privilégios e não têm credenciais: tudo vem do `.env`.
+
+1. Configuração (ficheiro ignorado pelo Git). Muda os valores fictícios; o `JWT_SECRET` tem de ter pelo menos 32 caracteres e não pode ser o do exemplo:
+
+   ```bash
+   cp .env.example .env
+   openssl rand -hex 32      # valor para JWT_SECRET no .env
+   ```
+
+2. Construir as imagens e arrancar (espera que `docker compose ps` mostre `backend` e `frontend` com `healthy` e `migrate` com `Exited (0)`):
+
+   ```bash
+   docker compose up -d --build
+   docker compose ps
+   ```
+
+3. Dados de demonstração, só a pedido (idempotente; usa `SEED_DEMO_PASSWORD` do `.env`):
+
+   ```bash
+   docker compose run --rm migrate npm run db:seed
+   ```
+
+4. Abrir `http://localhost:8080` (ou a porta de `FRONTEND_PORT`) e entrar com uma das [contas de demonstração](#7-contas-de-demonstração). `curl http://localhost:8080/api/health` confirma que o frontend chega ao backend e o backend à base de dados.
+
+| Comando | Para quê |
+|---|---|
+| `docker compose config -q` | Valida o `compose.yaml` com o `.env` |
+| `docker compose logs --tail=50 backend` | Logs de um serviço (por exemplo, a mensagem de um `JWT_SECRET` inválido) |
+| `docker compose down` | Para e apaga os containers; os dados ficam no volume |
+| `docker compose down -v` | Apaga também o volume, **com todos os dados** |
+| `docker compose up -d postgres` | Só o PostgreSQL, para o desenvolvimento local (secção seguinte) |
+
+Os containers usam o mesmo volume `matriz_pgdata` que o desenvolvimento local: são os mesmos dados. Se a porta 8080 estiver ocupada, muda `FRONTEND_PORT` no `.env`.
+
+## Integração contínua
+
+O workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (na raiz do repositório Git) corre em cada `push` e `pull_request` que mude `matriz/` ou o próprio workflow, só com permissão de leitura do código:
+
+| Job | O que corre |
+|---|---|
+| `backend` | `npm ci`, `prisma generate`, `npm run lint`, `npm run build`, `npm test` e `npm run test:e2e` (PostgreSQL 18 como serviço do job) |
+| `frontend` | `npm ci`, `npm run build` (tipos e build) e `npm run test:unit -- --run` |
+| `e2e-browser` | Testes Playwright (Chromium), com uma `E2E_PASSWORD` aleatória; guarda os traces se falharem |
+| `docker` | Só depois dos três anteriores: `docker compose config -q`, `build`, `up -d`, `GET /api/health` através do nginx, seed e entrada com uma conta de demonstração; no fim, `down -v` |
+
+Não usa segredos do repositório: a palavra-passe do PostgreSQL dos jobs é descartável e os outros valores são gerados em cada execução.
+
 ## Execução local
 
 Passos para correr a Matriz numa máquina a partir de um clone limpo. Todos os comandos partem da pasta `matriz/` (onde está este ficheiro), salvo indicação em contrário. O que já funciona na aplicação está em [docs/implementation-plan.md](docs/implementation-plan.md): por agora, entrar e sair, o painel, os projetos (sem criação pela interface nem gestão da equipa), as tarefas, os responsáveis e os comentários.
@@ -62,7 +131,7 @@ Passos para correr a Matriz numa máquina a partir de um clone limpo. Todos os c
 | Ferramenta | Versão | Notas |
 |---|---|---|
 | Node.js | A de [`.nvmrc`](.nvmrc) (26.13.0), com o npm que a acompanha (11.20.0) | Instalada e escolhida com o [nvm](https://github.com/nvm-sh/nvm): `nvm install` (só da primeira vez) e `nvm use`. O nvm procura o `.nvmrc` na pasta atual e nas de cima, por isso `nvm use` funciona em `matriz/`, `backend/` e `frontend/`. Corre `nvm use` em cada terminal novo |
-| Docker | Docker Engine com o Docker Compose v2 (comando `docker compose`) | Corre o PostgreSQL 18 (`postgres:18-alpine`, ver [`docker-compose.yml`](docker-compose.yml)). Testado com Docker 29.9.3 e Compose 2.40.3 |
+| Docker | Docker Engine com o Docker Compose v2 (comando `docker compose`) | Corre o PostgreSQL 18 (`postgres:18-alpine`, ver [`compose.yaml`](compose.yaml)). Testado com Docker 29.9.3 e Compose 2.40.3 |
 | Git | — | Para clonar o repositório |
 | `curl` e `jq` | — | Opcionais: só para os pedidos diretos à API mais abaixo |
 
@@ -93,10 +162,11 @@ cp frontend/.env.example frontend/.env
 
 | Ficheiro | Variável | Obrigatória | Para quê |
 |---|---|---|---|
-| `.env` | `POSTGRES_USER` | Sim | Utilizador do PostgreSQL criado pelo `docker-compose.yml` |
+| `.env` | `POSTGRES_USER` | Sim | Utilizador do PostgreSQL criado pelo `compose.yaml` |
 | | `POSTGRES_PASSWORD` | Sim | Palavra-passe desse utilizador |
 | | `POSTGRES_DB` | Sim | Nome da base de dados de desenvolvimento (no exemplo, `matriz`) |
 | | `POSTGRES_PORT` | Não (5432) | Porta da máquina onde o PostgreSQL fica disponível, só em `127.0.0.1` |
+| | `FRONTEND_PORT`, `JWT_SECRET`, `JWT_EXPIRES_IN_SECONDS`, `SEED_DEMO_PASSWORD` | Só para a [execução com Docker Compose](#execução-com-docker-compose) | Os mesmos significados das variáveis do `backend/.env`; `FRONTEND_PORT` (8080) é a porta da aplicação. No desenvolvimento local não são usadas |
 | `backend/.env` | `PORT` | Não (3000) | Porta da API |
 | | `DATABASE_URL` | Sim | Ligação ao PostgreSQL, no formato `postgresql://<utilizador>:<palavra-passe>@localhost:<porta>/<base de dados>?schema=public`. Tem de usar os mesmos valores do `.env` da raiz |
 | | `TEST_DATABASE_URL` | Não | Base de dados dos testes de API. Por omissão, a de `DATABASE_URL` com `_test` no fim do nome (`matriz_test`). Tem de terminar em `_test` |
@@ -110,7 +180,7 @@ O backend carrega `backend/.env` ao arrancar (e o Prisma, nas migrations e no se
 ### 4. Arranque do PostgreSQL
 
 ```bash
-docker compose up -d
+docker compose up -d postgres
 docker compose ps        # espera pelo estado "healthy" do contentor matriz-postgres
 ```
 
@@ -196,7 +266,7 @@ Os testes de API nunca usam a base de dados de desenvolvimento: usam `matriz_tes
 Testes E2E de browser (`frontend/e2e/`, configuração em `frontend/playwright.config.ts`):
 
 - Pré-requisitos:
-  - o PostgreSQL a correr (`docker compose up -d`);
+  - o PostgreSQL a correr (`docker compose up -d postgres`);
   - o `backend/.env` criado (passo 3) e as dependências do backend instaladas (passo 2);
   - o Chromium do Playwright, uma vez: `cd frontend && npx playwright install chromium`;
   - a variável `E2E_PASSWORD`, com pelo menos 12 caracteres. É a palavra-passe das contas de demonstração na base dos testes E2E; escolhe uma só para a máquina local e não a escrevas em ficheiros do repositório.
@@ -218,7 +288,7 @@ Testes E2E de browser (`frontend/e2e/`, configuração em `frontend/playwright.c
 | `docker compose up` falha com "Define POSTGRES_USER no .env" (ou outra variável) | Falta o `.env` da raiz | `cp .env.example .env` e preenche os valores |
 | `docker compose up` falha com a porta 5432 ocupada | Outro PostgreSQL na máquina | Muda `POSTGRES_PORT` no `.env` e a porta em `DATABASE_URL` no `backend/.env` |
 | Migrations ou seed falham com erro de autenticação no PostgreSQL | `DATABASE_URL` não coincide com o `.env` da raiz, ou a palavra-passe mudou depois de o volume ser criado (o PostgreSQL só usa `POSTGRES_PASSWORD` na primeira vez) | Acerta `DATABASE_URL`. Se mudaste `POSTGRES_PASSWORD`, repõe o valor antigo; apagar o volume (`docker compose down -v`) apaga todos os dados |
-| Migrations, seed ou testes de API falham sem conseguir ligar à base de dados | O PostgreSQL não está a correr | `docker compose up -d` e espera por `healthy` |
+| Migrations, seed ou testes de API falham sem conseguir ligar à base de dados | O PostgreSQL não está a correr | `docker compose up -d postgres` e espera por `healthy` |
 | A API ou o seed falham porque não encontram `src/generated/prisma` | O cliente Prisma não foi gerado (a pasta não vem no clone) | `cd backend && npx prisma generate` |
 | A API não arranca: "Define JWT_SECRET no backend/.env" | Falta o `backend/.env` ou o `JWT_SECRET` | `cp backend/.env.example backend/.env` e define `JWT_SECRET` |
 | A API não arranca: "JWT_SECRET tem o valor de exemplo" ou "tem de ter pelo menos 32 caracteres" | `JWT_SECRET` ficou com o valor do `.env.example` ou é curto | Gera um segredo novo com `openssl rand -hex 32` e põe-no em `backend/.env` |
@@ -258,6 +328,10 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:3000/auth/logout -H "
 | [docs/ui/dashboard-wireframe.html](docs/ui/dashboard-wireframe.html) | Wireframe de baixa fidelidade do ecrã inicial e da vista de um projeto. |
 | [openapi.yaml](openapi.yaml) | Contrato da API do backend para o MVP (US01–US19, US22, US23, US31). |
 | [AGENTS.md](AGENTS.md) | Instruções para agentes de IA que trabalhem no repositório. |
+| [CHANGELOG.md](CHANGELOG.md) | Alterações de cada versão (Semantic Versioning). |
+| [docs/releases/v0.1.0-rc.1.md](docs/releases/v0.1.0-rc.1.md) | Notas da versão candidata 0.1.0-rc.1: o que inclui, limitações e como atualizar. |
+| [docs/verification.md](docs/verification.md) | Verificação do MVP e da entrega com Docker e CI (secção 8). |
+| [compose.yaml](compose.yaml), [`backend/Dockerfile`](backend/Dockerfile), [`frontend/Dockerfile`](frontend/Dockerfile), [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Execução em containers e integração contínua. |
 
 ## Convenção de IDs
 

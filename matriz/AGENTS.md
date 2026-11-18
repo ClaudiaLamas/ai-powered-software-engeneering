@@ -70,7 +70,7 @@ dependências, o esquema ou as migrations mudam.
 2. PostgreSQL (Docker), até `docker compose ps` mostrar `healthy`:
 
    ```bash
-   docker compose up -d
+   docker compose up -d postgres
    ```
 
 3. Backend: dependências, cliente Prisma e migrations (`npm install` só
@@ -101,6 +101,12 @@ dependências, o esquema ou as migrations mudam.
    ```bash
    cd frontend && nvm use && npm install && npm run dev
    ```
+
+Alternativa em containers (aplicação completa em `http://localhost:8080`, com
+as variáveis do `.env` da raiz; ver `README.md`, "Execução com Docker
+Compose"): `docker compose up -d --build`. O seed corre com
+`docker compose run --rm migrate npm run db:seed`. No desenvolvimento local,
+arranca só o PostgreSQL (`docker compose up -d postgres`).
 
 `npx prisma migrate status` mostra se a base de dados tem todas as migrations.
 Não uses `prisma migrate reset` nem `prisma migrate dev` sem aprovação: mudam
@@ -139,8 +145,8 @@ a de `DATABASE_URL` com o nome terminado em `_test` (`matriz_test`), ou
 `TEST_DATABASE_URL`. Antes de cada execução, `test/global-setup.ts` aplica as
 migrations e esvazia todas as tabelas dessa base, e recusa qualquer nome que
 não termine em `_test`. Cada teste cria os seus próprios dados fictícios
-(`test/fixtures.ts`). Precisa do PostgreSQL do `docker-compose.yml` a correr
-(`docker compose up -d`). Não uses `prisma migrate reset`: o Prisma bloqueia-o
+(`test/fixtures.ts`). Precisa do PostgreSQL do `compose.yaml` a correr
+(`docker compose up -d postgres`). Não uses `prisma migrate reset`: o Prisma bloqueia-o
 quando é chamado por um agente de IA.
 
 Corre os testes relevantes antes de dar uma tarefa por terminada e indica os

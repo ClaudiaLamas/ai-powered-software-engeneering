@@ -16,12 +16,12 @@ Registadas nos documentos (decisões internas, por validar com o cliente).
 | Canal | Aplicação web, acedida pelo navegador e responsiva | D01 |
 | Linguagem e frameworks | TypeScript; NestJS no backend; Vue.js no frontend | D02, D03 |
 | Dados | PostgreSQL, com Prisma (migrations e seed); identificadores UUID | D04, constraints.md §4 |
-| Execução | Local, com o PostgreSQL num container Docker (`docker-compose.yml`); deploy fora do âmbito | D05 |
+| Execução | Local, com o PostgreSQL num container Docker (`compose.yaml`); deploy fora do âmbito | D05 |
 | Autenticação | JWT no cabeçalho `Authorization: Bearer ...`, válido 1 hora, sem revogação; o token de uma conta desativada é recusado com `401` em cada pedido, mesmo antes de expirar (2026-11-09); palavras-passe com hash bcrypt (`bcryptjs`); `@nestjs/jwt` e Passport | D06 |
 | Testes | Vitest no backend e no frontend; Supertest nos testes de API | D08 |
-| Email | Mailpit no `docker-compose.yml` para os emails de ativação | D09, DE15 |
+| Email | Mailpit no `compose.yaml` para os emails de ativação | D09, DE15 |
 | Versões | LTS atual do Node.js e versões estáveis mais recentes das restantes, confirmadas nos sites oficiais na instalação | constraints.md §4 |
-| Estrutura de pastas | `backend/` (NestJS) e `frontend/` (Vue) dentro de `matriz/`, com o `docker-compose.yml` na raiz de `matriz/` | Feito em 2026-11-08 |
+| Estrutura de pastas | `backend/` (NestJS) e `frontend/` (Vue) dentro de `matriz/`, com o `compose.yaml` na raiz de `matriz/` | Feito em 2026-11-08 |
 | Criação dos projetos | Backend gerado com o Nest CLI; frontend gerado com `create-vue` (Vite, TypeScript, Vue Router, Vitest) | Feito em 2026-11-08 |
 | Variáveis de ambiente do backend | `main.ts` carrega `backend/.env` com `process.loadEnvFile()` (nativo do Node.js, sem dependência); as variáveis já definidas no ambiente têm prioridade | Decidido em 2026-11-08 |
 | Percurso do incremento 1 | Duas contas: o Administrador cria o projeto e o Gestor vê-o na listagem e consulta-o (DE02) | Decidido em 2026-11-08 |
@@ -97,8 +97,8 @@ a de `DATABASE_URL` com o nome terminado em `_test` (`matriz_test`), ou
 `TEST_DATABASE_URL`. Antes de cada execução, `test/global-setup.ts` aplica as
 migrations e esvazia todas as tabelas dessa base, e recusa qualquer nome que
 não termine em `_test`. Cada teste cria os seus próprios dados fictícios
-(`test/fixtures.ts`). Precisa do PostgreSQL do `docker-compose.yml` a correr
-(`docker compose up -d`). Não uses `prisma migrate reset`: o Prisma bloqueia-o
+(`test/fixtures.ts`). Precisa do PostgreSQL do `compose.yaml` a correr
+(`docker compose up -d postgres`). Não uses `prisma migrate reset`: o Prisma bloqueia-o
 quando é chamado por um agente de IA.
 
 **Formas de verificação usadas abaixo:**
@@ -116,7 +116,7 @@ quando é chamado por um agente de IA.
 
 | Parte | Estado |
 |---|---|
-| Infraestrutura: `docker-compose.yml` com o PostgreSQL, `.env.example`, `.gitignore` | Feito |
+| Infraestrutura: `compose.yaml` com o PostgreSQL, `.env.example`, `.gitignore` | Feito |
 | Backend (Nest CLI) e frontend (`create-vue`) gerados; `.nvmrc` | Feito |
 | Base de dados: `schema.prisma` com todas as tabelas de `database.md` e a migration inicial | Feito (o esquema ficou completo, em vez de crescer por incremento) |
 | Seed: `backend/prisma/seed.ts` | Feito |
@@ -140,7 +140,7 @@ quando é chamado por um agente de IA.
 
 | Camada | Ficheiros ou componentes |
 |---|---|
-| Infraestrutura | `docker-compose.yml` com o PostgreSQL; `.env.example` sem valores reais; `.gitignore` com `.env` |
+| Infraestrutura | `compose.yaml` com o PostgreSQL; `.env.example` sem valores reais; `.gitignore` com `.env` |
 | Base de dados | `backend/prisma/schema.prisma` com ACCOUNT, PROJECT, PROJECT_MEMBER, TASK e ADMIN_AUDIT_LOG (database.md); primeira migration; `backend/prisma/seed.ts`. A migration `init` (2026-11-08) criou também as tabelas `account_activation_token` e `comment`, que só são usadas nos incrementos 2 e 6 |
 | `accounts` | Controlador de autenticação (`/auth/login`, `/auth/logout`, `/me`), estratégia JWT, serviço de palavras-passe (hash), listagem de contas |
 | `authorization` | Guards: conta autenticada, permissão de Administrador, membro do projeto (com `404` para quem não é membro) |
@@ -183,7 +183,7 @@ O percurso usa duas contas porque o Administrador só vê os projetos onde parti
 
 | Camada | Ficheiros ou componentes |
 |---|---|
-| Infraestrutura | Serviço Mailpit no `docker-compose.yml` (D09) |
+| Infraestrutura | Serviço Mailpit no `compose.yaml` (D09) |
 | Base de dados | Nenhuma migration: a tabela `account_activation_token` (ACCOUNT_ACTIVATION_TOKEN, database.md) já foi criada pela migration `init` (2026-11-08) |
 | `accounts` | Criar conta `PENDING`; gerar o token, guardar só o hash e enviar o email; ativar e invalidar o token; reenviar o convite; desativar (incluindo contas pendentes); dar e retirar a permissão de Administrador, com a proteção da conta de sistema e do último Administrador ativo |
 | `audit` | Entradas `CREATE_ACCOUNT`, `RESEND_INVITE`, `DEACTIVATE_ACCOUNT`, `GRANT_ADMIN` e `REVOKE_ADMIN` |

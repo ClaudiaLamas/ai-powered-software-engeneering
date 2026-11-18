@@ -7,7 +7,7 @@ API da Matriz: monólito modular em NestJS e TypeScript, com PostgreSQL e Prisma
 ## Requisitos
 
 - Node.js na versão indicada em [`.nvmrc`](../.nvmrc) (`nvm use` na raiz do repositório).
-- O PostgreSQL do [`docker-compose.yml`](../docker-compose.yml) a correr.
+- O PostgreSQL do [`compose.yaml`](../compose.yaml) a correr.
 
 ## Preparar
 
@@ -19,7 +19,7 @@ npx prisma migrate deploy   # aplica as migrations à base de dados de DATABASE_
 ```
 
 Os valores de `DATABASE_URL` têm de coincidir com os do `.env` da raiz, que o
-`docker-compose.yml` usa. Volta a correr `npx prisma generate` sempre que
+`compose.yaml` usa. Volta a correr `npx prisma generate` sempre que
 `prisma/schema.prisma` mudar.
 
 ## Autorização
@@ -60,7 +60,7 @@ async updateTask(
 | `npm run start:dev` | Arranca a API em modo de desenvolvimento, a recarregar ao gravar |
 | `npm run build` | Compila para `dist/` |
 | `npm test` | Testes unitários (Vitest) |
-| `npm run test:e2e` | Testes de API (Vitest + Supertest), contra uma base de dados própria: a de `DATABASE_URL` com o nome terminado em `_test` (`matriz_test`), ou `TEST_DATABASE_URL`. Antes de cada execução aplica as migrations e esvazia todas as tabelas dessa base; recusa qualquer nome que não termine em `_test`. Precisa do PostgreSQL do `docker-compose.yml` a correr |
+| `npm run test:e2e` | Testes de API (Vitest + Supertest), contra uma base de dados própria: a de `DATABASE_URL` com o nome terminado em `_test` (`matriz_test`), ou `TEST_DATABASE_URL`. Antes de cada execução aplica as migrations e esvazia todas as tabelas dessa base; recusa qualquer nome que não termine em `_test`. Precisa do PostgreSQL do `compose.yaml` a correr |
 | `npm run test:cov` | Testes unitários com cobertura |
 | `npm run lint` | Verificação do código (oxlint) |
 | `npm run format` | Formatação (Prettier) |
