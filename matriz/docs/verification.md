@@ -366,9 +366,40 @@ Evidências do job `docker`, tiradas do log:
 - Seed: "Seed concluído: 27 criados, 0 já existiam."
 - `POST /api/auth/login → 200` com uma conta de demonstração.
 
+**Execução 3** ([44422712310](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44422712310), `pull_request` do PR #28, commit `e1f4a2f`, 2026-11-18 23:40–23:43 UTC): **passou**. Foi a primeira execução com as imagens base fixadas em versões exatas (`nginxinc/nginx-unprivileged:1.30.6-alpine`, `postgres:18.6-alpine`) e com o job `frontend` em dois passos, "Verificação de tipos" e "Build" ([delivery-plan.md §7](delivery-plan.md#7-revisão-das-imagens-base-e-dos-dockerignore-2026-11-18)).
+
+| Job | Resultado | Duração |
+|---|---|---|
+| Backend (lint, build, testes unitários e de API) | Passou | 23:40:16 → 23:41:17 |
+| Frontend (tipos, build e testes unitários) | Passou, com os passos "Verificação de tipos" e "Build" separados | 23:40:17 → 23:40:59 |
+| Testes E2E de browser (Playwright, Chromium) | Passou | 23:40:17 → 23:41:37 |
+| Imagens Docker e arranque com Docker Compose | Passou; começou só depois dos três anteriores | 23:41:39 → 23:43:46 |
+
+Evidências do job `docker`, tiradas do log: `{"status":"ok","database":"up"}` através do nginx, "Seed concluído: 27 criados, 0 já existiam." e `POST /api/auth/login → 200`. O PR #28 foi integrado no `main` a seguir (`c0ef961`).
+
+**Execução 4: falha controlada** ([44423658879](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44423658879), `push` do commit `219c812` no ramo `aula05-entrega`, 2026-11-18 23:47–23:48 UTC): **falhou, como era pretendido**.
+
+- **O que mudou:** o teste "por omissão, 1 hora (D06)" de `backend/src/accounts/jwt-config.spec.ts` passou a esperar 3601 em vez de 3600. Foi a única alteração do commit.
+- **Localmente, antes do push:** o `npm test` deu `Tests  1 failed | 121 passed (122)`, com o código de saída 1.
+
+| Job | Resultado | Duração |
+|---|---|---|
+| Backend (lint, build, testes unitários e de API) | **Falhou** no passo "Testes unitários" | 23:47:08 → 23:48:04 |
+| Frontend (tipos, build e testes unitários) | Passou | 23:47:07 → 23:47:49 |
+| Testes E2E de browser (Playwright, Chromium) | Passou | 23:47:07 → 23:48:21 |
+| Imagens Docker e arranque com Docker Compose | Não correu (`skipped`): depende do `backend` | — |
+
+- **Erro no log:** `AssertionError: expected 3600 to be 3601 // Object.is equality` em `jwt-config.spec.ts > tokenTtlSeconds (JWT_EXPIRES_IN_SECONDS, D06) > por omissão, 1 hora (D06)`, e depois `Process completed with exit code 1.`
+- **O que confirma:**
+  - um teste que falha faz falhar o job e a pipeline;
+  - os passos seguintes do job não correm: os testes de API ficaram por correr;
+  - o job `docker` não corre (`needs`), por isso não se constroem imagens de código com testes a falhar.
+- **Correção:** o commit `5038367` reverte o `219c812`. Depois dele, o `npm test` local dá `Tests  122 passed (122)`.
+- **Contexto:** o PR #28 já tinha sido integrado e o ramo apagado no GitHub. O push voltou a criar o `aula05-entrega` no GitHub, e o `main` não foi afetado. A execução correu pelo evento `push`, sem PR.
+
 ### 8.5 Por verificar
 
 - **Healthcheck do frontend na CI:** o passo de verificação só espera que `/api/health` responda. Não espera que o container do frontend fique `healthy`.
-- **Falha controlada num teste:** introduzir uma falha, confirmar que a pipeline falha e depois corrigir.
+- **Pipeline depois da correção da falha controlada:** o commit `5038367` reverte o `219c812` e o `npm test` local voltou a 122 testes a passar. Falta ver a pipeline passar no GitHub sobre a reversão.
 - **Diagrama Mermaid do `architecture.md` §6:** a forma como aparece no GitHub ainda não foi vista.
 - **Entrada no navegador com uma conta de demonstração** na aplicação em containers: a entrada foi verificada pela API, através do nginx.
