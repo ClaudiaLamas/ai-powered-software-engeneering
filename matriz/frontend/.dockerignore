@@ -1,0 +1,15 @@
+# Fica fora da imagem: segredos, dependências e builds locais, relatórios de testes e ficheiros do editor.
+.env
+.env.*
+node_modules
+dist
+dist-ssr
+coverage
+test-results
+playwright-report
+blob-report
+*.log
+*.tsbuildinfo
+.vscode
+Dockerfile
+.dockerignore

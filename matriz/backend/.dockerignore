@@ -1,0 +1,16 @@
+# Fica fora da imagem: segredos, dependências e builds locais, testes e ficheiros do editor.
+.env
+.env.*
+node_modules
+dist
+coverage
+src/generated
+test
+**/*.spec.ts
+vitest.config*.ts
+*.log
+*.tsbuildinfo
+.oxlintrc.json
+.prettierrc
+Dockerfile
+.dockerignore
