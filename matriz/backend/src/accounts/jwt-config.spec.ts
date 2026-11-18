@@ -11,6 +11,14 @@ describe('jwtSecret (JWT_SECRET, D06)', () => {
     expect(() => jwtSecret({ JWT_SECRET: '' })).toThrow(/JWT_SECRET/);
   });
 
+  // A mensagem serve em desenvolvimento e em containers (delivery-plan.md §8).
+  it('sem segredo, indica onde definir a variável e como gerá-la', () => {
+    expect(() => jwtSecret({})).toThrow(
+      'Define a variável de ambiente JWT_SECRET (no backend/.env em desenvolvimento, ' +
+        'no .env da raiz com Docker Compose; ver .env.example). Gera-a com openssl rand -hex 32.',
+    );
+  });
+
   // Regressão do S1 (docs/quality-security-review.md): o valor do
   // .env.example é público; quem o conhece forja tokens de qualquer conta.
   it('recusa o valor de exemplo do .env.example', () => {

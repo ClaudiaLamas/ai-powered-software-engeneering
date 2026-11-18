@@ -77,7 +77,7 @@ A forma mais simples de pôr a Matriz a correr: só precisa do Docker Engine com
 
 O frontend e o backend partilham a rede `web`; o backend, as migrations e o PostgreSQL partilham a rede `data`. O frontend não chega à base de dados. As imagens correm com um utilizador sem privilégios e não têm credenciais: tudo vem do `.env`.
 
-1. Configuração (ficheiro ignorado pelo Git). Muda os valores fictícios; o `JWT_SECRET` tem de ter pelo menos 32 caracteres e não pode ser o do exemplo:
+1. Configuração (ficheiro ignorado pelo Git). Muda os valores fictícios. O `JWT_SECRET` vem vazio: gera-o com o comando abaixo (pelo menos 32 caracteres):
 
    ```bash
    cp .env.example .env
@@ -290,7 +290,7 @@ Testes E2E de browser (`frontend/e2e/`, configuração em `frontend/playwright.c
 | Migrations ou seed falham com erro de autenticação no PostgreSQL | `DATABASE_URL` não coincide com o `.env` da raiz, ou a palavra-passe mudou depois de o volume ser criado (o PostgreSQL só usa `POSTGRES_PASSWORD` na primeira vez) | Acerta `DATABASE_URL`. Se mudaste `POSTGRES_PASSWORD`, repõe o valor antigo; apagar o volume (`docker compose down -v`) apaga todos os dados |
 | Migrations, seed ou testes de API falham sem conseguir ligar à base de dados | O PostgreSQL não está a correr | `docker compose up -d postgres` e espera por `healthy` |
 | A API ou o seed falham porque não encontram `src/generated/prisma` | O cliente Prisma não foi gerado (a pasta não vem no clone) | `cd backend && npx prisma generate` |
-| A API não arranca: "Define JWT_SECRET no backend/.env" | Falta o `backend/.env` ou o `JWT_SECRET` | `cp backend/.env.example backend/.env` e define `JWT_SECRET` |
+| A API não arranca: "Define a variável de ambiente JWT_SECRET" | Falta o `backend/.env` ou o `JWT_SECRET` (em containers, falta o `JWT_SECRET` no `.env` da raiz) | `cp backend/.env.example backend/.env` e define `JWT_SECRET`; em containers, define-o no `.env` da raiz (`openssl rand -hex 32`) |
 | A API não arranca: "JWT_SECRET tem o valor de exemplo" ou "tem de ter pelo menos 32 caracteres" | `JWT_SECRET` ficou com o valor do `.env.example` ou é curto | Gera um segredo novo com `openssl rand -hex 32` e põe-no em `backend/.env` |
 | O seed pára: "Falta a variável de ambiente SEED_DEMO_PASSWORD" ou "tem de ter pelo menos 12 caracteres" | `SEED_DEMO_PASSWORD` em falta ou curta | Define-a em `backend/.env` com pelo menos 12 caracteres |
 | O login das contas de demonstração dá "O email ou a palavra-passe estão errados." | Estás a usar outra palavra-passe, não a de `SEED_DEMO_PASSWORD` quando o seed criou as contas; ou a conta é a da Carla, que está pendente | Usa a palavra-passe da altura do seed. Mudar `SEED_DEMO_PASSWORD` depois não muda as contas já criadas |

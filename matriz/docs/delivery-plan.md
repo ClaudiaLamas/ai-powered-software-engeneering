@@ -235,3 +235,26 @@ Na imagem `runtime` do backend, `node_modules` ocupa **405,5 MB**. As maiores pa
 - **Causa principal:** o `@prisma/client` (dependência de produção) declara o `prisma` (CLI) e o `typescript` como dependências opcionais. O `npm ci --omit=dev` não as exclui, e é o que mostra `npm ls typescript --omit=dev`. Não verifiquei de onde vêm o `effect` e o `@electric-sql`.
 - **Porque fica assim:** reduzir o tamanho implica mudar dependências ou apagar pacotes de `node_modules` à mão na imagem final, e ambas as coisas exigem aprovação. A imagem funciona, corre sem root e não tem o código-fonte nem as `devDependencies` do `package.json`.
 - **Como se pode reduzir mais tarde:** retirar da fase `runtime` os pacotes que só o build usa, ou rever as dependências do Prisma. Qualquer das duas precisa de aprovação e de voltar a correr os testes de API e o job `docker` da CI.
+
+## 8. `JWT_SECRET` no `compose.yaml`: `:-` em vez de `:?` (2026-11-18)
+
+**Decisão da programadora:** o serviço `backend` mantém `JWT_SECRET: ${JWT_SECRET:-}`.
+
+**Alternativa avaliada e rejeitada:** `${JWT_SECRET:?Define JWT_SECRET no .env (openssl rand -hex 32)}`, que faria o Compose recusar qualquer comando sem o segredo.
+
+- **Porque foi rejeitada:** o Compose interpola o ficheiro inteiro antes de qualquer comando, mesmo quando só se pede um serviço. Obrigaria a definir o `JWT_SECRET` no `.env` da raiz até para `docker compose up -d postgres`, o arranque só da base de dados para o desenvolvimento local. Isso contradiz o `README.md` (linha 169), onde o `JWT_SECRET` do `.env` da raiz só é preciso para a execução com Docker Compose.
+- **Como foi avaliada:** numa cópia do `compose.yaml` fora do repositório, só com `docker compose config` e `ps`, sem arrancar containers.
+
+| Caso | Resultado | Como se sabe |
+|---|---|---|
+| `.env` gerado como no job `docker` da CI, `config -q` | Passa (código 0) | Corrido |
+| `.env.example` (`JWT_SECRET=` vazio) ou sem a linha, `config -q` | Falha (código 1): `required variable JWT_SECRET is missing a value` | Corrido |
+| `.env.example`, `config -q postgres` e `ps` | Falham com a mesma mensagem | Corrido |
+| `docker compose up -d postgres`, `logs`, `run` e `down` sem `JWT_SECRET` | Falhariam da mesma forma | Deduzido: a interpolação acontece antes de qualquer comando |
+| Jobs `backend` e `e2e-browser` da CI | Não são afetados | Lido no `ci.yml`: usam o PostgreSQL como serviço do GitHub Actions, sem Compose |
+
+**Onde fica a proteção:** na API (S1, [quality-security-review.md](quality-security-review.md)).
+
+- Sem segredo, com o valor de exemplo ou com menos de 32 caracteres, `jwtSecret()` lança um erro e o backend não arranca.
+- Por isso o healthcheck do backend (`GET /health`) falha e o frontend, que depende de `service_healthy`, não arranca.
+- A mensagem aparece em `docker compose logs backend`. Passou a indicar os dois sítios onde se define a variável: o `backend/.env` em desenvolvimento e o `.env` da raiz com Docker Compose.
