@@ -123,7 +123,51 @@ Regras para manter as dependências sem ciclos:
 | Base de dados (D04) | Os dados são fortemente relacionados (contas, projetos, funções, tarefas) e têm regras de integridade (um Gestor por projeto, responsável membro do projeto), o que aponta para uma base de dados relacional. **Decidido:** PostgreSQL, com Prisma como ORM e UUID como identificadores (decisão interna, por validar). |
 | Autenticação (D06) | **Decidido** (decisão interna, por validar): JWT no cabeçalho `Authorization: Bearer ...`, com `@nestjs/jwt` e Passport; palavras-passe guardadas como hash bcrypt (`bcryptjs`). Em cada pedido, o backend lê a conta na base de dados e recusa o token de uma conta desativada, mesmo antes de expirar (decisão interna, 2026-11-09). O módulo Autenticação e contas isola a forma de autenticar; se a empresa usar um sistema de identidade próprio, a mudança fica contida nesse módulo. |
 | Linguagens e frameworks (D02, D03) | **Decidido** (decisão interna, por validar): TypeScript; NestJS no backend e Vue.js no frontend. |
-| Alojamento (D05) | **Decidido** (decisão interna, por validar): execução local, com o PostgreSQL num container Docker (`docker-compose.yml`). O deploy fica como extensão futura. |
+| Alojamento (D05) | **Decidido** (decisão interna, por validar): execução local, com o PostgreSQL num container Docker (`compose.yaml`); desde 2026-11-18, também a aplicação completa em containers (secção 6). O deploy fica como extensão futura. |
 | Testes (D08) | **Decidido** (decisão interna, por validar): Vitest no backend e no frontend; Supertest nos testes de API. |
-| Envio de email (D09) | **Decidido** (decisão interna, por validar): na execução local, os emails de ativação (DE15) vão para um container Mailpit no `docker-compose.yml`, que os mostra numa página local. O envio real fica com o deploy. |
+| Envio de email (D09) | **Decidido** (decisão interna, por validar): na execução local, os emails de ativação (DE15) vão para um container Mailpit no `compose.yaml`, que os mostra numa página local. O envio real fica com o deploy. |
 | Validação | Esta decisão tem de ser revista se o cliente indicar uma escala muito maior do que RNF01 ou integrações com outras ferramentas (FN25). |
+
+## 6. Execução com Docker Compose
+
+Alargamento de D05 (decisão interna, por validar, 2026-11-18). A aplicação completa corre em containers, definidos em [`compose.yaml`](../compose.yaml). Os comandos estão no [README](../README.md#execução-com-docker-compose).
+
+```mermaid
+flowchart LR
+    user(["Navegador"])
+
+    subgraph host["Máquina local (só 127.0.0.1)"]
+        direction LR
+        subgraph web["Rede web"]
+            frontend["frontend<br/>nginx: aplicação web<br/>porta 8080"]
+        end
+        subgraph data["Rede data"]
+            backend["backend<br/>API NestJS (monólito modular)<br/>porta 3000, GET /health"]
+            migrate["migrate<br/>prisma migrate deploy<br/>(termina; seed a pedido)"]
+            postgres[("postgres<br/>PostgreSQL 18")]
+        end
+        volume[["volume matriz_pgdata"]]
+    end
+
+    user -- "HTTP :FRONTEND_PORT" --> frontend
+    frontend -- "/api/* sem o prefixo /api" --> backend
+    backend -- "Prisma (DATABASE_URL)" --> postgres
+    migrate -- "migrations" --> postgres
+    postgres --- volume
+```
+
+O `backend` está nas duas redes: é o único serviço que liga o frontend à base de dados.
+
+| Serviço | Imagem | Arranca depois de | Healthcheck |
+|---|---|---|---|
+| `postgres` | `postgres:18.6-alpine` | — | `pg_isready` |
+| `migrate` | `backend/Dockerfile`, fase `tools` (com a CLI do Prisma e o `tsx`) | `postgres` saudável | — (termina com o código 0) |
+| `backend` | `backend/Dockerfile`, fase `runtime` (`node:26.13.0-alpine`, só `dist/` e as dependências de produção, utilizador `node`) | `postgres` saudável e `migrate` terminado sem erros | `GET /health` (confirma o acesso à base de dados) |
+| `frontend` | `frontend/Dockerfile` (build com Node.js; `nginxinc/nginx-unprivileged:1.30.6-alpine`) | `backend` saudável | `GET /` |
+
+Decisões e razões:
+
+- **nginx no frontend.** A aplicação web chama a API em `/api/...`, no mesmo endereço. Em desenvolvimento, o proxy do Vite encaminha esses pedidos. Nos containers, o nginx faz o mesmo e também serve o `index.html` nas rotas da aplicação (`createWebHistory`). O backend continua sem CORS. Alternativas preteridas: o `vite preview`, que não é próprio para produção, e o backend servir os ficheiros estáticos, que exigia uma dependência nova.
+- **Migrations num serviço próprio.** A CLI do Prisma é uma dependência de desenvolvimento. A imagem do backend fica só com o que a API precisa, e as migrations correm antes de a API arrancar. O seed nunca corre no arranque (`docker compose run --rm migrate npm run db:seed`).
+- **Sem credenciais nas imagens.** `DATABASE_URL` é montado no `compose.yaml` a partir das variáveis `POSTGRES_*` do `.env`. `JWT_SECRET` e `SEED_DEMO_PASSWORD` também vêm do `.env`. Os `.dockerignore` deixam de fora os `.env`.
+- **Sem Mailpit por agora.** O D09 prevê-o para os emails de ativação, que só entram com o incremento 2. Ainda nenhum código envia emails.

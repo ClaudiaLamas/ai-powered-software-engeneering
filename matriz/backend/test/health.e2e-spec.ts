@@ -5,7 +5,7 @@ import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
 
 // Usa a base de dados de testes (vitest.config.e2e.ts): precisa do
-// PostgreSQL do docker-compose.yml a correr.
+// PostgreSQL do compose.yaml a correr.
 
 describe('GET /health (e2e)', () => {
   let app: INestApplication<App>;

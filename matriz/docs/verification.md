@@ -8,7 +8,7 @@ Registo da verificação do MVP pedida nos exercícios 8 e 9 da Ficha Prática 0
 
 ## Ambiente e dados de demonstração
 
-1. `docker compose up -d` (PostgreSQL), com o `.env` criado a partir do `.env.example`.
+1. `docker compose up -d postgres`, com o `.env` criado a partir do `.env.example`.
 2. Backend: `cd backend && nvm use && npx prisma migrate deploy && npm run db:seed && npm run start` (porta `3000`, `PORT` em `backend/.env`).
 3. Frontend: `cd frontend && nvm use && npm run dev`. Os pedidos a `/api` vão para o backend (`VITE_API_URL`).
 4. Largura de telemóvel: ferramentas de programador do navegador, cerca de 375px.
@@ -112,7 +112,7 @@ Os cenários do incremento 9 de [implementation-plan.md](implementation-plan.md)
 
 ## 3. Testes automáticos
 
-Os testes usam Vitest e, nos testes de API, Supertest (D08). Os testes de API usam a base de dados `matriz_test` (nunca a de desenvolvimento) e precisam do PostgreSQL do `docker-compose.yml`. Node.js 26.13.0 (`.nvmrc`).
+Os testes usam Vitest e, nos testes de API, Supertest (D08). Os testes de API usam a base de dados `matriz_test` (nunca a de desenvolvimento) e precisam do PostgreSQL do `compose.yaml`. Node.js 26.13.0 (`.nvmrc`).
 
 | Onde | Comando | O que corre |
 |---|---|---|
@@ -287,3 +287,88 @@ Limitações e comportamentos conhecidos da versão verificada. Nenhum foi corri
 | O cartão da tarefa mostra a prioridade e não o número de comentários | J10, diferença 4 face ao ecrã 2 do wireframe | Decidido (2026-11-15): mantém-se (implementation-plan.md §1.1) |
 | Alterar `matriz.accessToken` no `sessionStorage` só tem efeito depois de recarregar a página | E8: a navegar dentro da aplicação, os pedidos continuam a usar o token original, que está em memória; o token é lido do `sessionStorage` só ao carregar a página | Comportamento atual; o aviso "A sessão expirou." aparece depois de recarregar ou quando a API responde `401` |
 | A eliminação em cascata não foi verificada diretamente na base de dados | C09, passo 1 | Só se viu que a API deixou de devolver a tarefa e os comentários; as tabelas não foram consultadas |
+
+## 8. Entrega com Docker, Docker Compose e GitHub Actions (Ficha 05)
+
+Validação feita a 2026-11-18 sobre o ramo `aula05-entrega`, com as alterações ainda por commitar. Ambiente: Docker 29.9.3, Compose 2.40.3 e Node.js v26.13.0. Executada pela IA (Claude Code) na máquina da programadora. Os valores do `.env` não foram mostrados: o `JWT_SECRET` foi gerado na shell (`openssl rand -hex 32`) e não ficou escrito em nenhum ficheiro.
+
+### 8.1 Imagens e containers
+
+| Verificação | Comando | Resultado |
+|---|---|---|
+| Imagens base existem | `docker manifest inspect` | `node:26.13.0-alpine`, `nginxinc/nginx-unprivileged:1.30-alpine` e `postgres:18-alpine`: ok |
+| Build do backend | `docker build backend` (fases `runtime` e `tools`) | Ok. `matriz-backend` com 571 MB e `matriz-backend-tools` com 896 MB |
+| Backend sozinho, sem base de dados | `docker run` com `JWT_SECRET` e um `DATABASE_URL` inacessível | Arrancou como `uid=1000(node)`. `GET /health` → `503 {"status":"error","database":"down"}` e aviso nos logs, como esperado |
+| Build do frontend | `docker build frontend` | Ok, 60 MB. `nginx -t` sem erros. O `dist/` não inclui as devtools do Vue |
+| Configuração do Compose | `docker compose config -q`, com o `.env` local e com o `.env.example` | Ok nos dois casos |
+| Arranque completo | `docker compose up -d --build` | **Primeira tentativa falhou:** a porta 8080 da máquina estava ocupada por outro processo. Com `FRONTEND_PORT=8088`: `migrate` com `Exited (0)` ("No pending migrations to apply."), `backend` e `frontend` com `healthy` e `postgres` com `healthy` |
+
+### 8.2 Funcionamento através do nginx (`http://localhost:8088`)
+
+| Verificação | Resultado |
+|---|---|
+| `GET /api/health` | `200 {"status":"ok","database":"up"}`: frontend → backend → PostgreSQL |
+| `GET /` e `GET /projetos/x` (rota da aplicação) | `200` nos dois (fallback para o `index.html`) |
+| `GET /api/me` sem token | `401 UNAUTHENTICATED` em Problem Details |
+| `POST /api/auth/login` como `ana.silva@matriz.test` | Ok. `GET /api/me` → "Ana Silva" e `GET /api/projects` → "Campanha de primavera" e "Portal de clientes" |
+| Criar a tarefa "Verificação Docker (persistência)" em "Portal de clientes" | Criada com o estado `TODO` |
+| Persistência: `docker compose down` (sem `-v`) e `up -d` | Depois de recriar os containers, a mesma tarefa voltou com o mesmo id, título e estado. A tarefa foi apagada no fim (`DELETE` → `204`) |
+| Seed a pedido: `docker compose run --rm migrate npm run db:seed` | "Seed concluído: 0 criados, 27 já existiam." (idempotente) |
+| Ecrã de entrada no navegador | Mostrado pelo nginx em `/entrar?redirect=/` |
+| Logs (`docker compose logs`) | Sem erros nem avisos depois do arranque. O aviso de versão nova do npm no serviço `migrate` foi desligado (`NPM_CONFIG_UPDATE_NOTIFIER=false`) |
+
+### 8.3 Verificações locais (as mesmas da CI)
+
+| Onde | Comando | Resultado |
+|---|---|---|
+| `backend/` | `npm run lint` | Sem erros (código de saída 0) |
+| `backend/` | `npm run build` | Ok |
+| `backend/` | `npm test` | 11 ficheiros, 121 testes: todos passaram |
+| `backend/` | `npm run test:e2e` | 8 ficheiros, 253 testes: todos passaram |
+| `frontend/` | `npm run build` | Ok |
+| `frontend/` | `npm run test:unit -- --run` | 19 ficheiros, 183 testes: todos passaram |
+| `frontend/` | `npm run test:e2e` (com uma `E2E_PASSWORD` aleatória) | 1 teste: passou |
+| raiz do repositório | `actionlint` 1.7.8 sobre o `ci.yml` | A primeira execução deu dois erros: o contexto `env` usado no `env` de um job e uma variável de ciclo sem uso. Depois de corrigidos, ficou sem erros |
+
+### 8.4 Pipeline no GitHub Actions
+
+**Execução 1** ([44208738418](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44208738418), `push` do commit `7035da0`, 2026-11-18 00:33 UTC): **falhou**.
+
+| Job | Resultado |
+|---|---|
+| Backend (lint, build, testes unitários e de API) | Passou |
+| Frontend (tipos, build e testes unitários) | Passou |
+| Testes E2E de browser (Playwright, Chromium) | **Falhou** no passo "Dependências e cliente Prisma do backend" |
+| Imagens Docker e arranque com Docker Compose | Não correu (`skipped`): depende dos três jobs anteriores |
+
+- **Erro:** `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL.` no `npx prisma generate`, com o código de saída 1.
+- **Classificação: defeito do workflow.** O passo não tinha `DATABASE_URL`, que o `prisma.config.ts` exige mesmo para gerar o cliente. No job `backend` a variável estava definida para o job inteiro. Não foi um defeito do código nem do ambiente da CI.
+- **Correção:** o commit `60cda3b` acrescenta `DATABASE_URL: ${{ env.CI_DATABASE_URL }}` ao `env` desse passo. Só muda o `ci.yml`.
+- **Reprodução local** (`backend/`, com `DOTENV_CONFIG_PATH=/nonexistent` para não ler o `backend/.env`):
+  - sem `DATABASE_URL`, deu a mesma mensagem e o código 1;
+  - com a variável definida, gerou o cliente.
+- **Mais informação:** a análise completa está em [delivery-plan.md §5.1](delivery-plan.md#51-primeira-execução-da-pipeline-no-github-falhou).
+- **Resultado colateral:** a primeira falha da pipeline mostra que um passo com erro faz falhar o job e impede o build Docker (`needs`). Não substitui a falha controlada num teste pedida pela ficha.
+
+**Execução 2** ([44210281487](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44210281487), `push` do commit `749c52c`, que inclui a correção `60cda3b`, 2026-11-18 00:44–00:48 UTC): **passou**.
+
+| Job | Resultado | Duração |
+|---|---|---|
+| Backend (lint, build, testes unitários e de API) | Passou | 00:44:30 → 00:45:41 |
+| Frontend (tipos, build e testes unitários) | Passou | 00:44:30 → 00:45:14 |
+| Testes E2E de browser (Playwright, Chromium) | Passou | 00:44:30 → 00:46:01 |
+| Imagens Docker e arranque com Docker Compose | Passou; começou só depois dos três anteriores | 00:46:03 → 00:48:21 |
+
+Evidências do job `docker`, tiradas do log:
+
+- `GET /api/health` através do nginx: `{"status":"ok","database":"up"}`.
+- `docker compose ps`: `backend` e `postgres` com `healthy`. O `frontend` ainda estava em `health: starting`, apesar de já ter respondido a `/` e a `/api/health`.
+- Seed: "Seed concluído: 27 criados, 0 já existiam."
+- `POST /api/auth/login → 200` com uma conta de demonstração.
+
+### 8.5 Por verificar
+
+- **Healthcheck do frontend na CI:** o passo de verificação só espera que `/api/health` responda. Não espera que o container do frontend fique `healthy`.
+- **Falha controlada num teste:** introduzir uma falha, confirmar que a pipeline falha e depois corrigir.
+- **Diagrama Mermaid do `architecture.md` §6:** a forma como aparece no GitHub ainda não foi vista.
+- **Entrada no navegador com uma conta de demonstração** na aplicação em containers: a entrada foi verificada pela API, através do nginx.

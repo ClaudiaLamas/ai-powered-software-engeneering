@@ -10,7 +10,7 @@ import { defineConfig, devices } from '@playwright/test'
  * uma base de dados isolada (`<nome>_e2e_test`) que é esvaziada e semeada com
  * `db:seed` em cada execução. Nunca reutiliza servidores que já estejam a correr.
  *
- * Pré-requisitos: PostgreSQL do docker-compose.yml, backend/.env e a variável
+ * Pré-requisitos: PostgreSQL do compose.yaml, backend/.env e a variável
  * E2E_PASSWORD (palavra-passe das contas de demonstração, 12 caracteres ou mais).
  */
 const BACKEND_PORT = 3100

@@ -23,7 +23,10 @@ const EXAMPLE_SECRET = 'muda-este-segredo';
 export function jwtSecret(env: NodeJS.ProcessEnv = process.env): string {
   const secret = env.JWT_SECRET;
   if (!secret) {
-    throw new Error('Define JWT_SECRET no backend/.env (ver .env.example).');
+    throw new Error(
+      'Define a variável de ambiente JWT_SECRET (no backend/.env em desenvolvimento, ' +
+        'no .env da raiz com Docker Compose; ver .env.example). Gera-a com openssl rand -hex 32.',
+    );
   }
   if (secret === EXAMPLE_SECRET) {
     throw new Error(

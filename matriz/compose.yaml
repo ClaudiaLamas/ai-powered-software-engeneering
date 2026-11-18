@@ -1,0 +1,102 @@
+# Execução da Matriz com Docker Compose (D05). Copia .env.example para .env e
+# muda os valores antes de arrancar.
+#
+#   docker compose up -d --build                  aplicação completa (http://localhost:8080)
+#   docker compose up -d postgres                 só o PostgreSQL, para o desenvolvimento local
+#   docker compose run --rm migrate npm run db:seed   dados de demonstração (só a pedido)
+#
+# Serviços: postgres (dados), migrate (aplica as migrations e termina), backend
+# (API NestJS) e frontend (nginx com a SPA; encaminha /api para o backend).
+# O Mailpit (D09) entra com o incremento 2, quando houver envio de emails.
+name: matriz
+
+x-database-url: &database-url "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    container_name: matriz-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Define POSTGRES_USER no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Define POSTGRES_DB no .env}
+    ports:
+      # Só para o desenvolvimento local (backend fora do Docker). A aplicação
+      # em containers liga-se pela rede "data".
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # A partir do PostgreSQL 18 o volume monta-se em /var/lib/postgresql.
+      - matriz_pgdata:/var/lib/postgresql
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build:
+      context: ./backend
+      target: tools
+    image: matriz-backend-tools:local
+    # Aplica as migrations de backend/prisma/migrations e termina. O backend só
+    # arranca depois de este serviço terminar sem erros.
+    command: ["npx", "prisma", "migrate", "deploy"]
+    restart: "no"
+    environment:
+      DATABASE_URL: *database-url
+      # Só para o seed (npm run db:seed), que corre a pedido.
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - data
+
+  backend:
+    build:
+      context: ./backend
+      target: runtime
+    image: matriz-backend:local
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      DATABASE_URL: *database-url
+      # A API recusa arrancar sem JWT_SECRET, com o valor de exemplo ou com
+      # menos de 32 caracteres (a mensagem fica em docker compose logs backend).
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_EXPIRES_IN_SECONDS: ${JWT_EXPIRES_IN_SECONDS:-3600}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
+      - web
+    # O healthcheck (GET /health, que confirma o acesso à base de dados) está no Dockerfile.
+
+  frontend:
+    build:
+      context: ./frontend
+    image: matriz-frontend:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - web
+    # O healthcheck (GET /) está no Dockerfile.
+
+networks:
+  # PostgreSQL, migrations e backend.
+  data:
+  # Frontend (nginx) e backend: o frontend não chega à base de dados.
+  web:
+
+volumes:
+  matriz_pgdata:
