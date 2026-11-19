@@ -366,9 +366,85 @@ Evidências do job `docker`, tiradas do log:
 - Seed: "Seed concluído: 27 criados, 0 já existiam."
 - `POST /api/auth/login → 200` com uma conta de demonstração.
 
+**Execução 3** ([44422712310](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44422712310), `pull_request` do PR #28, commit `e1f4a2f`, 2026-11-18 23:40–23:43 UTC): **passou**. Foi a primeira execução com as imagens base fixadas em versões exatas (`nginxinc/nginx-unprivileged:1.30.6-alpine`, `postgres:18.6-alpine`) e com o job `frontend` em dois passos, "Verificação de tipos" e "Build" ([delivery-plan.md §7](delivery-plan.md#7-revisão-das-imagens-base-e-dos-dockerignore-2026-11-18)).
+
+| Job | Resultado | Duração |
+|---|---|---|
+| Backend (lint, build, testes unitários e de API) | Passou | 23:40:16 → 23:41:17 |
+| Frontend (tipos, build e testes unitários) | Passou, com os passos "Verificação de tipos" e "Build" separados | 23:40:17 → 23:40:59 |
+| Testes E2E de browser (Playwright, Chromium) | Passou | 23:40:17 → 23:41:37 |
+| Imagens Docker e arranque com Docker Compose | Passou; começou só depois dos três anteriores | 23:41:39 → 23:43:46 |
+
+Evidências do job `docker`, tiradas do log: `{"status":"ok","database":"up"}` através do nginx, "Seed concluído: 27 criados, 0 já existiam." e `POST /api/auth/login → 200`. O PR #28 foi integrado no `main` a seguir (`c0ef961`).
+
+**Execução 4: falha controlada** ([44423658879](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44423658879), `push` do commit `219c812` no ramo `aula05-entrega`, 2026-11-18 23:47–23:48 UTC): **falhou, como era pretendido**.
+
+- **O que mudou:** o teste "por omissão, 1 hora (D06)" de `backend/src/accounts/jwt-config.spec.ts` passou a esperar 3601 em vez de 3600. Foi a única alteração do commit.
+- **Localmente, antes do push:** o `npm test` deu `Tests  1 failed | 121 passed (122)`, com o código de saída 1.
+
+| Job | Resultado | Duração |
+|---|---|---|
+| Backend (lint, build, testes unitários e de API) | **Falhou** no passo "Testes unitários" | 23:47:08 → 23:48:04 |
+| Frontend (tipos, build e testes unitários) | Passou | 23:47:07 → 23:47:49 |
+| Testes E2E de browser (Playwright, Chromium) | Passou | 23:47:07 → 23:48:21 |
+| Imagens Docker e arranque com Docker Compose | Não correu (`skipped`): depende do `backend` | — |
+
+- **Erro no log:** `AssertionError: expected 3600 to be 3601 // Object.is equality` em `jwt-config.spec.ts > tokenTtlSeconds (JWT_EXPIRES_IN_SECONDS, D06) > por omissão, 1 hora (D06)`, e depois `Process completed with exit code 1.`
+- **O que confirma:**
+  - um teste que falha faz falhar o job e a pipeline;
+  - os passos seguintes do job não correm: os testes de API ficaram por correr;
+  - o job `docker` não corre (`needs`), por isso não se constroem imagens de código com testes a falhar.
+- **Correção:** o commit `5038367` reverte o `219c812`. Depois dele, o `npm test` local dá `Tests  122 passed (122)`.
+- **Contexto:** o PR #28 já tinha sido integrado e o ramo apagado no GitHub. O push voltou a criar o `aula05-entrega` no GitHub, e o `main` não foi afetado. A execução correu pelo evento `push`, sem PR.
+
+**Execução 5: pipeline depois da correção** ([44425060643](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44425060643), `pull_request` do PR #29, commit `1d4baa3`, que inclui a reversão `5038367`, 2026-11-18 23:57 → 2026-11-19 00:01 UTC): **passou**.
+
+| Job | Resultado | Duração |
+|---|---|---|
+| Backend (lint, build, testes unitários e de API) | Passou, com o teste "por omissão, 1 hora (D06)" outra vez com 3600 | 23:57:29 → 23:58:37 |
+| Frontend (tipos, build e testes unitários) | Passou | 23:57:29 → 23:58:17 |
+| Testes E2E de browser (Playwright, Chromium) | Passou | 23:57:29 → 23:58:45 |
+| Imagens Docker e arranque com Docker Compose | Passou; começou só depois dos três anteriores | 23:58:47 → 00:01:05 |
+
+- **Evidências do job `docker`,** tiradas do log:
+  - `{"status":"ok","database":"up"}` através do nginx;
+  - "Seed concluído: 27 criados, 0 já existiam.";
+  - `POST /api/auth/login → 200`.
+- **Ciclo da falha controlada:** fica completo. A pipeline passou (execução 3), falhou com um teste errado (execução 4) e voltou a passar depois da correção (execução 5).
+**Outra execução sobre o mesmo commit** ([44425029678](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44425029678), evento `push` do `1d4baa3`, 23:57:14 → 00:06:56 UTC): **passou nos quatro jobs**. Correu em paralelo com a execução 5: a `concurrency` do workflow agrupa por `github.ref`, e o push (`refs/heads/aula05-entrega`) e o PR (`refs/pull/29/merge`) têm refs diferentes.
+
+O `e2e-browser` desta execução demorou 7 min 21 s, contra 1 min 16 s na execução 5. O tempo a mais foi todo na instalação; os testes demoraram o mesmo nas duas execuções:
+
+| Passo do `e2e-browser` | Execução `push` (44425029678) | Execução 5 (44425060643) |
+|---|---|---|
+| Dependências do frontend e Chromium (`npm ci` + `npx playwright install --with-deps chromium`) | **6 min 26 s** (23:57:50 → 00:04:16) | 22 s (23:58:02 → 23:58:24) |
+| Testes E2E | 16 s (00:04:16 → 00:04:32) | 17 s (23:58:24 → 23:58:41) |
+
+- **Não indica testes instáveis.** A causa da demora não aparece no log. O mais provável é um download lento do Chromium ou dos pacotes do sistema no runner.
+- **Correção deste registo:** uma primeira versão desta secção (commit `1cbde4d`) dizia que o passo lento era "Testes E2E" e punha a hipótese de os testes serem instáveis. Estava errado: o passo que ainda corria era a instalação.
+
 ### 8.5 Por verificar
 
 - **Healthcheck do frontend na CI:** o passo de verificação só espera que `/api/health` responda. Não espera que o container do frontend fique `healthy`.
-- **Falha controlada num teste:** introduzir uma falha, confirmar que a pipeline falha e depois corrigir.
+- **Duração da instalação do Chromium na CI:** numa execução demorou 6 min 26 s, noutra 22 s (§8.4, execução 5). Se voltar a acontecer, pode valer a pena guardar os browsers do Playwright em cache. Não foi decidido.
 - **Diagrama Mermaid do `architecture.md` §6:** a forma como aparece no GitHub ainda não foi vista.
-- **Entrada no navegador com uma conta de demonstração** na aplicação em containers: a entrada foi verificada pela API, através do nginx.
+- ~~**Entrada no navegador com uma conta de demonstração** na aplicação em containers: a entrada foi verificada pela API, através do nginx.~~ **Verificado pela programadora a 2026-11-18** (manual, no navegador; não foi a IA). Com a aplicação em containers (`docker compose up -d`):
+  - entrou no navegador em `http://localhost:8088`;
+  - criou uma tarefa e mudou-lhe o estado;
+  - depois de `docker compose down` (sem `-v`) e `docker compose up -d`, a tarefa continuava lá: os dados persistem no volume `matriz_pgdata` depois de os containers serem recriados.
+
+### 8.6 Verificações locais da versão 0.1.0-rc.1 (2026-11-19)
+
+Executadas pela IA (Claude Code) a 2026-11-19 (00:29–00:30 UTC), sobre o commit `61e8d60` do ramo `aula05-entrega`, sem alterações por commitar no código, antes de a versão dos `package.json` passar a `0.1.0-rc.1`. Ambiente: Node.js v26.13.0, npm 11.20.0, PostgreSQL do `compose.yaml` (`docker compose up -d postgres`). A `E2E_PASSWORD` foi gerada na shell (`openssl rand -hex 16`) e não ficou escrita em nenhum ficheiro.
+
+| Onde | Comando | Resultado |
+|---|---|---|
+| `backend/` | `npm run lint` | Sem mensagens; código de saída 0 |
+| `backend/` | `npm run build` | Ok; código de saída 0 |
+| `backend/` | `npm test` | 11 ficheiros, 122 testes: todos passaram |
+| `backend/` | `npm run test:e2e` | 8 ficheiros, 253 testes: todos passaram |
+| `frontend/` | `npm run build` | Ok (`vue-tsc` e Vite); código de saída 0 |
+| `frontend/` | `npm run test:unit -- --run` | 19 ficheiros, 183 testes: todos passaram |
+| `frontend/` | `npm run test:e2e` | 1 teste (`create-task.spec.ts`: a Gestora entra, abre o projeto, cria uma tarefa e vê-a em "Por fazer"): passou |
+
+O §8.3 regista 121 testes unitários no backend e a execução 4 do §8.4 regista 122 depois da reversão `5038367`; esta execução confirma 122. A diferença é o teste que o commit `afeca0d` acrescentou a `backend/src/accounts/jwt-config.spec.ts` (mensagem do `JWT_SECRET` em falta), feito depois das verificações do §8.3. Não foram corridos nesta data: a aplicação em containers e a pipeline no GitHub (ver §8.1, §8.2 e §8.4).

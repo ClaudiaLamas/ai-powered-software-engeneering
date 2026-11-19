@@ -1,8 +1,8 @@
 # Matriz
 
-Matriz é uma aplicação de gestão de projetos e tarefas para equipas de trabalho. Esta pasta contém a especificação (requisitos, âmbito do MVP, user stories, restrições, arquitetura, modelo de dados, contrato da API e um wireframe do dashboard) e o código em implementação: `backend/` (NestJS) e `frontend/` (Vue). O estado de cada incremento está em [docs/implementation-plan.md](docs/implementation-plan.md).
+Matriz é uma aplicação web de gestão de projetos e tarefas para equipas de trabalho. Esta pasta contém a especificação (requisitos, âmbito do MVP, user stories, restrições, arquitetura, modelo de dados, contrato da API e um wireframe do dashboard) e o código: `backend/` (API em NestJS) e `frontend/` (aplicação web em Vue). O estado de cada incremento está em [docs/implementation-plan.md](docs/implementation-plan.md).
 
-> **Estado:** especificação inicial, **não validada pelo cliente**. Só F1–F5 são factos. Tudo o resto (P, R, DE, PN, D) são pressupostos ou decisões internas, que devem ser confirmados antes do desenvolvimento.
+> **Estado:** versão candidata **0.1.0-rc.1**, com o MVP **incompleto** (ver [Funcionalidades implementadas](#funcionalidades-implementadas) e as [notas da versão](docs/releases/v0.1.0-rc.1.md)). A especificação **não foi validada pelo cliente**: só F1–F5 são factos; tudo o resto (P, R, DE, PN, D) são pressupostos ou decisões internas, por confirmar.
 
 ## O que o cliente pediu
 
@@ -36,6 +36,27 @@ Proposta, em resumo: o Administrador cria as contas e os projetos e atribui a ca
 
 Prazos, pesquisa, notificações e relatórios ficam **fora do MVP** (FN10, FN11, FN15–FN26, FN30). A prioridade e o filtro das tarefas por estado e prioridade entram no MVP (FN12, FN13).
 
+## Funcionalidades implementadas
+
+O que existe no código (backend e frontend) na versão 0.1.0-rc.1. O `openapi.yaml` descreve também operações que ainda não existem: a lista está na descrição do contrato e mais abaixo.
+
+| Área | Backend (API) | Frontend | User stories |
+|---|---|---|---|
+| Entrar e sair | `POST /auth/login` (JWT, 1 hora por omissão), `POST /auth/logout`, `GET /me` | Ecrã de entrada, sessão no `sessionStorage`, aviso de sessão expirada, botão "Sair" | US01, US15 |
+| Painel inicial | `GET /projects`: os projetos da conta, com a função e o progresso | Lista dos projetos com o indicador de progresso | US05, US09 |
+| Projetos | `POST /projects` (só o Administrador), `GET`, `PATCH` e `POST .../archive` | Ver, editar e arquivar (só o Gestor, com confirmação); painel "Membros" só de leitura. **Sem formulário de criação** | US03 (só API), US10, US18 |
+| Tarefas | Listar (paginado, filtros por estado e prioridade), criar, ver, editar, eliminar, mudar o estado | Tarefas agrupadas por estado, filtros, formulário de tarefa, detalhe da tarefa | US06–US08, US19, US22, US23 |
+| Responsáveis | Vários por tarefa: `assigneeIds` ao criar, `POST` e `DELETE .../assignees`, `GET .../assignable-accounts` | Escolha e remoção dos responsáveis | US06 (DE16) |
+| Comentários | Listar, criar, editar e apagar os próprios | Comentários no detalhe da tarefa | US13, US19 |
+| Infraestrutura | `GET /health` (com a base de dados), erros em Problem Details, seed de demonstração | Página "não encontrada" | — |
+
+**Ainda não implementado** (o backend responde `404 NOT_FOUND`):
+
+- **Incremento 2 — contas e ativação** (US02, US11, US16): criar e desativar contas, links de ativação (`POST /auth/activate`), reenviar o convite, dar e retirar a permissão de Administrador. O envio de emails com o Mailpit (D09) está **planeado e não implementado**: não está no `compose.yaml` e nenhum código envia emails. As contas vêm só do seed.
+- **Incremento 3 — equipa do projeto** (US04): adicionar e remover membros.
+- **Incremento 7 — pedidos de responsável** (US31).
+- **Incremento 8 — área de administração** (US12, US14, US17): troca de Gestor, lista de todos os projetos e consulta do registo administrativo. O registo já guarda `CREATE_PROJECT` e `ASSIGN_MANAGER` ao criar um projeto, mas não há forma de o consultar.
+
 ## Glossário
 
 | Termo | Significado |
@@ -57,12 +78,24 @@ As funções e a permissão são **decisões internas, por validar com o cliente
 
 | Camada | Tecnologia | Decisão |
 |---|---|---|
-| Frontend | Vue.js 3 com vue-router e Vite, em TypeScript; servido em containers por nginx | D01–D03, D05 |
-| Backend | NestJS 12 em TypeScript (Node.js 26), monólito modular | D02, D03, D07 |
-| Dados | PostgreSQL 18 com Prisma 7 (migrations e seed); identificadores UUID | D04 |
+| Frontend | Vue.js 3.5 com vue-router 5 e Vite 8, em TypeScript 6; servido em containers por nginx (`nginxinc/nginx-unprivileged:1.30.6-alpine`) | D01–D03, D05 |
+| Backend | NestJS 12 em TypeScript 6 (Node.js 26.13.0), monólito modular; validação com `class-validator` | D02, D03, D07 |
+| Dados | PostgreSQL 18.6 com Prisma 7 (`@prisma/adapter-pg`, migrations e seed); identificadores UUID | D04 |
 | Autenticação | JWT (`@nestjs/jwt` e Passport), palavras-passe com bcrypt (`bcryptjs`) | D06 |
-| Testes | Vitest (backend e frontend), Supertest (API), Playwright com Chromium (E2E de browser) | D08 |
+| Testes | Vitest 4 (backend e frontend), Supertest (API), Playwright 1.65 com Chromium (E2E de browser); lint do backend com oxlint | D08 |
 | Execução e CI | Docker e Docker Compose ([`compose.yaml`](compose.yaml)); GitHub Actions ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) | D05 |
+| Email | Mailpit na execução local: **planeado, não implementado** (entra com o incremento 2) | D09 |
+
+As versões exatas das dependências estão em `backend/package-lock.json` e `frontend/package-lock.json`; as das imagens, nos Dockerfiles e no `compose.yaml`.
+
+## Pré-requisitos
+
+| Para | Precisa de |
+|---|---|
+| [Execução com Docker Compose](#execução-com-docker-compose) | Docker Engine com o Docker Compose v2 (comando `docker compose`; testado com Docker 29.9.3 e Compose 2.40.3) e `openssl` para gerar o `JWT_SECRET` |
+| [Execução local](#execução-local) (desenvolvimento) | O mesmo, mais o Node.js 26.13.0 do [`.nvmrc`](.nvmrc) (com o [nvm](https://github.com/nvm-sh/nvm)) e o Git. Detalhes no [passo 1](#1-requisitos) |
+| Testes E2E de browser | O Chromium do Playwright (`cd frontend && npx playwright install chromium`) |
+| Pedidos diretos à API | `curl` e `jq` (opcionais) |
 
 ## Execução com Docker Compose
 
@@ -124,7 +157,7 @@ Não usa segredos do repositório: a palavra-passe do PostgreSQL dos jobs é des
 
 ## Execução local
 
-Passos para correr a Matriz numa máquina a partir de um clone limpo. Todos os comandos partem da pasta `matriz/` (onde está este ficheiro), salvo indicação em contrário. O que já funciona na aplicação está em [docs/implementation-plan.md](docs/implementation-plan.md): por agora, entrar e sair, o painel, os projetos (sem criação pela interface nem gestão da equipa), as tarefas, os responsáveis e os comentários.
+Passos para correr a Matriz numa máquina a partir de um clone limpo. Todos os comandos partem da pasta `matriz/` (onde está este ficheiro), salvo indicação em contrário. O que já funciona está em [Funcionalidades implementadas](#funcionalidades-implementadas): entrar e sair, o painel, os projetos (sem criação pela interface nem gestão da equipa), as tarefas, os responsáveis e os comentários.
 
 ### 1. Requisitos
 
@@ -261,6 +294,8 @@ Abre `http://localhost:5173` (o endereço aparece no terminal) e entra com uma d
 | `frontend/` | `npm run build` | Verifica os tipos (`vue-tsc`) e compila para `dist/` |
 | `frontend/` | `E2E_PASSWORD=… npm run test:e2e` | Testes E2E de browser (Playwright, Chromium): entrar, abrir um projeto, criar uma tarefa e vê-la na listagem |
 
+Última execução destes comandos: 2026-11-19, sobre o commit `61e8d60`, todos com o código de saída 0 (lint e builds sem erros; backend 122 testes unitários e 253 de API; frontend 183 testes unitários e 1 E2E de browser). O registo está em [docs/verification.md §8.6](docs/verification.md#86-verificações-locais-da-versão-010-rc1-2026-11-19).
+
 Os testes de API nunca usam a base de dados de desenvolvimento: usam `matriz_test` (ou `TEST_DATABASE_URL`). Antes de cada execução, `backend/test/global-setup.ts` aplica as migrations a essa base, criando-a se não existir, e esvazia todas as tabelas. Recusa qualquer nome que não termine em `_test`. O frontend não tem lint configurado.
 
 Testes E2E de browser (`frontend/e2e/`, configuração em `frontend/playwright.config.ts`):
@@ -326,12 +361,14 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:3000/auth/logout -H "
 | [docs/database.md](docs/database.md) | Modelo de dados lógico do MVP, regras de integridade e diagrama ER. |
 | [docs/implementation-plan.md](docs/implementation-plan.md) | Sequência de incrementos para implementar o MVP, com critérios e verificação. |
 | [docs/ui/dashboard-wireframe.html](docs/ui/dashboard-wireframe.html) | Wireframe de baixa fidelidade do ecrã inicial e da vista de um projeto. |
-| [openapi.yaml](openapi.yaml) | Contrato da API do backend para o MVP (US01–US19, US22, US23, US31). |
+| [openapi.yaml](openapi.yaml) | Contrato da API do backend para o MVP (US01–US19, US22, US23, US31), versão 0.5.0 do contrato. A descrição indica as operações já implementadas e as que faltam. |
 | [AGENTS.md](AGENTS.md) | Instruções para agentes de IA que trabalhem no repositório. |
 | [CHANGELOG.md](CHANGELOG.md) | Alterações de cada versão (Semantic Versioning). |
 | [docs/releases/v0.1.0-rc.1.md](docs/releases/v0.1.0-rc.1.md) | Notas da versão candidata 0.1.0-rc.1: o que inclui, limitações e como atualizar. |
 | [docs/verification.md](docs/verification.md) | Verificação do MVP e da entrega com Docker e CI (secção 8). |
 | [compose.yaml](compose.yaml), [`backend/Dockerfile`](backend/Dockerfile), [`frontend/Dockerfile`](frontend/Dockerfile), [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Execução em containers e integração contínua. |
+
+Referências externas: [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.0/) (formato do `CHANGELOG.md`), [Semantic Versioning 2.0.0](https://semver.org/lang/pt-BR/) (versões), [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) (contrato) e [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) (Problem Details).
 
 ## Convenção de IDs
 

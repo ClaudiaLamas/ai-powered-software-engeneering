@@ -65,7 +65,8 @@ info:
     arquivando-os (`archiveProject`); não há `DELETE /projects/{projectId}`
     (decisão interna, 2026-11-15).
 
-    Estado da implementação (2026-11-15; ver
+    Estado da implementação na versão 0.1.0-rc.1 da aplicação (2026-11-19,
+    confirmado nos controladores do backend; ver
     `docs/implementation-plan.md`). Implementadas, com o comportamento
     descrito aqui: `getHealth`, `login`, `logout`, `getMe`,
     `listMyProjects`, `createProject`, `getProject`, `updateProject`,
@@ -1968,7 +1969,10 @@ components:
           $ref: "#/components/schemas/AccountSummary"
         members:
           type: array
-          description: Todos os membros, incluindo o Gestor.
+          description: |
+            Todos os membros, incluindo o Gestor. Ordenados pela função (o
+            Gestor primeiro, depois os Membros) e, dentro de cada função, pelo
+            nome (pressuposto; documentado a 2026-11-19 a partir do código).
           items:
             $ref: "#/components/schemas/ProjectMember"
         progress:

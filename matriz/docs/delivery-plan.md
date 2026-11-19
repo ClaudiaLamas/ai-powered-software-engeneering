@@ -110,7 +110,7 @@ Ficheiro `.github/workflows/ci.yml`, na raiz do repositório.
 | 3 | `compose.yaml` e `.env.example`: `config`, `build`, `up`, `ps`, `logs`; entrar, criar uma tarefa, recriar os containers | Feita. **Imprevisto:** a porta 8080 da máquina estava ocupada, por isso a validação usou `FRONTEND_PORT=8088`. A tarefa manteve-se depois de `down` e `up` e foi apagada no fim. Também desliguei o aviso de atualização do npm (`NPM_CONFIG_UPDATE_NOTIFIER=false`) |
 | 4 | `ci.yml`, push com aprovação e verificação no GitHub | O workflow está criado. **Imprevisto (actionlint):** dois erros, o contexto `env` no `env` de um job e uma variável de ciclo sem uso; foram corrigidos. A programadora aprovou o push. **Imprevisto (GitHub):** a [primeira execução](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44208738418) falhou no `e2e-browser`, por um defeito do workflow (ver 5.1). A correção está no commit `60cda3b`. A [segunda execução](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44210281487), sobre `749c52c`, **passou nos quatro jobs**, incluindo o `docker` ([verification.md §8.4](verification.md#84-pipeline-no-github-actions)) |
 | 5 | Documentação, CHANGELOG e notas da versão | Feita |
-| 6 | Validação final e relatório (exercício 6) | Parcial: a validação local e a pipeline verde no GitHub estão em [verification.md §8](verification.md#8-entrega-com-docker-docker-compose-e-github-actions-ficha-05). Falta a falha controlada |
+| 6 | Validação final e relatório (exercício 6) | Feita: a validação local e a pipeline verde no GitHub estão em [verification.md §8](verification.md#8-entrega-com-docker-docker-compose-e-github-actions-ficha-05). A [execução 3](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44422712310) passou no PR #28, que foi integrado no `main` (`c0ef961`). A falha controlada (commit `219c812`) fez falhar a [execução 4](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44423658879) no job `backend`, e o `docker` não correu ([verification.md §8.4](verification.md#84-pipeline-no-github-actions)). A reversão está no commit `5038367`, e a pipeline voltou a passar nos quatro jobs na [execução 5](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44425060643), no PR #29 |
 
 ### 5.1 Primeira execução da pipeline no GitHub (falhou)
 
@@ -156,8 +156,6 @@ A ordem dos commits não é a planeada. O primeiro commit (build) falhou e a mud
 
 Nenhuma destas questões foi decidida:
 
-- **Falha controlada** num teste para confirmar que a pipeline falha (pedida na ficha).
-- **Pull request** do `aula05-entrega` para o `main`.
 - **Versão nos `package.json`** (`0.0.1` e `0.0.0`): não mudou. A versão `0.1.0-rc.1` só existe no CHANGELOG e nas notas. Não foi criada nenhuma tag nem release.
 - **11 vulnerabilidades de severidade alta** reportadas pelo `npm ci` do backend na CI. Corrigi-las implica atualizar dependências, o que exige aprovação.
 - **Deploy, HTTPS e publicação das imagens num registo**, como o GitHub Container Registry do Desafio C: continuam fora do âmbito (D05).
