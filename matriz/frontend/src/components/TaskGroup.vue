@@ -32,7 +32,10 @@ defineEmits<{ more: []; retry: []; 'change-status': [task: Task, status: TaskSta
 </script>
 
 <template>
-  <section class="card stack task-group" :aria-label="TASK_STATUS_LABELS[status]">
+  <section
+    class="card stack task-group"
+    :class="`task-group-${status.toLowerCase()}`"
+    :aria-label="TASK_STATUS_LABELS[status]">
     <h2 class="task-group-title">{{ TASK_STATUS_LABELS[status] }} ({{ total }})</h2>
     <ul v-if="tasks.length > 0" class="task-list">
       <li v-for="task in tasks" :key="task.id" class="task-item">

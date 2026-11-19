@@ -80,9 +80,6 @@ onMounted(load)
 h1 {
   margin-bottom: 0.25rem;
 }
-h2 {
-  font-size: 1.25rem;
-}
 .account {
   overflow-wrap: anywhere;
 }
