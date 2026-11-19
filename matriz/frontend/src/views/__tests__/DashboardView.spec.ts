@@ -162,4 +162,86 @@ describe('DashboardView: ecrã inicial (US05)', () => {
     await flushPromises()
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
+
+  it('mostra cartões de esqueleto, escondidos dos leitores de ecrã, enquanto carrega', async () => {
+    mockApi({ 'GET /me': () => json(ana), 'GET /projects': () => json({ items: [] }) })
+    const { wrapper } = await mountView()
+
+    expect(wrapper.get('[data-test="skeleton"]').attributes('aria-hidden')).toBe('true')
+    await flushPromises()
+    expect(wrapper.find('[data-test="skeleton"]').exists()).toBe(false)
+  })
+
+  it('mostra a data de hoje por cima da saudação', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-19T10:00:00'))
+    try {
+      mockApi({ 'GET /me': () => json(ana), 'GET /projects': () => json({ items: [] }) })
+      const { wrapper } = await mountView()
+      await flushPromises()
+      expect(wrapper.get('[data-test="today"]').text()).toBe('quinta-feira, 19 de novembro')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('resume os projetos ativos: número de projetos e tarefas por estado, sem os arquivados', async () => {
+    const outro: ProjectSummary = {
+      ...SITE,
+      id: '00000000-0000-4000-8000-0000000000a4',
+      name: 'Outro',
+      progress: { todo: 2, inProgress: 3, done: 1, total: 6, percentDone: 17 },
+    }
+    mockApi({
+      'GET /me': () => json(ana),
+      'GET /projects': () => json({ items: [CAMPANHA, INTRANET, outro, SITE] }),
+    })
+    const { wrapper } = await mountView()
+    await flushPromises()
+
+    const items = wrapper
+      .get('[data-test="summary"]')
+      .findAll('.summary-item')
+      .map((i) => [i.get('dt').text(), i.get('dd').text()])
+    expect(items).toEqual([
+      ['Projetos ativos', '3'],
+      ['Por fazer', '3'],
+      ['Em curso', '3'],
+      ['Concluída', '4'],
+    ])
+  })
+
+  it('mostra os ativos em "Os meus projetos" e os arquivados numa secção à parte, depois', async () => {
+    mockApi({ 'GET /me': () => json(ana), 'GET /projects': () => json({ items: [INTRANET, SITE] }) })
+    const { wrapper } = await mountView()
+    await flushPromises()
+
+    const names = (section: string) =>
+      wrapper
+        .get(`[data-test="${section}"]`)
+        .findAll('[data-test="project-card"] a')
+        .map((a) => a.text())
+    expect(names('active-projects')).toEqual(['Site'])
+    expect(names('archived-projects')).toEqual(['Intranet'])
+    expect(wrapper.get('[data-test="archived-projects"] h2').text()).toBe('Arquivados')
+  })
+
+  it('sem projetos ativos, diz que não há e mostra os arquivados', async () => {
+    mockApi({ 'GET /me': () => json(ana), 'GET /projects': () => json({ items: [INTRANET] }) })
+    const { wrapper } = await mountView()
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="active-projects"]').text()).toContain('Não tem projetos ativos.')
+    expect(card(wrapper, 'Intranet').exists()).toBe(true)
+  })
+
+  it('sem projetos, não mostra o resumo e explica quando aparecem', async () => {
+    mockApi({ 'GET /me': () => json(ana), 'GET /projects': () => json({ items: [] }) })
+    const { wrapper } = await mountView()
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="summary"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="archived-projects"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Quando for adicionado a um projeto, ele aparece aqui.')
+  })
 })
