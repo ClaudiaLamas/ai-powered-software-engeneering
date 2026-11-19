@@ -211,7 +211,7 @@ Rewrite rules (Redirects/Rewrites), **por esta ordem**:
 | 1 | `/api/*` | `https://<backend>.onrender.com/*` | Rewrite | Encaminha para a API sem o prefixo `/api`, como o [`nginx.conf`](frontend/nginx.conf) |
 | 2 | `/*` | `/index.html` | Rewrite | Rotas da SPA (`createWebHistory`); não se aplica aos ficheiros que existem em `dist/` |
 
-`<backend>` é o nome do Web Service no Render.
+`<backend>.onrender.com` é o endereço que aparece no topo do Web Service, que pode não ser igual ao nome do serviço: quando o nome já existe noutra conta, o Render junta-lhe um sufixo (por exemplo, `matriz-api-ab12.onrender.com`). Com o endereço errado, o login falha com "Não foi possível contactar o servidor".
 
 ### Migrations e seed (a partir da tua máquina)
 
@@ -228,6 +228,12 @@ read -rs "SEED_DEMO_PASSWORD?Palavra-passe das contas de demonstração: " && ex
 ```
 
 Os comandos usam a sintaxe do `read` do zsh. No bash, usa `read -rsp "…" DATABASE_URL`.
+
+O seed nunca altera contas que já existem: correr outra vez com outro `SEED_DEMO_PASSWORD` não muda a palavra-passe. Se a palavra-passe usada no seed se perdeu, [`prisma/reset-demo-passwords.ts`](backend/prisma/reset-demo-passwords.ts) muda-a nas contas de demonstração (`@matriz.test`) que já têm palavra-passe, e só nessas. Mostra o host e o nome da base de dados e as contas, e só altera depois de se escrever `SIM`. No mesmo terminal, com o `DATABASE_URL` já definido:
+
+```bash
+read -rs "RESET_DEMO_PASSWORD?Palavra-passe nova das contas de demonstração: " && export RESET_DEMO_PASSWORD && npx tsx prisma/reset-demo-passwords.ts
+```
 
 ### Verificação depois do deploy
 
