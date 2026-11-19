@@ -1969,7 +1969,10 @@ components:
           $ref: "#/components/schemas/AccountSummary"
         members:
           type: array
-          description: Todos os membros, incluindo o Gestor.
+          description: |
+            Todos os membros, incluindo o Gestor. Ordenados pela função (o
+            Gestor primeiro, depois os Membros) e, dentro de cada função, pelo
+            nome (pressuposto; documentado a 2026-11-19 a partir do código).
           items:
             $ref: "#/components/schemas/ProjectMember"
         progress:
