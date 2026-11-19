@@ -78,12 +78,13 @@ As funções e a permissão são **decisões internas, por validar com o cliente
 
 | Camada | Tecnologia | Decisão |
 |---|---|---|
-| Frontend | Vue.js 3.5 com vue-router 5 e Vite 8, em TypeScript 6; servido em containers por nginx (`nginxinc/nginx-unprivileged:1.30.6-alpine`) | D01–D03, D05 |
+| Frontend | Vue.js 3.5 com vue-router 5 e Vite 8, em TypeScript 6; servido em containers por nginx (`nginxinc/nginx-unprivileged:1.30.6-alpine`) e, no deploy, como Static Site do Render | D01–D03, D05, D10 |
 | Backend | NestJS 12 em TypeScript 6 (Node.js 26.13.0), monólito modular; validação com `class-validator` | D02, D03, D07 |
 | Dados | PostgreSQL 18.6 com Prisma 7 (`@prisma/adapter-pg`, migrations e seed); identificadores UUID | D04 |
 | Autenticação | JWT (`@nestjs/jwt` e Passport), palavras-passe com bcrypt (`bcryptjs`) | D06 |
 | Testes | Vitest 4 (backend e frontend), Supertest (API), Playwright 1.65 com Chromium (E2E de browser); lint do backend com oxlint | D08 |
 | Execução e CI | Docker e Docker Compose ([`compose.yaml`](compose.yaml)); GitHub Actions ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) | D05 |
+| Deploy | Render (Static Site e Web Service Docker) e PostgreSQL no Neon ([Deploy](#deploy)) | D10 |
 | Email | Mailpit na execução local: **planeado, não implementado** (entra com o incremento 2) | D09 |
 
 As versões exatas das dependências estão em `backend/package-lock.json` e `frontend/package-lock.json`; as das imagens, nos Dockerfiles e no `compose.yaml`.
@@ -154,6 +155,86 @@ O workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (na raiz do
 | `docker` | Só depois dos três anteriores: `docker compose config -q`, `build`, `up -d`, `GET /api/health` através do nginx, seed e entrada com uma conta de demonstração; no fim, `down -v` |
 
 Não usa segredos do repositório: a palavra-passe do PostgreSQL dos jobs é descartável e os outros valores são gerados em cada execução.
+
+## Deploy
+
+A Matriz é publicada no Render: o frontend é um Static Site e o backend é um Web Service com Docker. A base de dados fica no Neon ([D10](docs/constraints.md#4-decisões-técnicas), onde estão também as alternativas e as limitações do plano gratuito). As definições são as do painel do Render. Os valores das variáveis ficam só no Render (ou no terminal, para as migrations) e nunca no repositório.
+
+**Ordem obrigatória:** quando uma alteração traz migrations novas, aplica-as no Neon com a **URL direct** **antes** do deploy do backend. Se o backend for publicado primeiro, corre sobre um esquema antigo. O Render não aplica as migrations: a imagem `runtime` não tem a CLI do Prisma e o plano gratuito não tem pre-deploy command.
+
+### Neon (PostgreSQL)
+
+| URL | Host | Usada por |
+|---|---|---|
+| Pooled | com `-pooler` | A API, em `DATABASE_URL` no Render |
+| Direct | sem `-pooler` | `prisma migrate deploy` e seed, na tua máquina |
+
+O Neon exige SSL. Usa `sslmode=verify-full` nas duas URLs e tira o `channel_binding=require` que o Neon acrescenta. Não está confirmado que o `pg` (`@prisma/adapter-pg`) o aceite.
+
+### Backend (Web Service)
+
+| Definição | Valor |
+|---|---|
+| Language | Docker |
+| Branch | `main` |
+| Root Directory | `matriz/backend` |
+| Dockerfile Path | `./Dockerfile` (o Render constrói a última fase, `runtime`) |
+| Docker Build Context Directory | `.` |
+| Health Check Path | `/health` |
+| Auto-Deploy | After CI Checks Pass |
+
+Variáveis de ambiente (só os nomes):
+
+| Variável | Notas |
+|---|---|
+| `DATABASE_URL` | URL **pooled** do Neon |
+| `JWT_SECRET` | Gerado com `openssl rand -hex 32`, diferente do local |
+| `JWT_EXPIRES_IN_SECONDS` | Opcional; por omissão, 3600 |
+| `PORT` | Opcional: o Render define-a (10000 por omissão) e a API usa-a |
+
+### Frontend (Static Site)
+
+| Definição | Valor |
+|---|---|
+| Branch | `main` |
+| Root Directory | `matriz/frontend` |
+| Build Command | `npm ci && npm run build` |
+| Publish Directory | `dist` |
+| Auto-Deploy | After CI Checks Pass |
+
+Variável de ambiente: `NODE_VERSION` (a versão do [`.nvmrc`](.nvmrc)). O Render não lê o `matriz/.nvmrc`, porque o ficheiro está fora do Root Directory. Não há variáveis `VITE_`: o frontend chama `/api` no seu próprio endereço.
+
+Rewrite rules (Redirects/Rewrites), **por esta ordem**:
+
+| # | Source | Destination | Action | Para quê |
+|---|---|---|---|---|
+| 1 | `/api/*` | `https://<backend>.onrender.com/*` | Rewrite | Encaminha para a API sem o prefixo `/api`, como o [`nginx.conf`](frontend/nginx.conf) |
+| 2 | `/*` | `/index.html` | Rewrite | Rotas da SPA (`createWebHistory`); não se aplica aos ficheiros que existem em `dist/` |
+
+`<backend>` é o nome do Web Service no Render.
+
+### Migrations e seed (a partir da tua máquina)
+
+A partir de `backend/`, com as dependências instaladas. O `read -s` lê a URL sem a mostrar nem a guardar no histórico do shell. As variáveis do ambiente têm prioridade sobre o `backend/.env`.
+
+```bash
+cd backend && read -rs "DATABASE_URL?URL direct do Neon: " && export DATABASE_URL && npx prisma migrate status && npx prisma migrate deploy
+```
+
+O seed só é preciso uma vez, a pedido. As contas de demonstração ficam acessíveis na internet: usa um `SEED_DEMO_PASSWORD` novo, que não seja o local, na mesma sessão do terminal:
+
+```bash
+read -rs "SEED_DEMO_PASSWORD?Palavra-passe das contas de demonstração: " && export SEED_DEMO_PASSWORD && npm run db:seed
+```
+
+Os comandos usam a sintaxe do `read` do zsh. No bash, usa `read -rsp "…" DATABASE_URL`.
+
+### Verificação depois do deploy
+
+1. `GET https://<backend>.onrender.com/health` responde 200. O primeiro pedido pode demorar cerca de 1 minuto, porque o serviço gratuito para sem tráfego, e pode responder 503 enquanto o Neon acorda.
+2. `GET https://<frontend>.onrender.com/api/health` responde 200 (rewrite 1).
+3. Abrir um link direto, por exemplo `/projetos/<id>`, mostra a aplicação e não um 404 (rewrite 2).
+4. Entrar com uma conta e abrir o painel: confirma que o cabeçalho `Authorization` chega ao backend através do rewrite. Se não chegar, a alternativa é a opção B de [D10](docs/constraints.md#4-decisões-técnicas).
 
 ## Execução local
 
@@ -381,7 +462,7 @@ Os IDs são iguais em todos os ficheiros.
 | R1–R10 | Respostas assumidas às perguntas de clarificação prioritárias | Pressuposto |
 | DE01–DE16 | Decisões da equipa do projeto (2026-10-29, 2026-11-04, 2026-11-08 e 2026-11-11), não validadas pelo cliente | Decisão interna |
 | PN01–PN21 | Regras de negócio: concretizam decisões DE ou são pressupostos | Decisão interna ou pressuposto |
-| D01–D09 | Decisões técnicas, todas tomadas, não validadas pelo cliente | Decisão interna |
+| D01–D10 | Decisões técnicas, todas tomadas, não validadas pelo cliente | Decisão interna |
 | FN01–FN30 | Funcionalidades propostas | Proposta |
 | US01–US19, US22, US23, US31 | User stories do MVP | Proposta |
 | US20, US21, US24–US30, US32–US37 | User stories fora do MVP | Proposta |

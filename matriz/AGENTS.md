@@ -9,11 +9,12 @@ incrementos 1, 3, 4, 5, 6 e 9 estão "Em curso" e os 2, 7 e 8 "Por iniciar"
 (estado de cada um em `docs/implementation-plan.md`; operações da API já
 implementadas na descrição do `openapi.yaml`). A arquitetura está decidida
 (monólito modular, decisão interna por validar; ver `docs/architecture.md`). Todas
-as decisões técnicas estão tomadas (D01–D09, decisões internas por validar; ver
+as decisões técnicas estão tomadas (D01–D10, decisões internas por validar; ver
 `docs/constraints.md` §4): aplicação web responsiva; TypeScript, NestJS no
 backend e Vue.js no frontend; PostgreSQL com Prisma e identificadores UUID;
 autenticação com JWT; execução local com Docker e emails locais com Mailpit;
-testes com Vitest (backend e frontend) e Supertest (API). Confirma as versões
+deploy no Render (frontend como Static Site, backend como Web Service Docker)
+com o PostgreSQL no Neon (ver `README.md`, "Deploy"); testes com Vitest (backend e frontend) e Supertest (API). Confirma as versões
 nos sites oficiais quando instalares. Não assumas nenhuma escolha técnica que
 não esteja registada nos documentos.
 
