@@ -30,6 +30,10 @@
   --color-status-in-progress: #a15c00;
   --color-status-done: var(--color-accent);
 
+  /* Mensagens de sucesso e de aviso (.notice-success, .notice-warning) */
+  --color-success: var(--color-accent);
+  --color-warning: var(--color-status-in-progress);
+
   /* Espaçamentos */
   --space-1: 0.25rem;
   --space-2: 0.5rem;

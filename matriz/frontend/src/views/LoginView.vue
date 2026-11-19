@@ -63,7 +63,7 @@ async function submit() {
 <template>
   <main class="page-narrow stack">
     <h1>Matriz</h1>
-    <p v-if="sessionExpired && !error" role="status" class="notice">
+    <p v-if="sessionExpired && !error" role="status" class="notice notice-warning">
       A sessão expirou. Inicie sessão novamente.
     </p>
     <form class="stack" novalidate @submit.prevent="submit">

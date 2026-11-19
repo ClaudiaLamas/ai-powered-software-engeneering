@@ -417,10 +417,10 @@ watch(taskId, load, { immediate: true })
           { label: task.title },
         ]"
       />
-      <p v-if="project.status === 'ARCHIVED'" class="notice">
+      <p v-if="project.status === 'ARCHIVED'" class="notice notice-warning">
         Projeto arquivado: a tarefa não pode ser alterada.
       </p>
-      <p v-if="message" role="status" class="notice">{{ message }}</p>
+      <p v-if="message" role="status" class="notice notice-success">{{ message }}</p>
 
       <section v-if="editing" class="card stack" aria-labelledby="edit-task-title">
         <h1 id="edit-task-title">Editar tarefa</h1>
@@ -595,7 +595,7 @@ watch(taskId, load, { immediate: true })
             </template>
           </li>
         </ol>
-        <p v-if="commentMessage" role="status" class="notice">{{ commentMessage }}</p>
+        <p v-if="commentMessage" role="status" class="notice notice-success">{{ commentMessage }}</p>
         <CommentForm
           v-if="canComment && comments"
           ref="newCommentForm"
