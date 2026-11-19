@@ -218,7 +218,7 @@ Rewrite rules (Redirects/Rewrites), **por esta ordem**:
 A partir de `backend/`, com as dependências instaladas. O `read -s` lê a URL sem a mostrar nem a guardar no histórico do shell. As variáveis do ambiente têm prioridade sobre o `backend/.env`.
 
 ```bash
-cd backend && read -rs "DATABASE_URL?URL direct do Neon: " && export DATABASE_URL && npx prisma migrate status && npx prisma migrate deploy
+cd backend && read -rs "DATABASE_URL?URL direct do Neon: " && export DATABASE_URL && npx prisma migrate deploy && npx prisma migrate status
 ```
 
 O seed só é preciso uma vez, a pedido. As contas de demonstração ficam acessíveis na internet: usa um `SEED_DEMO_PASSWORD` novo, que não seja o local, na mesma sessão do terminal:
