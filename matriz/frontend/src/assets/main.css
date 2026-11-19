@@ -4,7 +4,8 @@
    repetirem estilos próprios. */
 
 :root {
-  --color-accent: hsla(160, 100%, 30%, 1);
+  /* ≥ 4,5:1 sobre os fundos claros e com o texto branco dos botões. */
+  --color-accent: #007a51;
   --color-accent-text: #ffffff;
   --color-danger: #b00020;
   --color-input-background: var(--vt-c-white);
@@ -74,7 +75,7 @@ textarea {
 }
 
 .muted {
-  opacity: 0.75;
+  color: var(--color-text-muted);
 }
 
 /* Botões */
@@ -132,7 +133,7 @@ textarea {
 }
 
 .field-hint {
-  opacity: 0.75;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 

@@ -28,10 +28,13 @@
   --color-background-mute: var(--vt-c-white-mute);
 
   --color-border: var(--vt-c-divider-light-2);
-  --color-border-hover: var(--vt-c-divider-light-1);
+  /* Bordas de campos e botões: ≥ 3:1 sobre os fundos (WCAG 1.4.11). */
+  --color-border-hover: #7b838d;
 
   --color-heading: var(--vt-c-text-light-1);
   --color-text: var(--vt-c-text-light-1);
+  /* Texto secundário: ≥ 4,5:1 sobre todos os fundos (em vez de opacidade). */
+  --color-text-muted: #56606d;
 
   --section-gap: 160px;
 }
@@ -43,10 +46,11 @@
     --color-background-mute: var(--vt-c-black-mute);
 
     --color-border: var(--vt-c-divider-dark-2);
-    --color-border-hover: var(--vt-c-divider-dark-1);
+    --color-border-hover: #7a828c;
 
     --color-heading: var(--vt-c-text-dark-1);
     --color-text: var(--vt-c-text-dark-2);
+    --color-text-muted: #aab2bc;
   }
 }
 
