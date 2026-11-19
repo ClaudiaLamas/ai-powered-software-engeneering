@@ -6,7 +6,7 @@ Alterações relevantes da Matriz. O formato segue o [Keep a Changelog](https://
 
 Nada por agora.
 
-## [0.1.0-rc.1] — 2026-11-18 (versão candidata, por validar)
+## [0.1.0-rc.1] — 2026-11-19 (versão candidata, por validar)
 
 Primeira versão candidata do MVP **incompleto**. Ficam de fora os incrementos 2 (contas e ativação), 7 (pedidos de responsável) e 8 (área de administração), e partes dos incrementos 1, 3 e 4. Ver [docs/implementation-plan.md](docs/implementation-plan.md) e as [notas da versão](docs/releases/v0.1.0-rc.1.md).
 
@@ -46,7 +46,11 @@ Primeira versão candidata do MVP **incompleto**. Ficam de fora os incrementos 2
 ### Alterado
 
 - `docker-compose.yml` passa a chamar-se `compose.yaml`. No desenvolvimento local, o PostgreSQL arranca sozinho com `docker compose up -d postgres`.
-- O `.env.example` da raiz tem as variáveis da execução em containers: `FRONTEND_PORT`, `JWT_SECRET`, `JWT_EXPIRES_IN_SECONDS` e `SEED_DEMO_PASSWORD`.
+- O `.env.example` da raiz tem as variáveis da execução em containers: `FRONTEND_PORT`, `JWT_SECRET` (vazio, só com a instrução para o gerar), `JWT_EXPIRES_IN_SECONDS` e `SEED_DEMO_PASSWORD`.
+- Imagens base fixadas em versões exatas: `nginxinc/nginx-unprivileged:1.30.6-alpine` e `postgres:18.6-alpine`, também nos serviços dos jobs da CI. O `backend/.dockerignore` deixa de fora `test-results` e `playwright-report`.
+- No job `frontend` da CI, a verificação de tipos e o build passam a ser passos separados.
+- O `package.json` e o `package-lock.json` do backend (antes `0.0.1`) e do frontend (antes `0.0.0`) passam à versão `0.1.0-rc.1`. O `openapi.yaml` mantém a versão do contrato, `0.5.0`: tem numeração própria e muda quando o contrato muda.
+- Documentação: o README passa a ter as funcionalidades implementadas e os pré-requisitos; diagrama da execução em containers revisto em `docs/architecture.md` §6; resultados das verificações de 2026-11-19 em `docs/verification.md` §8.6.
 
 ### Segurança
 
@@ -55,11 +59,14 @@ Primeira versão candidata do MVP **incompleto**. Ficam de fora os incrementos 2
 
 ### Corrigido
 
+- Sem `JWT_SECRET`, a mensagem de erro da API indica onde o definir nos dois modos (`backend/.env` em desenvolvimento, `.env` da raiz com o Docker Compose) e como o gerar.
 - O carácter nulo nos campos de texto passa a dar `400` em vez de `500`.
 - Rotas desconhecidas, corpos demasiado grandes e erros inesperados passam a responder em Problem Details.
 - Escritas concorrentes já não conseguem pôr tarefas num projeto arquivado.
 - Um responsável repetido, mesmo com o identificador noutras maiúsculas ou minúsculas, passa a dar `409`.
 - O frontend deixou de mostrar respostas antigas de outro projeto, tarefa ou filtro.
+
+<!-- A tag v0.1.0-rc.1 só é criada depois da validação final: até lá, os links abaixo não abrem. -->
 
 [Por lançar]: https://github.com/ClaudiaLamas/ai-powered-software-engeneering/compare/v0.1.0-rc.1...HEAD
 [0.1.0-rc.1]: https://github.com/ClaudiaLamas/ai-powered-software-engeneering/releases/tag/v0.1.0-rc.1

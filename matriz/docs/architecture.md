@@ -91,7 +91,7 @@ O nome entre parênteses é o nome do módulo no código, em inglês. As entidad
 
 - Cada módulo só escreve nas suas próprias tabelas (database.md §1). As leituras de tabelas de outros módulos são feitas diretamente com o `PrismaService` partilhado, por consultas com junções, em vez de chamadas à interface do módulo dono (ver a tabela abaixo). Era o desenho inicial que os módulos não acedessem aos dados uns dos outros; a implementação ficou assim porque a base de dados é única e as leituras com junções evitam vários pedidos (diferença face ao desenho inicial, registada a 2026-11-15 a partir do código; por decidir se se mantém ou se o código passa a usar as interfaces dos módulos).
 - Todas as ações passam pelo módulo `authorization` antes de serem executadas: a API consulta-o antes de encaminhar cada pedido para o módulo responsável.
-- Todas as rotas exigem sessão, exceto as marcadas como públicas (`login`, `activate`, `health`). Em cada pedido, a conta (estado e permissão de Administrador) é lida na base de dados, não no token (D06). Ordem das verificações: `401` → `403 NOT_ADMIN` → `400 VALIDATION_ERROR` (formato) → `404` (não é membro) → `403` (função ou autoria) → `409` (arquivado) → `400` das regras (decisão interna, 2026-11-09).
+- Todas as rotas exigem sessão, exceto as marcadas como públicas (`@Public()`): `POST /auth/login` e `GET /health`. `POST /auth/activate` também será pública, mas está planeada e não implementada (incremento 2). Em cada pedido, a conta (estado e permissão de Administrador) é lida na base de dados, não no token (D06). Ordem das verificações: `401` → `403 NOT_ADMIN` → `400 VALIDATION_ERROR` (formato) → `404` (não é membro) → `403` (função ou autoria) → `409` (arquivado) → `400` das regras (decisão interna, 2026-11-09).
 - Cada operação de um projeto, tarefa ou comentário usa a conta do token (`@CurrentAccount()`), valida os identificadores do caminho (`@IdParam()`) e chama o `AuthorizationService` antes de fazer a operação: `requireMember`, `requireTask` ou `requireComment` (`404` a quem não é membro, como a um recurso que não existe) → `requireManager` ou `requireCommentAuthor` (`403`) → `requireWritable` (`409`). As verificações ficam no serviço e não num guard porque os guards correm antes da validação do pedido, e o `400` de formato vem antes do `404`. O acesso a uma tarefa, às suas atribuições e aos seus comentários é o acesso ao projeto da tarefa.
 - Um módulo só chama os módulos indicados na tabela abaixo. As dependências não formam ciclos.
 
@@ -124,8 +124,8 @@ Regras para manter as dependências sem ciclos:
 | Autenticação (D06) | **Decidido** (decisão interna, por validar): JWT no cabeçalho `Authorization: Bearer ...`, com `@nestjs/jwt` e Passport; palavras-passe guardadas como hash bcrypt (`bcryptjs`). Em cada pedido, o backend lê a conta na base de dados e recusa o token de uma conta desativada, mesmo antes de expirar (decisão interna, 2026-11-09). O módulo Autenticação e contas isola a forma de autenticar; se a empresa usar um sistema de identidade próprio, a mudança fica contida nesse módulo. |
 | Linguagens e frameworks (D02, D03) | **Decidido** (decisão interna, por validar): TypeScript; NestJS no backend e Vue.js no frontend. |
 | Alojamento (D05) | **Decidido** (decisão interna, por validar): execução local, com o PostgreSQL num container Docker (`compose.yaml`); desde 2026-11-18, também a aplicação completa em containers (secção 6). O deploy fica como extensão futura. |
-| Testes (D08) | **Decidido** (decisão interna, por validar): Vitest no backend e no frontend; Supertest nos testes de API. |
-| Envio de email (D09) | **Decidido** (decisão interna, por validar): na execução local, os emails de ativação (DE15) vão para um container Mailpit no `compose.yaml`, que os mostra numa página local. O envio real fica com o deploy. |
+| Testes (D08) | **Decidido** (decisão interna, por validar): Vitest no backend e no frontend; Supertest nos testes de API; Playwright (só Chromium) nos testes E2E de browser do frontend. |
+| Envio de email (D09) | **Decidido** (decisão interna, por validar), **planeado e não implementado**: na execução local, os emails de ativação (DE15) irão para um container Mailpit no `compose.yaml`, que os mostra numa página local. Entra com o incremento 2; na versão 0.1.0-rc.1 o Mailpit não está no `compose.yaml` e nenhum código envia emails. O envio real fica com o deploy. |
 | Validação | Esta decisão tem de ser revista se o cliente indicar uma escala muito maior do que RNF01 ou integrações com outras ferramentas (FN25). |
 
 ## 6. Execução com Docker Compose
@@ -134,29 +134,25 @@ Alargamento de D05 (decisão interna, por validar, 2026-11-18). A aplicação co
 
 ```mermaid
 flowchart LR
-    user(["Navegador"])
+    browser(["Navegador"])
 
-    subgraph host["Máquina local (só 127.0.0.1)"]
+    subgraph host["Máquina local (portas publicadas só em 127.0.0.1)"]
         direction LR
-        subgraph web["Rede web"]
-            frontend["frontend<br/>nginx: aplicação web<br/>porta 8080"]
-        end
-        subgraph data["Rede data"]
-            backend["backend<br/>API NestJS (monólito modular)<br/>porta 3000, GET /health"]
-            migrate["migrate<br/>prisma migrate deploy<br/>(termina; seed a pedido)"]
-            postgres[("postgres<br/>PostgreSQL 18")]
-        end
+        nginx["frontend<br/>nginx: ficheiros da aplicação Vue<br/>e proxy de /api<br/>porta 8080 (FRONTEND_PORT)"]
+        backend["backend<br/>API NestJS (monólito modular)<br/>porta 3000, só nas redes internas<br/>healthcheck GET /health"]
+        postgres[("postgres<br/>PostgreSQL 18.6<br/>porta 5432 (POSTGRES_PORT)")]
+        migrate["migrate<br/>prisma migrate deploy<br/>termina; seed a pedido"]
         volume[["volume matriz_pgdata"]]
     end
 
-    user -- "HTTP :FRONTEND_PORT" --> frontend
-    frontend -- "/api/* sem o prefixo /api" --> backend
-    backend -- "Prisma (DATABASE_URL)" --> postgres
-    migrate -- "migrations" --> postgres
+    browser -- "HTTP :FRONTEND_PORT<br/>/ e rotas da aplicação" --> nginx
+    nginx -- "rede web<br/>/api/* sem o prefixo /api" --> backend
+    backend -- "rede data<br/>Prisma (DATABASE_URL)" --> postgres
+    migrate -- "rede data<br/>migrations, antes do backend" --> postgres
     postgres --- volume
 ```
 
-O `backend` está nas duas redes: é o único serviço que liga o frontend à base de dados.
+Os pedidos seguem sempre o caminho navegador → nginx → backend → PostgreSQL. O `backend` está nas duas redes (`web` e `data`): é o único serviço que liga o frontend à base de dados, e o frontend não chega ao PostgreSQL. O `migrate` só está na rede `data`. A porta do PostgreSQL só é publicada para o desenvolvimento local (backend fora do Docker); a aplicação em containers não a usa.
 
 | Serviço | Imagem | Arranca depois de | Healthcheck |
 |---|---|---|---|
@@ -170,4 +166,6 @@ Decisões e razões:
 - **nginx no frontend.** A aplicação web chama a API em `/api/...`, no mesmo endereço. Em desenvolvimento, o proxy do Vite encaminha esses pedidos. Nos containers, o nginx faz o mesmo e também serve o `index.html` nas rotas da aplicação (`createWebHistory`). O backend continua sem CORS. Alternativas preteridas: o `vite preview`, que não é próprio para produção, e o backend servir os ficheiros estáticos, que exigia uma dependência nova.
 - **Migrations num serviço próprio.** A CLI do Prisma é uma dependência de desenvolvimento. A imagem do backend fica só com o que a API precisa, e as migrations correm antes de a API arrancar. O seed nunca corre no arranque (`docker compose run --rm migrate npm run db:seed`).
 - **Sem credenciais nas imagens.** `DATABASE_URL` é montado no `compose.yaml` a partir das variáveis `POSTGRES_*` do `.env`. `JWT_SECRET` e `SEED_DEMO_PASSWORD` também vêm do `.env`. Os `.dockerignore` deixam de fora os `.env`.
-- **Sem Mailpit por agora.** O D09 prevê-o para os emails de ativação, que só entram com o incremento 2. Ainda nenhum código envia emails.
+- **Sem Mailpit por agora.** O D09 prevê-o para os emails de ativação, que só entram com o incremento 2: está planeado e não implementado. Ainda nenhum código envia emails.
+
+Estado na versão 0.1.0-rc.1 (2026-11-19): os módulos `accounts` (só a entrada, a saída e a conta atual), `authorization`, `projects` (sem a gestão da equipa nem a troca de Gestor), `tasks` (sem os pedidos de responsável), `progress` e `audit` (só o registo, sem a consulta) existem no código, com a infraestrutura `prisma`, `health` e `common`. O que falta está no [README](../README.md#funcionalidades-implementadas) e em [implementation-plan.md](implementation-plan.md).

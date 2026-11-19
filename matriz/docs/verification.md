@@ -428,4 +428,23 @@ O `e2e-browser` desta execução demorou 7 min 21 s, contra 1 min 16 s na execu�
 - **Healthcheck do frontend na CI:** o passo de verificação só espera que `/api/health` responda. Não espera que o container do frontend fique `healthy`.
 - **Duração da instalação do Chromium na CI:** numa execução demorou 6 min 26 s, noutra 22 s (§8.4, execução 5). Se voltar a acontecer, pode valer a pena guardar os browsers do Playwright em cache. Não foi decidido.
 - **Diagrama Mermaid do `architecture.md` §6:** a forma como aparece no GitHub ainda não foi vista.
-- **Entrada no navegador com uma conta de demonstração** na aplicação em containers: a entrada foi verificada pela API, através do nginx.
+- ~~**Entrada no navegador com uma conta de demonstração** na aplicação em containers: a entrada foi verificada pela API, através do nginx.~~ **Verificado pela programadora a 2026-11-18** (manual, no navegador; não foi a IA). Com a aplicação em containers (`docker compose up -d`):
+  - entrou no navegador em `http://localhost:8088`;
+  - criou uma tarefa e mudou-lhe o estado;
+  - depois de `docker compose down` (sem `-v`) e `docker compose up -d`, a tarefa continuava lá: os dados persistem no volume `matriz_pgdata` depois de os containers serem recriados.
+
+### 8.6 Verificações locais da versão 0.1.0-rc.1 (2026-11-19)
+
+Executadas pela IA (Claude Code) a 2026-11-19 (00:29–00:30 UTC), sobre o commit `61e8d60` do ramo `aula05-entrega`, sem alterações por commitar no código, antes de a versão dos `package.json` passar a `0.1.0-rc.1`. Ambiente: Node.js v26.13.0, npm 11.20.0, PostgreSQL do `compose.yaml` (`docker compose up -d postgres`). A `E2E_PASSWORD` foi gerada na shell (`openssl rand -hex 16`) e não ficou escrita em nenhum ficheiro.
+
+| Onde | Comando | Resultado |
+|---|---|---|
+| `backend/` | `npm run lint` | Sem mensagens; código de saída 0 |
+| `backend/` | `npm run build` | Ok; código de saída 0 |
+| `backend/` | `npm test` | 11 ficheiros, 122 testes: todos passaram |
+| `backend/` | `npm run test:e2e` | 8 ficheiros, 253 testes: todos passaram |
+| `frontend/` | `npm run build` | Ok (`vue-tsc` e Vite); código de saída 0 |
+| `frontend/` | `npm run test:unit -- --run` | 19 ficheiros, 183 testes: todos passaram |
+| `frontend/` | `npm run test:e2e` | 1 teste (`create-task.spec.ts`: a Gestora entra, abre o projeto, cria uma tarefa e vê-a em "Por fazer"): passou |
+
+O §8.3 regista 121 testes unitários no backend e a execução 4 do §8.4 regista 122 depois da reversão `5038367`; esta execução confirma 122. A diferença é o teste que o commit `afeca0d` acrescentou a `backend/src/accounts/jwt-config.spec.ts` (mensagem do `JWT_SECRET` em falta), feito depois das verificações do §8.3. Não foram corridos nesta data: a aplicação em containers e a pipeline no GitHub (ver §8.1, §8.2 e §8.4).
