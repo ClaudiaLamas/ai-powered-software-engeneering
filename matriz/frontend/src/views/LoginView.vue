@@ -63,7 +63,7 @@ async function submit() {
 
 <template>
   <main class="page-narrow stack">
-    <h1 class="login-brand"><AppLogo :size="40" />Matriz</h1>
+    <h1 class="login-brand"><AppLogo :size="64" />Matriz</h1>
     <p v-if="sessionExpired && !error" role="status" class="notice notice-warning">
       A sessão expirou. Inicie sessão novamente.
     </p>
@@ -94,6 +94,9 @@ async function submit() {
 .login-brand {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
+  font-size: 2.75rem;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--space-2);
 }
 </style>
