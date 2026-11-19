@@ -6,6 +6,35 @@ Alterações relevantes da Matriz. O formato segue o [Keep a Changelog](https://
 
 Nada por agora.
 
+## [0.1.0-rc.2] — 2026-11-19 (versão candidata, por validar)
+
+Segunda versão candidata: melhorias do frontend para a apresentação e o primeiro deploy online. Não acrescenta incrementos nem muda o contrato da API (`openapi.yaml` continua na versão `0.5.0`). Ver as [notas da versão](docs/releases/v0.1.0-rc.2.md).
+
+### Acrescentado
+
+- **Deploy online** (D10): frontend como Static Site do Render, backend como Web Service Docker do Render e PostgreSQL no Neon (Frankfurt). Definições e ordem das migrations no README, "Deploy"; endereços no README, "Demo online".
+- **Painel inicial** (US05, US09):
+  - data de hoje e resumo dos projetos ativos (projetos e tarefas por estado);
+  - projetos ativos e arquivados em secções separadas;
+  - cartão de projeto (`ProjectCard`) clicável, com a função em badge;
+  - cartões de esqueleto enquanto carrega e uma segunda linha na lista vazia.
+- **Logótipo** (`AppLogo`): um M numa grelha 5×5, no cabeçalho, no ecrã de entrada e no favicon (`favicon.svg`).
+- **Script `backend/prisma/reset-demo-passwords.ts`**: muda a palavra-passe das contas de demonstração (`@matriz.test`) que já a têm, com confirmação, para quando a palavra-passe usada no seed se perdeu (o seed nunca altera contas que já existem).
+
+### Alterado
+
+- **Aspeto:** cores, espaçamentos, tipografia e raios como tokens próprios em `base.css` (em vez da paleta do modelo do Vue), nos temas claro e escuro; títulos com peso e uma só escala.
+- **Grupos de tarefas** "Por fazer / Em curso / Concluída" com a cor do estado e tarefas em cartões; badges de estado, prioridade e projeto com fundo pela cor.
+- **Barra de progresso** dividida por estado (concluída, em curso, por fazer); o valor acessível continua a ser a percentagem concluída.
+- **Mensagens:** as de sucesso e as de aviso passam a distinguir-se pela cor e por um ícone que os leitores de ecrã não leem.
+- `backend` e `frontend` passam à versão `0.1.0-rc.2` (`package.json` e `package-lock.json`).
+- Documentação: README ("Demo online", funcionalidades, Deploy), `docs/architecture.md` §7 e D10 com a configuração real, `docs/verification.md` §8.7 e §8.8, e o [relatório de validação final](docs/validation-report.md).
+
+### Acessibilidade
+
+- Contraste AA medido no navegador nos dois temas: a cor de destaque do tema claro passa de 3,65:1 para 5,38:1; as bordas dos campos e dos botões passam de 1,71:1 para pelo menos 3,33:1; o texto secundário deixa de usar opacidade.
+- Área de toque de 44px em botões e campos abaixo de 480px; sem transições nem animações com `prefers-reduced-motion`.
+
 ## [0.1.0-rc.1] — 2026-11-19 (versão candidata, por validar)
 
 Primeira versão candidata do MVP **incompleto**. Ficam de fora os incrementos 2 (contas e ativação), 7 (pedidos de responsável) e 8 (área de administração), e partes dos incrementos 1, 3 e 4. Ver [docs/implementation-plan.md](docs/implementation-plan.md) e as [notas da versão](docs/releases/v0.1.0-rc.1.md).
@@ -66,7 +95,8 @@ Primeira versão candidata do MVP **incompleto**. Ficam de fora os incrementos 2
 - Um responsável repetido, mesmo com o identificador noutras maiúsculas ou minúsculas, passa a dar `409`.
 - O frontend deixou de mostrar respostas antigas de outro projeto, tarefa ou filtro.
 
-<!-- A tag v0.1.0-rc.1 só é criada depois da validação final: até lá, os links abaixo não abrem. -->
+<!-- As tags v0.1.0-rc.1 (merge do PR #29, 8824e68) e v0.1.0-rc.2 só são criadas depois da validação final: até lá, os links abaixo não abrem. -->
 
-[Por lançar]: https://github.com/ClaudiaLamas/ai-powered-software-engeneering/compare/v0.1.0-rc.1...HEAD
+[Por lançar]: https://github.com/ClaudiaLamas/ai-powered-software-engeneering/compare/v0.1.0-rc.2...HEAD
+[0.1.0-rc.2]: https://github.com/ClaudiaLamas/ai-powered-software-engeneering/compare/v0.1.0-rc.1...v0.1.0-rc.2
 [0.1.0-rc.1]: https://github.com/ClaudiaLamas/ai-powered-software-engeneering/releases/tag/v0.1.0-rc.1

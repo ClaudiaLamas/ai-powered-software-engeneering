@@ -2,7 +2,7 @@
 
 Matriz é uma aplicação web de gestão de projetos e tarefas para equipas de trabalho. Esta pasta contém a especificação (requisitos, âmbito do MVP, user stories, restrições, arquitetura, modelo de dados, contrato da API e um wireframe do dashboard) e o código: `backend/` (API em NestJS) e `frontend/` (aplicação web em Vue). O estado de cada incremento está em [docs/implementation-plan.md](docs/implementation-plan.md).
 
-> **Estado:** versão candidata **0.1.0-rc.1**, com o MVP **incompleto** (ver [Funcionalidades implementadas](#funcionalidades-implementadas) e as [notas da versão](docs/releases/v0.1.0-rc.1.md)). A especificação **não foi validada pelo cliente**: só F1–F5 são factos; tudo o resto (P, R, DE, PN, D) são pressupostos ou decisões internas, por confirmar.
+> **Estado:** versão candidata **0.1.0-rc.2**, com o MVP **incompleto** (ver [Funcionalidades implementadas](#funcionalidades-implementadas) e as [notas da versão](docs/releases/v0.1.0-rc.2.md)), publicada online (ver [Demo online](#demo-online)). A especificação **não foi validada pelo cliente**: só F1–F5 são factos; tudo o resto (P, R, DE, PN, D) são pressupostos ou decisões internas, por confirmar.
 
 ## O que o cliente pediu
 
@@ -36,19 +36,40 @@ Proposta, em resumo: o Administrador cria as contas e os projetos e atribui a ca
 
 Prazos, pesquisa, notificações e relatórios ficam **fora do MVP** (FN10, FN11, FN15–FN26, FN30). A prioridade e o filtro das tarefas por estado e prioridade entram no MVP (FN12, FN13).
 
+## Demo online
+
+A versão do `main` está publicada no Render, com a base de dados no Neon (Frankfurt), como descrito em [Deploy](#deploy):
+
+| | Endereço |
+|---|---|
+| Aplicação | <https://matriz-n1k9.onrender.com> |
+| API (`GET /health`) | <https://matriz-api-xweh.onrender.com/health> |
+
+O plano gratuito para o backend sem tráfego: o primeiro pedido pode demorar cerca de 30 segundos a 1 minuto (24 s medidos a 2026-11-19).
+
+Contas de demonstração (dados fictícios, as do [seed](#7-contas-de-demonstração)). A palavra-passe da demo **não é** a local e não está escrita em nenhum ficheiro do repositório: pede-a à equipa.
+
+| Conta | Para ver |
+|---|---|
+| `ana.silva@matriz.test` | Gestora de "Campanha de primavera" e "Portal de clientes": criar e editar tarefas, arquivar o projeto |
+| `bruno.costa@matriz.test` | Gestor de "Renovação do escritório" e Membro de "Portal de clientes": mudar o estado e comentar sem gerir |
+| `admin@matriz.test` | Conta de sistema com a permissão de Administrador, sem projetos (DE02) |
+| `carla.mendes@matriz.test`, `duarte.lopes@matriz.test` | Pendente e desativada: **não conseguem entrar** (mensagem de erro esperada) |
+
 ## Funcionalidades implementadas
 
-O que existe no código (backend e frontend) na versão 0.1.0-rc.1. O `openapi.yaml` descreve também operações que ainda não existem: a lista está na descrição do contrato e mais abaixo.
+O que existe no código (backend e frontend) na versão 0.1.0-rc.2. O `openapi.yaml` descreve também operações que ainda não existem: a lista está na descrição do contrato e mais abaixo.
 
 | Área | Backend (API) | Frontend | User stories |
 |---|---|---|---|
-| Entrar e sair | `POST /auth/login` (JWT, 1 hora por omissão), `POST /auth/logout`, `GET /me` | Ecrã de entrada, sessão no `sessionStorage`, aviso de sessão expirada, botão "Sair" | US01, US15 |
-| Painel inicial | `GET /projects`: os projetos da conta, com a função e o progresso | Lista dos projetos com o indicador de progresso | US05, US09 |
+| Entrar e sair | `POST /auth/login` (JWT, 1 hora por omissão), `POST /auth/logout`, `GET /me` | Ecrã de entrada com o logótipo, sessão no `sessionStorage`, aviso de sessão expirada, botão "Sair" | US01, US15 |
+| Painel inicial | `GET /projects`: os projetos da conta, com a função e o progresso | Data de hoje; resumo dos projetos ativos (projetos e tarefas por estado); projetos ativos e arquivados em secções separadas; cartões clicáveis com a função e a barra de progresso por estado; cartões de esqueleto ao carregar | US05, US09 |
 | Projetos | `POST /projects` (só o Administrador), `GET`, `PATCH` e `POST .../archive` | Ver, editar e arquivar (só o Gestor, com confirmação); painel "Membros" só de leitura. **Sem formulário de criação** | US03 (só API), US10, US18 |
 | Tarefas | Listar (paginado, filtros por estado e prioridade), criar, ver, editar, eliminar, mudar o estado | Tarefas agrupadas por estado, filtros, formulário de tarefa, detalhe da tarefa | US06–US08, US19, US22, US23 |
 | Responsáveis | Vários por tarefa: `assigneeIds` ao criar, `POST` e `DELETE .../assignees`, `GET .../assignable-accounts` | Escolha e remoção dos responsáveis | US06 (DE16) |
 | Comentários | Listar, criar, editar e apagar os próprios | Comentários no detalhe da tarefa | US13, US19 |
-| Infraestrutura | `GET /health` (com a base de dados), erros em Problem Details, seed de demonstração | Página "não encontrada" | — |
+| Infraestrutura | `GET /health` (com a base de dados), erros em Problem Details, seed de demonstração e script para repor a palavra-passe das contas de demonstração | Página "não encontrada"; logótipo e favicon | — |
+| Aspeto e acessibilidade | — | Cores e espaçamentos próprios nos temas claro e escuro, com contraste AA medido (texto ≥ 4,5:1, bordas de campos ≥ 3:1); grupos e badges com a cor de cada estado; mensagens de sucesso e de aviso distintas; área de toque de 44px no telemóvel; sem animações com `prefers-reduced-motion` | — |
 
 **Ainda não implementado** (o backend responde `404 NOT_FOUND`):
 
@@ -158,7 +179,7 @@ Não usa segredos do repositório: a palavra-passe do PostgreSQL dos jobs é des
 
 ## Deploy
 
-A Matriz é publicada no Render: o frontend é um Static Site e o backend é um Web Service com Docker. A base de dados fica no Neon ([D10](docs/constraints.md#4-decisões-técnicas), onde estão também as alternativas e as limitações do plano gratuito). As definições são as do painel do Render. Os valores das variáveis ficam só no Render (ou no terminal, para as migrations) e nunca no repositório.
+A Matriz é publicada no Render: o frontend é um Static Site e o backend é um Web Service com Docker. A base de dados fica no Neon, na região Frankfurt (AWS `eu-central-1`) ([D10](docs/constraints.md#4-decisões-técnicas), onde estão também as alternativas e as limitações do plano gratuito). As definições são as do painel do Render. Os valores das variáveis ficam só no Render (ou no terminal, para as migrations) e nunca no repositório.
 
 **Ordem obrigatória:** quando uma alteração traz migrations novas, aplica-as no Neon com a **URL direct** **antes** do deploy do backend. Se o backend for publicado primeiro, corre sobre um esquema antigo. O Render não aplica as migrations: a imagem `runtime` não tem a CLI do Prisma e o plano gratuito não tem pre-deploy command.
 
@@ -169,7 +190,7 @@ A Matriz é publicada no Render: o frontend é um Static Site e o backend é um 
 | Pooled | com `-pooler` | A API, em `DATABASE_URL` no Render |
 | Direct | sem `-pooler` | `prisma migrate deploy` e seed, na tua máquina |
 
-O Neon exige SSL. Usa `sslmode=verify-full` nas duas URLs e tira o `channel_binding=require` que o Neon acrescenta. Não está confirmado que o `pg` (`@prisma/adapter-pg`) o aceite.
+O Neon exige SSL. Usa `sslmode=verify-full` nas duas URLs e tira o `channel_binding=require` que o Neon acrescenta. O deploy de 2026-11-19 usa `sslmode=verify-full` na URL pooled do Render (configuração indicada pela programadora) e a API liga-se (`GET /health` → `database: up`): o `pg` (`@prisma/adapter-pg`) aceita-o.
 
 ### Backend (Web Service)
 
@@ -328,7 +349,7 @@ O seed ([`backend/prisma/seed.ts`](backend/prisma/seed.ts)) cria contas, três p
 
 ### 7. Contas de demonstração
 
-As contas com palavra-passe usam todas o valor de `SEED_DEMO_PASSWORD` que estava em `backend/.env` quando o seed as criou. A palavra-passe não está escrita em nenhum ficheiro do repositório. Os dados são fictícios.
+As contas com palavra-passe usam todas o valor de `SEED_DEMO_PASSWORD` que estava em `backend/.env` quando o seed as criou. A palavra-passe não está escrita em nenhum ficheiro do repositório. Os dados são fictícios. Na [demo online](#demo-online), as mesmas contas têm outra palavra-passe, a do seed (ou do script de reposição) corrido contra o Neon.
 
 | Conta | Estado | Projetos (função) |
 |---|---|---|
@@ -381,7 +402,7 @@ Abre `http://localhost:5173` (o endereço aparece no terminal) e entra com uma d
 | `frontend/` | `npm run build` | Verifica os tipos (`vue-tsc`) e compila para `dist/` |
 | `frontend/` | `E2E_PASSWORD=… npm run test:e2e` | Testes E2E de browser (Playwright, Chromium): entrar, abrir um projeto, criar uma tarefa e vê-la na listagem |
 
-Última execução destes comandos: 2026-11-19, sobre o commit `61e8d60`, todos com o código de saída 0 (lint e builds sem erros; backend 122 testes unitários e 253 de API; frontend 183 testes unitários e 1 E2E de browser). O registo está em [docs/verification.md §8.6](docs/verification.md#86-verificações-locais-da-versão-010-rc1-2026-11-19).
+Última execução destes comandos: 2026-11-19 (16:25–16:26 UTC), sobre o commit `addcab3` (o `main` com o script de reposição), todos com o código de saída 0 (lint e builds sem erros; backend 122 testes unitários e 257 de API; frontend 191 testes unitários e 1 E2E de browser). O registo está em [docs/verification.md §8.7](docs/verification.md#87-validação-final-da-versão-010-rc2-2026-11-19).
 
 Os testes de API nunca usam a base de dados de desenvolvimento: usam `matriz_test` (ou `TEST_DATABASE_URL`). Antes de cada execução, `backend/test/global-setup.ts` aplica as migrations a essa base, criando-a se não existir, e esvazia todas as tabelas. Recusa qualquer nome que não termine em `_test`. O frontend não tem lint configurado.
 
@@ -451,8 +472,10 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:3000/auth/logout -H "
 | [openapi.yaml](openapi.yaml) | Contrato da API do backend para o MVP (US01–US19, US22, US23, US31), versão 0.5.0 do contrato. A descrição indica as operações já implementadas e as que faltam. |
 | [AGENTS.md](AGENTS.md) | Instruções para agentes de IA que trabalhem no repositório. |
 | [CHANGELOG.md](CHANGELOG.md) | Alterações de cada versão (Semantic Versioning). |
+| [docs/releases/v0.1.0-rc.2.md](docs/releases/v0.1.0-rc.2.md) | Notas da versão candidata 0.1.0-rc.2 (atual): o que mudou desde a rc.1, o deploy e as limitações. |
 | [docs/releases/v0.1.0-rc.1.md](docs/releases/v0.1.0-rc.1.md) | Notas da versão candidata 0.1.0-rc.1: o que inclui, limitações e como atualizar. |
-| [docs/verification.md](docs/verification.md) | Verificação do MVP e da entrega com Docker e CI (secção 8). |
+| [docs/verification.md](docs/verification.md) | Verificação do MVP e da entrega com Docker, CI e deploy (secção 8). |
+| [docs/validation-report.md](docs/validation-report.md) | Relatório de validação final da entrega (Ficha 05, exercício 6). |
 | [compose.yaml](compose.yaml), [`backend/Dockerfile`](backend/Dockerfile), [`frontend/Dockerfile`](frontend/Dockerfile), [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Execução em containers e integração contínua. |
 
 Referências externas: [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.0/) (formato do `CHANGELOG.md`), [Semantic Versioning 2.0.0](https://semver.org/lang/pt-BR/) (versões), [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) (contrato) e [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) (Problem Details).

@@ -183,3 +183,15 @@ Decisão D10 (decisão interna, por validar, 2026-11-19). As definições e os c
 | Migrations e seed | Serviço `migrate` antes do backend | Correm a partir de uma máquina de desenvolvimento, **antes** do deploy do backend (o plano gratuito do Render não tem pre-deploy command) |
 
 O backend continua sem CORS, porque o frontend chama `/api` no seu próprio endereço. A alternativa (o frontend chamar o backend diretamente, com CORS) e as limitações do plano gratuito estão em D10.
+
+Configuração em uso desde 2026-11-19 (validação em [verification.md §8.8](verification.md#88-deploy-online-render-e-neon-2026-11-19)):
+
+| Ponto | Valor | Como se sabe |
+|---|---|---|
+| Endereços | Static Site `https://matriz-n1k9.onrender.com`; Web Service `https://matriz-api-xweh.onrender.com` | Pedidos da IA |
+| Sufixo do endereço | O Render juntou `-n1k9` e `-xweh` aos nomes `matriz` e `matriz-api`, porque já existiam noutras contas. A rewrite `/api/*` tem de usar o endereço do topo do Web Service, não o nome | Pedidos da IA |
+| Rewrite rules | `/api/*` → `https://matriz-api-xweh.onrender.com/*` e `/*` → `/index.html`, por esta ordem | Captura do painel e pedidos da IA |
+| Branch e deploy | `main`, com deploy automático só depois da CI ("After CI Checks Pass"); o Static Site publicou o `a5f09bb` | Branch e commit: captura do painel. Deploy depois da CI: deduzido das horas (a CI do `a5f09bb` acabou às 14:38 UTC e o deploy veio a seguir) |
+| Base de dados | Neon em Frankfurt (AWS `eu-central-1`); a API usa a URL pooled com `sslmode=verify-full` | Host da URL; parâmetro indicado pela programadora; `GET /health` → `database: up` |
+| Cabeçalho `Authorization` pelo rewrite | Passa: depois de entrar, o painel carrega os projetos | Validação manual da programadora |
+| Organização no Render | O Web Service está dentro do projeto "My project"; o Static Site fora de projetos | Capturas do painel |
