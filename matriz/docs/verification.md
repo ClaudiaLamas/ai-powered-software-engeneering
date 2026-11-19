@@ -397,9 +397,25 @@ Evidências do job `docker`, tiradas do log: `{"status":"ok","database":"up"}` a
 - **Correção:** o commit `5038367` reverte o `219c812`. Depois dele, o `npm test` local dá `Tests  122 passed (122)`.
 - **Contexto:** o PR #28 já tinha sido integrado e o ramo apagado no GitHub. O push voltou a criar o `aula05-entrega` no GitHub, e o `main` não foi afetado. A execução correu pelo evento `push`, sem PR.
 
+**Execução 5: pipeline depois da correção** ([44425060643](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44425060643), `pull_request` do PR #29, commit `1d4baa3`, que inclui a reversão `5038367`, 2026-11-18 23:57 → 2026-11-19 00:01 UTC): **passou**.
+
+| Job | Resultado | Duração |
+|---|---|---|
+| Backend (lint, build, testes unitários e de API) | Passou, com o teste "por omissão, 1 hora (D06)" outra vez com 3600 | 23:57:29 → 23:58:37 |
+| Frontend (tipos, build e testes unitários) | Passou | 23:57:29 → 23:58:17 |
+| Testes E2E de browser (Playwright, Chromium) | Passou | 23:57:29 → 23:58:45 |
+| Imagens Docker e arranque com Docker Compose | Passou; começou só depois dos três anteriores | 23:58:47 → 00:01:05 |
+
+- **Evidências do job `docker`,** tiradas do log:
+  - `{"status":"ok","database":"up"}` através do nginx;
+  - "Seed concluído: 27 criados, 0 já existiam.";
+  - `POST /api/auth/login → 200`.
+- **Ciclo da falha controlada:** fica completo. A pipeline passou (execução 3), falhou com um teste errado (execução 4) e voltou a passar depois da correção (execução 5).
+- **Outra execução sobre o mesmo commit:** o push do `1d4baa3` também lançou a execução [44425029678](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44425029678), com o evento `push`. Quando esta evidência foi registada (00:04 UTC), os jobs `backend` e `frontend` dessa execução tinham passado. O `e2e-browser` estava há cerca de 7 minutos no passo "Testes E2E", que na execução 5 demorou 1 min 16 s, e o timeout do job é de 20 minutos. A `concurrency` do workflow agrupa por `github.ref`, e o push (`refs/heads/aula05-entrega`) e o PR (`refs/pull/29/merge`) têm refs diferentes, por isso as duas execuções correm em paralelo.
+
 ### 8.5 Por verificar
 
 - **Healthcheck do frontend na CI:** o passo de verificação só espera que `/api/health` responda. Não espera que o container do frontend fique `healthy`.
-- **Pipeline depois da correção da falha controlada:** o commit `5038367` reverte o `219c812` e o `npm test` local voltou a 122 testes a passar. Falta ver a pipeline passar no GitHub sobre a reversão.
+- **Execução `push` 44425029678:** registar o resultado final. Quando se registou a execução 5, o `e2e-browser` desta execução estava há cerca de 7 minutos no passo "Testes E2E", muito mais do que o normal. Se falhar ou chegar ao timeout, é preciso perceber se os testes E2E são instáveis.
 - **Diagrama Mermaid do `architecture.md` §6:** a forma como aparece no GitHub ainda não foi vista.
 - **Entrada no navegador com uma conta de demonstração** na aplicação em containers: a entrada foi verificada pela API, através do nginx.
