@@ -87,6 +87,29 @@ describe('ProgressIndicator (US09, PN13)', () => {
     expect(wrapper.get('[data-test="progress-counts"]').text()).toBe('Por fazer: 1, Em curso: 0, Concluída: 3')
   })
 
+  it('a barra tem um segmento por estado: concluída, em curso e por fazer no resto', () => {
+    const wrapper = mount(ProgressIndicator, {
+      props: {
+        projectName: 'Site',
+        progress: { todo: 2, inProgress: 1, done: 1, total: 4, percentDone: 25 },
+      },
+    })
+    const bar = wrapper.get('[role="progressbar"]')
+    expect(bar.get('.progress-done').attributes('style')).toContain('width: 25%')
+    expect(bar.get('.progress-in-progress').attributes('style')).toContain('width: 25%')
+    expect(bar.find('.progress-todo').exists()).toBe(true)
+  })
+
+  it('sem tarefas por fazer, a barra não tem esse segmento', () => {
+    const wrapper = mount(ProgressIndicator, {
+      props: {
+        projectName: 'Site',
+        progress: { todo: 0, inProgress: 0, done: 2, total: 2, percentDone: 100 },
+      },
+    })
+    expect(wrapper.find('.progress-todo').exists()).toBe(false)
+  })
+
   it('sem tarefas, mostra só "Sem tarefas"', () => {
     const wrapper = mount(ProgressIndicator, {
       props: { projectName: 'Site', progress: { todo: 0, inProgress: 0, done: 0, total: 0, percentDone: null } },

@@ -5,6 +5,7 @@ import { ApiError } from '@/api/http'
 import { login } from '@/auth/auth-api'
 import { validateLogin } from '@/auth/login-validation'
 import AppButton from '@/components/AppButton.vue'
+import AppLogo from '@/components/AppLogo.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import FormField from '@/components/FormField.vue'
 import { safeRedirect } from '@/router/guard'
@@ -62,8 +63,8 @@ async function submit() {
 
 <template>
   <main class="page-narrow stack">
-    <h1>Matriz</h1>
-    <p v-if="sessionExpired && !error" role="status" class="notice">
+    <h1 class="login-brand"><AppLogo :size="64" />Matriz</h1>
+    <p v-if="sessionExpired && !error" role="status" class="notice notice-warning">
       A sessão expirou. Inicie sessão novamente.
     </p>
     <form class="stack" novalidate @submit.prevent="submit">
@@ -88,3 +89,14 @@ async function submit() {
     </form>
   </main>
 </template>
+
+<style scoped>
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: 2.75rem;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--space-2);
+}
+</style>

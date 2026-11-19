@@ -3,6 +3,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import { logout } from '@/auth/auth-api'
 import { session } from '@/auth/session'
 import AppButton from './AppButton.vue'
+import AppLogo from './AppLogo.vue'
 
 const router = useRouter()
 
@@ -15,7 +16,10 @@ async function signOut() {
 
 <template>
   <header class="topbar">
-    <RouterLink to="/" class="topbar-brand" aria-label="Matriz: ir para o painel">Matriz</RouterLink>
+    <RouterLink to="/" class="topbar-brand" aria-label="Matriz: ir para o painel">
+      <AppLogo :size="26" />
+      Matriz
+    </RouterLink>
     <span class="topbar-account">
       <span class="muted topbar-name">{{ session.account?.name }}</span>
       <AppButton @click="signOut">Sair</AppButton>
@@ -33,6 +37,10 @@ async function signOut() {
   border-bottom: 1px solid var(--color-border);
 }
 .topbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--color-heading);
   text-decoration: none;

@@ -387,7 +387,7 @@ watch(projectId, loadProject, { immediate: true })
           <h1>{{ project.name }}</h1>
           <ProjectStatusBadge :status="project.status" />
         </div>
-        <p v-if="project.status === 'ARCHIVED'" class="notice">
+        <p v-if="project.status === 'ARCHIVED'" class="notice notice-warning">
           Projeto arquivado: as tarefas não podem ser alteradas.
         </p>
         <p v-if="project.description" class="project-description">{{ project.description }}</p>
@@ -421,7 +421,7 @@ watch(projectId, loadProject, { immediate: true })
         />
       </section>
 
-      <p v-if="notice" role="status" class="notice">{{ notice }}</p>
+      <p v-if="notice" role="status" class="notice notice-success">{{ notice }}</p>
       <ErrorMessage v-if="statusError" :message="statusError" />
 
       <details class="card team">
@@ -436,7 +436,7 @@ watch(projectId, loadProject, { immediate: true })
 
       <section v-if="canManage" class="card stack" aria-labelledby="new-task-title">
         <h2 id="new-task-title">Nova tarefa</h2>
-        <p v-if="createdMessage" role="status" class="notice">{{ createdMessage }}</p>
+        <p v-if="createdMessage" role="status" class="notice notice-success">{{ createdMessage }}</p>
         <ErrorMessage v-if="assignableError" :message="assignableError" />
         <TaskForm
           ref="taskForm"

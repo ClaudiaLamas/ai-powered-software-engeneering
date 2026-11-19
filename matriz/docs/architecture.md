@@ -2,7 +2,7 @@
 
 Este ficheiro regista a decisão de arquitetura do MVP (decisão D07 em [constraints.md](constraints.md#4-decisões-técnicas)). É uma **decisão interna, por validar**, tomada com base nos documentos de especificação: [requirements.md](requirements.md), [user-stories.md](user-stories.md), [constraints.md](constraints.md) e [AGENTS.md](../AGENTS.md).
 
-A tecnologia foi decidida depois (D01–D06, D08 e D09, ver [constraints.md](constraints.md#4-decisões-técnicas)): aplicação web responsiva em Vue.js, backend em NestJS, tudo em TypeScript, PostgreSQL com Prisma, autenticação com JWT, execução local com Docker e emails locais com Mailpit.
+A tecnologia foi decidida depois (D01–D06, D08, D09 e D10, ver [constraints.md](constraints.md#4-decisões-técnicas)): aplicação web responsiva em Vue.js, backend em NestJS, tudo em TypeScript, PostgreSQL com Prisma, autenticação com JWT, execução local com Docker, emails locais com Mailpit e deploy no Render, com o PostgreSQL no Neon.
 
 ## 1. Contexto relevante para a decisão
 
@@ -123,9 +123,10 @@ Regras para manter as dependências sem ciclos:
 | Base de dados (D04) | Os dados são fortemente relacionados (contas, projetos, funções, tarefas) e têm regras de integridade (um Gestor por projeto, responsável membro do projeto), o que aponta para uma base de dados relacional. **Decidido:** PostgreSQL, com Prisma como ORM e UUID como identificadores (decisão interna, por validar). |
 | Autenticação (D06) | **Decidido** (decisão interna, por validar): JWT no cabeçalho `Authorization: Bearer ...`, com `@nestjs/jwt` e Passport; palavras-passe guardadas como hash bcrypt (`bcryptjs`). Em cada pedido, o backend lê a conta na base de dados e recusa o token de uma conta desativada, mesmo antes de expirar (decisão interna, 2026-11-09). O módulo Autenticação e contas isola a forma de autenticar; se a empresa usar um sistema de identidade próprio, a mudança fica contida nesse módulo. |
 | Linguagens e frameworks (D02, D03) | **Decidido** (decisão interna, por validar): TypeScript; NestJS no backend e Vue.js no frontend. |
-| Alojamento (D05) | **Decidido** (decisão interna, por validar): execução local, com o PostgreSQL num container Docker (`compose.yaml`); desde 2026-11-18, também a aplicação completa em containers (secção 6). O deploy fica como extensão futura. |
+| Alojamento (D05) | **Decidido** (decisão interna, por validar): execução local, com o PostgreSQL num container Docker (`compose.yaml`); desde 2026-11-18, também a aplicação completa em containers (secção 6). O deploy foi decidido depois, em D10 (secção 7). |
 | Testes (D08) | **Decidido** (decisão interna, por validar): Vitest no backend e no frontend; Supertest nos testes de API; Playwright (só Chromium) nos testes E2E de browser do frontend. |
 | Envio de email (D09) | **Decidido** (decisão interna, por validar), **planeado e não implementado**: na execução local, os emails de ativação (DE15) irão para um container Mailpit no `compose.yaml`, que os mostra numa página local. Entra com o incremento 2; na versão 0.1.0-rc.1 o Mailpit não está no `compose.yaml` e nenhum código envia emails. O envio real fica com o deploy. |
+| Deploy (D10) | **Decidido** (decisão interna, por validar, 2026-11-19): Render (frontend como Static Site, backend como Web Service Docker) e PostgreSQL no Neon (secção 7). O envio real de email continua por decidir. |
 | Validação | Esta decisão tem de ser revista se o cliente indicar uma escala muito maior do que RNF01 ou integrações com outras ferramentas (FN25). |
 
 ## 6. Execução com Docker Compose
@@ -169,3 +170,16 @@ Decisões e razões:
 - **Sem Mailpit por agora.** O D09 prevê-o para os emails de ativação, que só entram com o incremento 2: está planeado e não implementado. Ainda nenhum código envia emails.
 
 Estado na versão 0.1.0-rc.1 (2026-11-19): os módulos `accounts` (só a entrada, a saída e a conta atual), `authorization`, `projects` (sem a gestão da equipa nem a troca de Gestor), `tasks` (sem os pedidos de responsável), `progress` e `audit` (só o registo, sem a consulta) existem no código, com a infraestrutura `prisma`, `health` e `common`. O que falta está no [README](../README.md#funcionalidades-implementadas) e em [implementation-plan.md](implementation-plan.md).
+
+## 7. Deploy (Render e Neon)
+
+Decisão D10 (decisão interna, por validar, 2026-11-19). As definições e os comandos estão no [README](../README.md#deploy). Os componentes são os da secção 6, com estas diferenças:
+
+| Componente | Execução com Docker Compose (secção 6) | Deploy (D10) |
+|---|---|---|
+| Frontend | nginx serve `dist/` e encaminha `/api` | Static Site do Render: serve `dist/`; as rewrite rules `/api/*` (para o backend, sem o prefixo) e `/*` (para `/index.html`) fazem o que o nginx faz |
+| Backend | `backend/Dockerfile`, fase `runtime` | O mesmo Dockerfile num Web Service do Render; o Render constrói a última fase (`runtime`) e verifica `GET /health` |
+| Base de dados | `postgres` no `compose.yaml` | Neon: a API usa a URL pooled e as migrations usam a URL direct |
+| Migrations e seed | Serviço `migrate` antes do backend | Correm a partir de uma máquina de desenvolvimento, **antes** do deploy do backend (o plano gratuito do Render não tem pre-deploy command) |
+
+O backend continua sem CORS, porque o frontend chama `/api` no seu próprio endereço. A alternativa (o frontend chamar o backend diretamente, com CORS) e as limitações do plano gratuito estão em D10.
