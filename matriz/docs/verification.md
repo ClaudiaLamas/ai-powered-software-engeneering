@@ -411,11 +411,21 @@ Evidências do job `docker`, tiradas do log: `{"status":"ok","database":"up"}` a
   - "Seed concluído: 27 criados, 0 já existiam.";
   - `POST /api/auth/login → 200`.
 - **Ciclo da falha controlada:** fica completo. A pipeline passou (execução 3), falhou com um teste errado (execução 4) e voltou a passar depois da correção (execução 5).
-- **Outra execução sobre o mesmo commit:** o push do `1d4baa3` também lançou a execução [44425029678](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44425029678), com o evento `push`. Quando esta evidência foi registada (00:04 UTC), os jobs `backend` e `frontend` dessa execução tinham passado. O `e2e-browser` estava há cerca de 7 minutos no passo "Testes E2E", que na execução 5 demorou 1 min 16 s, e o timeout do job é de 20 minutos. A `concurrency` do workflow agrupa por `github.ref`, e o push (`refs/heads/aula05-entrega`) e o PR (`refs/pull/29/merge`) têm refs diferentes, por isso as duas execuções correm em paralelo.
+**Outra execução sobre o mesmo commit** ([44425029678](https://github.com/ClaudiaLamas/ai-powered-software-engeneering/actions/runs/44425029678), evento `push` do `1d4baa3`, 23:57:14 → 00:06:56 UTC): **passou nos quatro jobs**. Correu em paralelo com a execução 5: a `concurrency` do workflow agrupa por `github.ref`, e o push (`refs/heads/aula05-entrega`) e o PR (`refs/pull/29/merge`) têm refs diferentes.
+
+O `e2e-browser` desta execução demorou 7 min 21 s, contra 1 min 16 s na execução 5. O tempo a mais foi todo na instalação; os testes demoraram o mesmo nas duas execuções:
+
+| Passo do `e2e-browser` | Execução `push` (44425029678) | Execução 5 (44425060643) |
+|---|---|---|
+| Dependências do frontend e Chromium (`npm ci` + `npx playwright install --with-deps chromium`) | **6 min 26 s** (23:57:50 → 00:04:16) | 22 s (23:58:02 → 23:58:24) |
+| Testes E2E | 16 s (00:04:16 → 00:04:32) | 17 s (23:58:24 → 23:58:41) |
+
+- **Não indica testes instáveis.** A causa da demora não aparece no log. O mais provável é um download lento do Chromium ou dos pacotes do sistema no runner.
+- **Correção deste registo:** uma primeira versão desta secção (commit `1cbde4d`) dizia que o passo lento era "Testes E2E" e punha a hipótese de os testes serem instáveis. Estava errado: o passo que ainda corria era a instalação.
 
 ### 8.5 Por verificar
 
 - **Healthcheck do frontend na CI:** o passo de verificação só espera que `/api/health` responda. Não espera que o container do frontend fique `healthy`.
-- **Execução `push` 44425029678:** registar o resultado final. Quando se registou a execução 5, o `e2e-browser` desta execução estava há cerca de 7 minutos no passo "Testes E2E", muito mais do que o normal. Se falhar ou chegar ao timeout, é preciso perceber se os testes E2E são instáveis.
+- **Duração da instalação do Chromium na CI:** numa execução demorou 6 min 26 s, noutra 22 s (§8.4, execução 5). Se voltar a acontecer, pode valer a pena guardar os browsers do Playwright em cache. Não foi decidido.
 - **Diagrama Mermaid do `architecture.md` §6:** a forma como aparece no GitHub ainda não foi vista.
 - **Entrada no navegador com uma conta de demonstração** na aplicação em containers: a entrada foi verificada pela API, através do nginx.
