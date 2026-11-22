@@ -80,6 +80,9 @@ Os cenários do incremento 9 de [implementation-plan.md](implementation-plan.md)
 | P5 | Sem projetos | Entrar com o Administrador | "Ainda não participa em nenhum projeto." | Administrador: "Os meus projetos" com "Ainda não participa em nenhum projeto." | Executado e observado pela IA no navegador da app Claude (2026-11-15): texto do painel lido na página. | Passou |
 | P6 | Erro ao carregar | Parar o backend e abrir o painel; voltar a arrancá-lo e carregar em "Tentar outra vez" | Mensagem de erro; depois, os projetos carregam | Com o backend parado, abrir o painel mostrou "Não foi possível carregar os seus projetos. Tente outra vez." e o botão "Tentar outra vez". Depois de o backend voltar a arrancar, "Tentar outra vez" carregou os projetos ("Olá, Ana Silva" e os dois cartões). | Executado e observado pela IA no navegador da app Claude (2026-11-15), com o backend parado pela programadora: `GET /api/health` → `502` antes e `200` depois; textos lidos na página. | Passou |
 | P7 | Wireframe | Comparar com o ecrã 1 de `docs/ui/dashboard-wireframe.html`, em computador e telemóvel | Mesma informação e organização; sem deslocação horizontal | Comparado com o ecrã 1 de `docs/ui/dashboard-wireframe.html`: "Os meus projetos" com um cartão por projeto com nome, função, percentagem, barra e contagens; "Sem tarefas" e "Arquivado (só de leitura)" como no wireframe (vistos em P3 e P4). Diferenças (numeradas na comparação): (1) o wireframe mostra "Administração" no cabeçalho para quem tem permissão de Administrador; com a sessão do Administrador, o cabeçalho tem só "Matriz", "Administrador da Matriz" e "Sair", porque a área de administração ainda não existe (incremento 8); (2) a aplicação mostra a saudação e o email no topo do painel, que o wireframe não tem. A 375px, a largura da página é 375px: sem deslocação horizontal. | Executado e observado pela IA no navegador da app Claude (2026-11-15), com o tamanho de telemóvel emulado (375×812) e em computador: textos lidos e `scrollWidth` medido. [Comparação com o wireframe](evidence/p7-j10-wireframe-vs-aplicacao.png) (capturas da IA no navegador da app e do wireframe). | Passou (com as diferenças 1 e 2) |
+| P8 | Resumo e data (0.1.0-rc.2) | Entrar com a Ana | Data de hoje por cima de "Olá, …"; "Resumo dos projetos ativos" com projetos ativos e tarefas por estado, somados sobre os projetos ativos | Ana (base dos testes E2E, com uma tarefa criada no teste): "Quinta-feira, 19 de novembro", "Olá, Ana Silva" e o resumo 2 projetos ativos, 3 por fazer, 2 em curso, 2 concluída, igual à soma dos dois cartões (1/1/1 e 2/1/1). | Executado pela IA com o Playwright (2026-11-19), capturas nos temas claro e escuro e a 375px; teste unitário `DashboardView.spec.ts`. | Passou |
+| P9 | Arquivados à parte (0.1.0-rc.2) | Entrar com uma conta que participe num projeto arquivado | Os arquivados numa secção "Arquivados", depois dos ativos, com "Arquivado (só de leitura)" | Não observado no navegador: no seed, nenhuma conta ativa participa num projeto arquivado. Coberto pelos testes unitários `DashboardView.spec.ts` (secções e "Não tem projetos ativos."). | Teste unitário. | Por verificar no navegador |
+| P10 | Contraste e temas (0.1.0-rc.2) | Abrir o ecrã de entrada, o painel, um projeto e uma tarefa nos temas claro e escuro | Texto ≥ 4,5:1 e bordas de campos ≥ 3:1 nos dois temas | Medido pela IA no Chromium com as cores calculadas pelo navegador: destaque 5,38:1 (claro) e 7,27:1 (escuro); bordas dos campos 3,58–3,84:1 e 4,11–4,57:1; texto secundário 6,38:1 e 8,30:1; pior caso sobre o fundo mais escuro: 4,67:1, 3,33:1 e 5,53:1 (claro). | Executado pela IA com o Playwright (2026-11-19). | Passou |
 
 ### 2.4 Projeto (`/projetos/:id`) 📱
 
@@ -428,6 +431,8 @@ O `e2e-browser` desta execução demorou 7 min 21 s, contra 1 min 16 s na execu�
 - **Healthcheck do frontend na CI:** o passo de verificação só espera que `/api/health` responda. Não espera que o container do frontend fique `healthy`.
 - **Duração da instalação do Chromium na CI:** numa execução demorou 6 min 26 s, noutra 22 s (§8.4, execução 5). Se voltar a acontecer, pode valer a pena guardar os browsers do Playwright em cache. Não foi decidido.
 - **Diagrama Mermaid do `architecture.md` §6:** a forma como aparece no GitHub ainda não foi vista.
+- **Entrada pela API na aplicação em containers da 0.1.0-rc.2** (§8.7): não foi repetida com uma conta de demonstração, porque a palavra-passe local não é usada pela IA. As rotas, os rewrites do nginx e as respostas da API foram verificados; a entrada com conta foi verificada pelo teste E2E (base própria) e online (§8.8).
+- **Online, ainda não testado:** entrar com o Bruno (Membro), as contas pendente e desativada, comentários, edição e arquivo do projeto, e a secção "Arquivados" do painel (P9).
 - ~~**Entrada no navegador com uma conta de demonstração** na aplicação em containers: a entrada foi verificada pela API, através do nginx.~~ **Verificado pela programadora a 2026-11-18** (manual, no navegador; não foi a IA). Com a aplicação em containers (`docker compose up -d`):
   - entrou no navegador em `http://localhost:8088`;
   - criou uma tarefa e mudou-lhe o estado;
@@ -448,3 +453,65 @@ Executadas pela IA (Claude Code) a 2026-11-19 (00:29–00:30 UTC), sobre o commi
 | `frontend/` | `npm run test:e2e` | 1 teste (`create-task.spec.ts`: a Gestora entra, abre o projeto, cria uma tarefa e vê-a em "Por fazer"): passou |
 
 O §8.3 regista 121 testes unitários no backend e a execução 4 do §8.4 regista 122 depois da reversão `5038367`; esta execução confirma 122. A diferença é o teste que o commit `afeca0d` acrescentou a `backend/src/accounts/jwt-config.spec.ts` (mensagem do `JWT_SECRET` em falta), feito depois das verificações do §8.3. Não foram corridos nesta data: a aplicação em containers e a pipeline no GitHub (ver §8.1, §8.2 e §8.4).
+
+### 8.7 Validação final da versão 0.1.0-rc.2 (2026-11-19)
+
+Executada pela IA (Claude Code) a 2026-11-19, entre as 16:25 e as 16:28 UTC, sobre o commit `addcab3` do ramo `entrega-rc2` (o `main` em `a5f09bb` mais o script de reposição), antes de a versão dos `package.json` passar a `0.1.0-rc.2`. Ambiente: Node.js v26.13.0, npm 11.20.0, Docker 29.9.3, Compose 2.40.3. A `E2E_PASSWORD` foi gerada na shell (`openssl rand -hex 16`) e não ficou escrita em nenhum ficheiro.
+
+**Verificações locais (as mesmas da CI)**
+
+| Onde | Comando | Resultado |
+|---|---|---|
+| `backend/` | `npm run lint` | Sem mensagens; código de saída 0 |
+| `backend/` | `npm run build` | Ok; código de saída 0 |
+| `backend/` | `npm test` | 11 ficheiros, 122 testes: todos passaram |
+| `backend/` | `npm run test:e2e` | 9 ficheiros, 257 testes: todos passaram (mais 4 do que na rc.1: `test/demo-passwords.e2e-spec.ts`) |
+| `frontend/` | `npm run build` | Ok (`vue-tsc` e Vite); código de saída 0 |
+| `frontend/` | `npm run test:unit -- --run` | 19 ficheiros, 191 testes: todos passaram (mais 8 do que na rc.1: painel e barra de progresso) |
+| `frontend/` | `npm run test:e2e` | 1 teste (`create-task.spec.ts`): passou |
+
+**Aplicação em containers (`docker compose up -d --build`, `FRONTEND_PORT=8088`)**
+
+| Verificação | Resultado |
+|---|---|
+| `docker compose config -q` | Ok |
+| `docker compose up -d --build` | Código de saída 0. `migrate`: `Exited (0)` ("No pending migrations to apply."); `backend`, `frontend` e `postgres`: `healthy` (`docker compose ps -a`) |
+| Imagens | `matriz-backend` 571 MB, `matriz-backend-tools` 886 MB, `matriz-frontend` 60,3 MB |
+| `GET /api/health` | `200 {"status":"ok","database":"up"}` |
+| `GET /`, `GET /projetos/x`, `GET /entrar` | `200` HTML (fallback para o `index.html`) |
+| `GET /favicon.svg` | `200 image/svg+xml` (o logótipo da rc.2) |
+| `GET /api/me` sem token | `401` em Problem Details |
+| `POST /api/auth/login` com corpo vazio | `400 VALIDATION_ERROR` em Problem Details |
+| Logs (`docker compose logs backend frontend migrate`) | Sem erros nem avisos |
+
+Não foi repetida a persistência depois de `docker compose down` (§8.2, 2026-11-18): o volume e o `compose.yaml` não mudaram desde então.
+
+### 8.8 Deploy online (Render e Neon, 2026-11-19)
+
+Configuração em [architecture.md §7](architecture.md#7-deploy-render-e-neon) e no [README, "Deploy"](../README.md#deploy). Endereços: <https://matriz-n1k9.onrender.com> (Static Site) e <https://matriz-api-xweh.onrender.com> (Web Service).
+
+**Pedidos da IA** (`curl`, 2026-11-19 entre as 16:27 e as 16:28 UTC, depois do deploy do `a5f09bb`):
+
+| Pedido | Resultado |
+|---|---|
+| `GET` backend `/health` | `200 {"status":"ok","database":"up"}`, em 24,4 s (o serviço gratuito estava parado) |
+| `GET` frontend `/api/health` | `200` JSON: o rewrite 1 encaminha para o backend |
+| `GET` frontend `/` e `/projetos/x` | `200` HTML: o rewrite 2 serve a aplicação nas rotas da SPA |
+| `GET` frontend `/favicon.svg` | `200 image/svg+xml` |
+| `GET` frontend `/api/me` sem token | `401` em Problem Details |
+| `POST` frontend `/api/auth/login` com corpo vazio | `400` em Problem Details |
+| JavaScript publicado | Contém o painel da rc.2 ("Resumo dos projetos ativos") |
+
+**Validação manual da programadora** (no navegador, 2026-11-19): `/health` responde; entrar com uma conta de demonstração; o painel mostra os projetos (o cabeçalho `Authorization` passa pelo rewrite); criar uma tarefa e mudar-lhe o estado; abrir diretamente um link `/projetos/...` sem 404.
+
+**Problemas encontrados e correções**
+
+| Problema | Causa | Correção | Fonte |
+|---|---|---|---|
+| Base de dados noutra região | O projeto Neon foi criado primeiro em US East 2 | Recriado em Frankfurt (AWS `eu-central-1`) | Programadora |
+| Publish Directory errado no Static Site | Estava `.dist` em vez de `dist` (a pasta que o `vite build` cria) | Corrigido para `dist` | Programadora |
+| Login: "Não foi possível contactar o servidor" | O Static Site não tinha nenhuma rewrite rule: `/api/health` e `/projetos/abc` davam `404` | Criadas as duas regras, por esta ordem: `/api/*` → `https://matriz-api-xweh.onrender.com/*` e `/*` → `/index.html` | IA (pedidos antes e depois) |
+| O endereço do backend não era `matriz-api.onrender.com` | O Render juntou o sufixo `-xweh`, porque o nome já existia noutra conta; `matriz-api.onrender.com` é outro serviço (sem resposta em 90 s) | Usar o endereço do topo do Web Service; nota no README, "Deploy" | IA |
+| O Web Service não aparecia na lista de serviços | Estava dentro do projeto "My project" do Render | Nenhuma: só a forma de o encontrar | Programadora e IA |
+| Login: "O email ou a palavra-passe estão errados" | O seed tinha corrido no Neon com uma palavra-passe que se perdeu; voltar a correr o seed não a muda ("0 criados, 27 já existiam") | `backend/prisma/reset-demo-passwords.ts` (com o URL direct do Neon); depois, a entrada online funcionou (validação manual acima) | Programadora e IA |
+
